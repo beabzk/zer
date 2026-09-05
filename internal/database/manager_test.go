@@ -219,3 +219,35 @@ func TestMigrationsAreIdempotent(t *testing.T) {
 		t.Fatalf("reopen tree: %v", err)
 	}
 }
+
+func TestDropTree(t *testing.T) {
+	ctx := context.Background()
+	m := NewManager(scratchDir(t))
+	defer m.Close()
+
+	db, err := m.Tree(ctx, "gone")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO individuals (id, given_name_native, given_name_latin, gender)
+		VALUES ('p1', 'native', 'latin', 'MALE')`); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.DropTree("gone"); err != nil {
+		t.Fatal(err)
+	}
+	fresh, err := m.Tree(ctx, "gone")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var count int
+	if err := fresh.QueryRowContext(ctx, `SELECT COUNT(*) FROM individuals`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Errorf("reopened tree holds %d rows, want fresh database", count)
+	}
+	if err := m.DropTree("../evil"); err == nil {
+		t.Error("expected error for invalid tree id")
+	}
+}
