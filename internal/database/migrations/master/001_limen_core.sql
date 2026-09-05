@@ -9,8 +9,8 @@ CREATE TABLE users (
     email_verified_at TEXT,
     first_name TEXT,
     last_name TEXT,
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now')),
+    updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f', 'now'))
 );
 CREATE UNIQUE INDEX idx_users_email ON users(email);
 
