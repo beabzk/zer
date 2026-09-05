@@ -63,7 +63,7 @@ func (d Deps) handleCreateIndividual(w http.ResponseWriter, r *http.Request) {
 		strings.Join(cols, ", "), placeholders)
 	args := append([]any{id}, vals...)
 	if _, err := db.ExecContext(r.Context(), query, args...); err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	d.respondIndividual(w, r, db, id)
@@ -100,7 +100,7 @@ func (d Deps) handleListIndividuals(w http.ResponseWriter, r *http.Request) {
 	}
 	rows, err := db.QueryContext(r.Context(), query, args...)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	var ids []string
@@ -108,14 +108,14 @@ func (d Deps) handleListIndividuals(w http.ResponseWriter, r *http.Request) {
 		var id string
 		if err := rows.Scan(&id); err != nil {
 			rows.Close()
-			writeError(w, http.StatusInternalServerError, "storage unavailable")
+			writeInternalError(w, r, err)
 			return
 		}
 		ids = append(ids, id)
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	// IDs resolve after the rows close because the pool holds a single
@@ -169,7 +169,7 @@ func (d Deps) handleUpdateIndividual(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err := db.ExecContext(r.Context(),
 		`UPDATE individuals SET `+strings.Join(set, ", ")+` WHERE id = ?`, vals...); err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	d.respondIndividual(w, r, db, id)
@@ -183,7 +183,7 @@ func (d Deps) handleDeleteIndividual(w http.ResponseWriter, r *http.Request) {
 	res, err := db.ExecContext(r.Context(),
 		`DELETE FROM individuals WHERE id = ?`, chi.URLParam(r, "id"))
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	n, _ := res.RowsAffected()
@@ -216,7 +216,7 @@ func (d Deps) respondIndividual(w http.ResponseWriter, r *http.Request, db *sql.
 			writeError(w, http.StatusNotFound, "individual not found")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	row = make(map[string]any, len(cols)+2)
@@ -225,12 +225,12 @@ func (d Deps) respondIndividual(w http.ResponseWriter, r *http.Request, db *sql.
 	}
 	native, err := lineage.SynthesizeFullName(r.Context(), db, id, depth, lineage.ScriptNative, false)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	latin, err := lineage.SynthesizeFullName(r.Context(), db, id, depth, lineage.ScriptLatin, false)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	row["full_native"] = native
@@ -238,7 +238,7 @@ func (d Deps) respondIndividual(w http.ResponseWriter, r *http.Request, db *sql.
 	if withTitles {
 		titled, err := lineage.SynthesizeFullName(r.Context(), db, id, depth, lineage.ScriptLatin, true)
 		if err != nil {
-			writeError(w, http.StatusInternalServerError, "storage unavailable")
+			writeInternalError(w, r, err)
 			return
 		}
 		row["display_name"] = titled

@@ -31,14 +31,14 @@ func (d Deps) handleAdminStatus(w http.ResponseWriter, r *http.Request) {
 func (d Deps) handleAdminListUsers(w http.ResponseWriter, r *http.Request) {
 	master, err := d.Manager.Master(r.Context())
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	rows, err := master.QueryContext(r.Context(),
 		`SELECT id, email, email_verified_at, first_name, last_name, created_at
 		FROM users ORDER BY created_at`)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	defer rows.Close()
@@ -48,7 +48,7 @@ func (d Deps) handleAdminListUsers(w http.ResponseWriter, r *http.Request) {
 		var email, created string
 		var verified, first, last sql.NullString
 		if err := rows.Scan(&id, &email, &verified, &first, &last, &created); err != nil {
-			writeError(w, http.StatusInternalServerError, "storage unavailable")
+			writeInternalError(w, r, err)
 			return
 		}
 		users = append(users, map[string]any{
@@ -60,7 +60,7 @@ func (d Deps) handleAdminListUsers(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	if err := rows.Err(); err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, users)
@@ -76,7 +76,7 @@ func nullString(v sql.NullString) any {
 func (d Deps) handleAdminListTrees(w http.ResponseWriter, r *http.Request) {
 	master, err := d.Manager.Master(r.Context())
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	rows, err := master.QueryContext(r.Context(),
@@ -84,7 +84,7 @@ func (d Deps) handleAdminListTrees(w http.ResponseWriter, r *http.Request) {
 			(SELECT COUNT(*) FROM tree_members m WHERE m.tree_id = t.id) AS members
 		FROM trees t ORDER BY t.name`)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	defer rows.Close()
@@ -93,7 +93,7 @@ func (d Deps) handleAdminListTrees(w http.ResponseWriter, r *http.Request) {
 		var id, name, slug, lang, created string
 		var members int
 		if err := rows.Scan(&id, &name, &slug, &lang, &created, &members); err != nil {
-			writeError(w, http.StatusInternalServerError, "storage unavailable")
+			writeInternalError(w, r, err)
 			return
 		}
 		trees = append(trees, map[string]any{
@@ -102,7 +102,7 @@ func (d Deps) handleAdminListTrees(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	if err := rows.Err(); err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, trees)
@@ -112,12 +112,12 @@ func (d Deps) handleAdminDeleteTree(w http.ResponseWriter, r *http.Request) {
 	treeID := chi.URLParam(r, "treeID")
 	master, err := d.Manager.Master(r.Context())
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	res, err := master.ExecContext(r.Context(), `DELETE FROM trees WHERE id = ?`, treeID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	n, _ := res.RowsAffected()
@@ -126,7 +126,7 @@ func (d Deps) handleAdminDeleteTree(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := d.Manager.DropTree(treeID); err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -149,12 +149,12 @@ func (d Deps) handleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 	master, err := d.Manager.Master(r.Context())
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	tx, err := master.Begin()
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	defer tx.Rollback()
@@ -168,13 +168,13 @@ func (d Deps) handleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
 		{`UPDATE trees SET created_by = NULL WHERE created_by = ?`, []any{target}},
 	} {
 		if _, err := tx.ExecContext(r.Context(), stmt.query, stmt.args...); err != nil {
-			writeError(w, http.StatusInternalServerError, "storage unavailable")
+			writeInternalError(w, r, err)
 			return
 		}
 	}
 	res, err := tx.ExecContext(r.Context(), `DELETE FROM users WHERE id = ?`, target)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	n, _ := res.RowsAffected()
@@ -183,7 +183,7 @@ func (d Deps) handleAdminDeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := tx.Commit(); err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

@@ -67,7 +67,7 @@ func (d Deps) handleLineage(w http.ResponseWriter, r *http.Request) {
 			rows, err := db.QueryContext(r.Context(),
 				`SELECT `+column+` FROM parent_child WHERE `+matchCol+` = ?`, n.ID)
 			if err != nil {
-				writeError(w, http.StatusInternalServerError, "storage unavailable")
+				writeInternalError(w, r, err)
 				return
 			}
 			var ids []string
@@ -75,7 +75,7 @@ func (d Deps) handleLineage(w http.ResponseWriter, r *http.Request) {
 				var id string
 				if err := rows.Scan(&id); err != nil {
 					rows.Close()
-					writeError(w, http.StatusInternalServerError, "storage unavailable")
+					writeInternalError(w, r, err)
 					return
 				}
 				ids = append(ids, id)
@@ -139,14 +139,14 @@ func (d Deps) handleSubgraph(w http.ResponseWriter, r *http.Request) {
 			} {
 				rows, err := db.QueryContext(r.Context(), q, id)
 				if err != nil {
-					writeError(w, http.StatusInternalServerError, "storage unavailable")
+					writeInternalError(w, r, err)
 					return
 				}
 				for rows.Next() {
 					var other string
 					if err := rows.Scan(&other); err != nil {
 						rows.Close()
-						writeError(w, http.StatusInternalServerError, "storage unavailable")
+						writeInternalError(w, r, err)
 						return
 					}
 					if !visited[other] {
@@ -159,14 +159,14 @@ func (d Deps) handleSubgraph(w http.ResponseWriter, r *http.Request) {
 			unionRows, err := db.QueryContext(r.Context(),
 				`SELECT partner_a_id, partner_b_id FROM unions WHERE partner_a_id = ? OR partner_b_id = ?`, id, id)
 			if err != nil {
-				writeError(w, http.StatusInternalServerError, "storage unavailable")
+				writeInternalError(w, r, err)
 				return
 			}
 			for unionRows.Next() {
 				var a, b string
 				if err := unionRows.Scan(&a, &b); err != nil {
 					unionRows.Close()
-					writeError(w, http.StatusInternalServerError, "storage unavailable")
+					writeInternalError(w, r, err)
 					return
 				}
 				other := a
