@@ -20,9 +20,13 @@ import (
 )
 
 func stubSession(userID int64) func(http.Handler) http.Handler {
+	return stubSessionAs(userID, "test@example.com")
+}
+
+func stubSessionAs(userID int64, email string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			session := &limen.ValidatedSession{User: &limen.User{ID: userID, Email: "test@example.com"}}
+			session := &limen.ValidatedSession{User: &limen.User{ID: userID, Email: email}}
 			next.ServeHTTP(w, r.WithContext(auth.ContextWithSession(r.Context(), session)))
 		})
 	}

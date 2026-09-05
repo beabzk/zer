@@ -29,11 +29,13 @@ type individualBody struct {
 	BirthDateGC          string   `json:"birth_date_gc"`
 	BirthPlace           string   `json:"birth_place"`
 	BirthNote            string   `json:"birth_note"`
+	ClearBirthDate       bool     `json:"clear_birth_date"`
 	IsDeceased           bool     `json:"is_deceased"`
 	DeathYearEC          *int     `json:"death_year_ec"`
 	DeathMonthEC         *int     `json:"death_month_ec"`
 	DeathDayEC           *int     `json:"death_day_ec"`
 	DeathDateGC          string   `json:"death_date_gc"`
+	ClearDeathDate       bool     `json:"clear_death_date"`
 	DeathPlace           string   `json:"death_place"`
 	DeathNote            string   `json:"death_note"`
 	ProfilePhotoURL      string   `json:"profile_photo_url"`
@@ -73,6 +75,63 @@ func (d Deps) handleGetIndividual(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	d.respondIndividual(w, r, db, chi.URLParam(r, "id"))
+}
+
+// handleListIndividuals searches people by name fragment for pickers and
+// lists. Results carry synthesized names at depth 3.
+func (d Deps) handleListIndividuals(w http.ResponseWriter, r *http.Request) {
+	db, _, ok := treeDB(w, r, d)
+	if !ok {
+		return
+	}
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	limit := queryDepth(r, 50)
+	if limit > 200 {
+		limit = 200
+	}
+	query := `SELECT id FROM individuals ORDER BY created_at LIMIT ?`
+	args := []any{limit}
+	if q != "" {
+		like := "%" + q + "%"
+		query = `SELECT id FROM individuals
+			WHERE given_name_native LIKE ? OR given_name_latin LIKE ?
+			ORDER BY created_at LIMIT ?`
+		args = []any{like, like, limit}
+	}
+	rows, err := db.QueryContext(r.Context(), query, args...)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		return
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			writeError(w, http.StatusInternalServerError, "storage unavailable")
+			return
+		}
+		ids = append(ids, id)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		return
+	}
+	// IDs resolve after the rows close because the pool holds a single
+	// connection and nested queries would deadlock.
+	out := []map[string]any{}
+	for _, id := range ids {
+		native, _ := lineage.SynthesizeFullName(r.Context(), db, id, 3, lineage.ScriptNative, false)
+		latin, _ := lineage.SynthesizeFullName(r.Context(), db, id, 3, lineage.ScriptLatin, false)
+		var gender string
+		_ = db.QueryRowContext(r.Context(),
+			`SELECT gender FROM individuals WHERE id = ?`, id).Scan(&gender)
+		out = append(out, map[string]any{
+			"id": id, "full_native": native, "full_latin": latin, "gender": gender,
+		})
+	}
+	writeJSON(w, http.StatusOK, out)
 }
 
 func (d Deps) handleUpdateIndividual(w http.ResponseWriter, r *http.Request) {
@@ -226,22 +285,13 @@ func individualColumns(body individualBody, create bool) ([]string, []any, error
 	if body.TitlesDisplayEnabled != nil {
 		set("titles_display_enabled", boolToInt(*body.TitlesDisplayEnabled))
 	}
-	birthGC, err := resolveDates(body.BirthYearEC, body.BirthMonthEC, body.BirthDayEC, body.BirthDateGC, "birth")
+	birthCols, birthVals, err := dateColumns("birth",
+		body.BirthYearEC, body.BirthMonthEC, body.BirthDayEC, body.BirthDateGC, body.ClearBirthDate)
 	if err != nil {
 		return nil, nil, err
 	}
-	if body.BirthYearEC != nil {
-		set("birth_year_ec", *body.BirthYearEC)
-	}
-	if body.BirthMonthEC != nil {
-		set("birth_month_ec", *body.BirthMonthEC)
-	}
-	if body.BirthDayEC != nil {
-		set("birth_day_ec", *body.BirthDayEC)
-	}
-	if birthGC != "" {
-		set("birth_date_gc", birthGC)
-	}
+	cols = append(cols, birthCols...)
+	vals = append(vals, birthVals...)
 	if body.BirthPlace != "" {
 		set("birth_place", body.BirthPlace)
 	}
@@ -251,22 +301,13 @@ func individualColumns(body individualBody, create bool) ([]string, []any, error
 	if create || body.IsDeceased {
 		set("is_deceased", boolToInt(body.IsDeceased))
 	}
-	deathGC, err := resolveDates(body.DeathYearEC, body.DeathMonthEC, body.DeathDayEC, body.DeathDateGC, "death")
+	deathCols, deathVals, err := dateColumns("death",
+		body.DeathYearEC, body.DeathMonthEC, body.DeathDayEC, body.DeathDateGC, body.ClearDeathDate)
 	if err != nil {
 		return nil, nil, err
 	}
-	if body.DeathYearEC != nil {
-		set("death_year_ec", *body.DeathYearEC)
-	}
-	if body.DeathMonthEC != nil {
-		set("death_month_ec", *body.DeathMonthEC)
-	}
-	if body.DeathDayEC != nil {
-		set("death_day_ec", *body.DeathDayEC)
-	}
-	if deathGC != "" {
-		set("death_date_gc", deathGC)
-	}
+	cols = append(cols, deathCols...)
+	vals = append(vals, deathVals...)
 	if body.DeathPlace != "" {
 		set("death_place", body.DeathPlace)
 	}
@@ -279,31 +320,78 @@ func individualColumns(body individualBody, create bool) ([]string, []any, error
 	return cols, vals, nil
 }
 
-// resolveDates validates EC coordinates when fully given and derives the GC
-// reference, otherwise validates a literal GC date string.
-func resolveDates(y, m, d *int, gc, prefix string) (string, error) {
-	anyEC := y != nil || m != nil || d != nil
-	if anyEC {
-		if y == nil || m == nil || d == nil {
-			return "", fmt.Errorf("%s EC date needs year, month, and day together", prefix)
+// dateColumns maps one EC/GC date group to column assignments. Any EC
+// subset stores as-is with a stale GC reference cleared, a complete trio
+// derives GC, and a GC literal stores alone with the EC trio cleared so the
+// two never contradict. The clear flag nulls the whole group and rejects
+// accompanying values. A present EC group replaces the stored trio as a
+// unit: absent members null out.
+func dateColumns(prefix string, y, m, d *int, gc string, clear bool) ([]string, []any, error) {
+	yCol, mCol, dCol, gCol := prefix+"_year_ec", prefix+"_month_ec", prefix+"_day_ec", prefix+"_date_gc"
+	var cols []string
+	var vals []any
+	set := func(col string, v any) {
+		cols = append(cols, col)
+		vals = append(vals, v)
+	}
+	nullGroup := func() {
+		set(yCol, nil)
+		set(mCol, nil)
+		set(dCol, nil)
+		set(gCol, nil)
+	}
+	if clear {
+		if y != nil || m != nil || d != nil || gc != "" {
+			return nil, nil, fmt.Errorf("%s clear flag cannot combine with date values", prefix)
 		}
+		nullGroup()
+		return cols, vals, nil
+	}
+	if y == nil && m == nil && d == nil {
+		if gc == "" {
+			return nil, nil, nil
+		}
+		var gy, gm, gd int
+		if _, err := fmt.Sscanf(gc, "%d-%d-%d", &gy, &gm, &gd); err != nil {
+			return nil, nil, fmt.Errorf("invalid %s GC date, want YYYY-MM-DD", prefix)
+		}
+		if _, err := calendar.FromGC(gy, gm, gd); err != nil {
+			return nil, nil, fmt.Errorf("invalid %s GC date: %w", prefix, err)
+		}
+		set(yCol, nil)
+		set(mCol, nil)
+		set(dCol, nil)
+		set(gCol, gc)
+		return cols, vals, nil
+	}
+	if err := calendar.ValidatePartialEC(y, m, d); err != nil {
+		return nil, nil, fmt.Errorf("invalid %s EC date: %w", prefix, err)
+	}
+	if y != nil {
+		set(yCol, *y)
+	} else {
+		set(yCol, nil)
+	}
+	if m != nil {
+		set(mCol, *m)
+	} else {
+		set(mCol, nil)
+	}
+	if d != nil {
+		set(dCol, *d)
+	} else {
+		set(dCol, nil)
+	}
+	if y != nil && m != nil && d != nil {
 		converted, err := calendar.FromEC(*y, *m, *d)
 		if err != nil {
-			return "", fmt.Errorf("invalid %s EC date: %w", prefix, err)
+			return nil, nil, fmt.Errorf("invalid %s EC date: %w", prefix, err)
 		}
-		return converted.FormatGC(), nil
+		set(gCol, converted.FormatGC())
+	} else {
+		set(gCol, nil)
 	}
-	if gc == "" {
-		return "", nil
-	}
-	var gy, gm, gd int
-	if _, err := fmt.Sscanf(gc, "%d-%d-%d", &gy, &gm, &gd); err != nil {
-		return "", fmt.Errorf("invalid %s GC date, want YYYY-MM-DD", prefix)
-	}
-	if _, err := calendar.FromGC(gy, gm, gd); err != nil {
-		return "", fmt.Errorf("invalid %s GC date: %w", prefix, err)
-	}
-	return gc, nil
+	return cols, vals, nil
 }
 
 func boolToInt(b bool) int {
