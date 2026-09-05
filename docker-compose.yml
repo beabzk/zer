@@ -1,0 +1,15 @@
+services:
+  zer:
+    image: ghcr.io/beabzk/zer:${ZER_VERSION:-latest}
+    container_name: zer
+    restart: unless-stopped
+    user: "10000:10000"
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/data
+    environment:
+      DATA_DIR: /data
+    mem_limit: 256m

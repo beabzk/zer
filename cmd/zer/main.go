@@ -19,9 +19,18 @@ import (
 	"github.com/beabzk/zer/internal/auth"
 	"github.com/beabzk/zer/internal/database"
 	"github.com/beabzk/zer/internal/seed"
+	zerweb "github.com/beabzk/zer/web"
 )
 
+// version stamps the release tag at build time via
+// -ldflags "-X main.version=v0.1.0". Development builds report dev.
+var version = "dev"
+
 func main() {
+	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "-version" || os.Args[1] == "-v") {
+		fmt.Println(version)
+		return
+	}
 	if len(os.Args) > 1 && os.Args[1] == "seed" {
 		if err := runSeed(); err != nil {
 			fmt.Fprintln(os.Stderr, "seed: "+err.Error())
@@ -40,7 +49,7 @@ func runSeed() error {
 	_ = godotenv.Load()
 
 	ctx := context.Background()
-	manager := database.NewManager("data")
+	manager := database.NewManager(envOr("DATA_DIR", "data"))
 	defer manager.Close()
 	master, err := manager.Master(ctx)
 	if err != nil {
@@ -69,7 +78,7 @@ func run() error {
 
 	cfg := configFromEnv()
 
-	manager := database.NewManager("data")
+	manager := database.NewManager(cfg.dataDir)
 
 	ctx := context.Background()
 	master, err := manager.Master(ctx)
@@ -96,6 +105,8 @@ func run() error {
 	r.Handle("/auth/*", engine.Handler())
 
 	api.Mount(r, api.Deps{Manager: manager, Engine: engine, AdminEmails: api.ParseAdminEmails(os.Getenv("ADMIN_EMAILS"))})
+
+	r.Handle("/*", zerweb.Handler())
 
 	srv := &http.Server{Addr: ":" + cfg.port, Handler: r}
 	errCh := make(chan error, 1)
@@ -128,6 +139,7 @@ func run() error {
 type serverConfig struct {
 	port            string
 	baseURL         string
+	dataDir         string
 	googleEnabled   bool
 	passwordEnabled bool
 }
@@ -136,6 +148,7 @@ func configFromEnv() serverConfig {
 	return serverConfig{
 		port:            envOr("PORT", "8080"),
 		baseURL:         envOr("BASE_URL", "http://localhost:8080"),
+		dataDir:         envOr("DATA_DIR", "data"),
 		googleEnabled:   envFlag("AUTH_GOOGLE_ENABLED", true),
 		passwordEnabled: envFlag("AUTH_PASSWORD_ENABLED", true),
 	}
