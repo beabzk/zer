@@ -12,3 +12,7 @@ data/
 /zer
 /zer.exe
 web/dist/
+
+# Frontend dependencies
+web/node_modules/
+web/.vite/

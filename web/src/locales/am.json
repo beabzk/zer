@@ -1,0 +1,123 @@
+{
+  "app": {
+    "title": "ዘር",
+    "tagline": "የቤተሰብ ዝር ለአባታዊ ትውልዶች"
+  },
+  "auth": {
+    "signIn": "ግባ",
+    "signUp": "ተመዝገብ",
+    "email": "ኢሜይል",
+    "password": "የይለፍ ቃል",
+    "withGoogle": "በጉግል ቀጥል",
+    "signOut": "ውጣ",
+    "needAccount": "አዲስ ነዎት? መለያ ይፍጠሩ",
+    "haveAccount": "መለያ አለዎት? ይግቡ",
+    "failed": "ማረጋገጫ አልተሳካም"
+  },
+  "trees": {
+    "title": "የቤተሰብ ዛፎች",
+    "create": "አዲስ ዝር",
+    "name": "ስም",
+    "description": "መግለጫ",
+    "language": "ቋንቋ",
+    "empty": "ገና ምንም ዝር የለም። የመጀመሪያውን ይፍጠሩ።",
+    "members": "አባላት",
+    "individuals": "ሰዎች",
+    "edges": "የወላጅ ማያያዣዎች",
+    "unions": "ጥምረቶች"
+  },
+  "views": {
+    "canvas": "ካርታ",
+    "pedigree": "ትውልድ",
+    "cards": "ካርዶች",
+    "kinship": "ዝምድና"
+  },
+  "person": {
+    "person": "ሰው",
+    "add": "ሰው ጨምር",
+    "edit": "ሰው አርም",
+    "nativeName": "የተሰጠ ስም (መነሻ ጽሑፍ)",
+    "latinName": "የተሰጠ ስም (ላቲን)",
+    "gender": "ጾታ",
+    "male": "ወንድ",
+    "female": "ሴት",
+    "titles": "ማዕርጋት (በነጠላ ሰረዝ ተለይተው)",
+    "birth": "ልደት",
+    "death": "ሞት",
+    "deceased": "ሟች",
+    "place": "ቦታ",
+    "note": "ማስታወሻ",
+    "photo": "የፎቶ አድራሻ",
+    "save": "አስቀምጥ",
+    "cancel": "ሰርዝ",
+    "delete": "አጥፋ",
+    "confirmDelete": "ይህን ሰው ከሁሉም ማያያዣዎች ጋር ማጥፋት ይፈልጋሉ?",
+    "search": "ሰዎች ፈልግ",
+    "select": "ምረጥ",
+    "clearDate": "ቀኑን አጥፋ"
+  },
+  "edge": {
+    "addParent": "ወላጅ ጨምር",
+    "addChild": "ልጅ ጨምር",
+    "addUnion": "ጥምረት ጨምር",
+    "relationshipType": "የዝምድና ዓይነት",
+    "biological": "የልደት",
+    "adoptive": "የጉዲፈቻ",
+    "foster": "የአሳዳጊ",
+    "nameSource": "የስም ምንጭ",
+    "nameSourceHint": "ልጁ የዚህ ወላጅ ስም ይወርሳል",
+    "unionType": "የጥምረት ዓይነት",
+    "traditional": "ባህላዊ",
+    "religious": "ሃይማኖታዊ",
+    "civil": "ሲቪል",
+    "status": "ሁኔታ",
+    "active": "ንቁ",
+    "dissolved": "የተፈታ",
+    "widowed": "በሞት የተቋረጠ"
+  },
+  "kinship": {
+    "personA": "የመጀመሪያ ሰው",
+    "personB": "ሁለተኛ ሰው",
+    "find": "ዝምድና አግኝ",
+    "degrees": "ርቀት",
+    "none": "ምንም ዝምድና አልተገኘም",
+    "self": "ራሱ"
+  },
+  "canvas": {
+    "fit": "ሙሉ እይታ",
+    "depth": "ጥልቀት",
+    "focus": "ትኩረት",
+    "empty": "ግራፉን ለመሳል ሰው ምረጥ"
+  },
+  "admin": {
+    "panel": "አስተዳዳሪ",
+    "users": "ተጠቃሚዎች",
+    "allTrees": "ሁሉም ዛፎች",
+    "confirmDeleteTree": "ይህን ዝር ከመረጃ ቋቱ ጋር ማጥፋት ይፈልጋሉ?",
+    "confirmDeleteUser": "ይህን ተጠቃሚ ከሁሉም ክፍለ-ጊዜያት እና አባልነቶች ጋር ማጥፋት ይፈልጋሉ?"
+  },
+  "common": {
+    "loading": "በመጫን ላይ...",
+    "error": "ስህተት ተፈጥሯል",
+    "retry": "እንደገና ሞክር",
+    "close": "ዝጋ",
+    "year": "ዓመት",
+    "month": "ወር",
+    "day": "ቀን"
+  },
+  "months": [
+    "መስከረም",
+    "ጥቅምት",
+    "ኅዳር",
+    "ታኅሣሥ",
+    "ጥር",
+    "የካቲት",
+    "መጋቢት",
+    "ሚያዝያ",
+    "ግንቦት",
+    "ሰኔ",
+    "ሐምሌ",
+    "ነሐሴ",
+    "ጳጉሜ"
+  ]
+}
