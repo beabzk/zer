@@ -5,14 +5,20 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
+	"unicode"
 
 	"github.com/beabzk/zer/internal/database"
 	"github.com/beabzk/zer/internal/lineage"
 )
 
-func seedManager(t *testing.T) (*database.Manager, int64) {
+func stubHash(password string) (string, error) {
+	return "hash:" + password, nil
+}
+
+func seedManager(t *testing.T) *database.Manager {
 	t.Helper()
 	dir := filepath.Join("..", "..", "data", "testscratch",
 		fmt.Sprintf("%s-%d", t.Name(), time.Now().UnixNano()))
@@ -20,84 +26,126 @@ func seedManager(t *testing.T) (*database.Manager, int64) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { os.RemoveAll(dir) })
-
 	m := database.NewManager(dir)
 	t.Cleanup(func() { m.Close() })
-	master, err := m.Master(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	res, err := master.ExecContext(context.Background(),
-		`INSERT INTO users (email, created_at, updated_at) VALUES ('seed@example.com', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	id, err := res.LastInsertId()
-	if err != nil {
-		t.Fatal(err)
-	}
-	return m, id
+	return m
 }
 
-func count(t *testing.T, m *database.Manager, treeID, table string) int {
-	t.Helper()
-	db, err := m.Tree(context.Background(), treeID)
-	if err != nil {
-		t.Fatal(err)
+func TestDemoPasswordMeetsPolicy(t *testing.T) {
+	if len(DemoPassword) < 8 {
+		t.Error("demo password shorter than the 8-character minimum")
 	}
-	var n int
-	if err := db.QueryRowContext(context.Background(),
-		`SELECT COUNT(*) FROM `+table).Scan(&n); err != nil {
-		t.Fatal(err)
+	var upper, digit bool
+	for _, r := range DemoPassword {
+		if unicode.IsUpper(r) {
+			upper = true
+		}
+		if unicode.IsDigit(r) {
+			digit = true
+		}
 	}
-	return n
+	if !upper || !digit {
+		t.Error("demo password needs uppercase and numeric characters")
+	}
 }
 
-func TestDemoTree(t *testing.T) {
+func TestSeedAll(t *testing.T) {
 	ctx := context.Background()
-	m, userID := seedManager(t)
+	m := seedManager(t)
 
-	treeID, err := DemoTree(ctx, m, userID, "Demo", "demo")
+	report, err := SeedAll(ctx, m, stubHash)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if n := count(t, m, treeID, "individuals"); n != 10 {
-		t.Errorf("individuals = %d, want 10", n)
-	}
-	if n := count(t, m, treeID, "parent_child"); n != 10 {
-		t.Errorf("edges = %d, want 10", n)
-	}
-	if n := count(t, m, treeID, "unions"); n != 4 {
-		t.Errorf("unions = %d, want 4", n)
-	}
-	if n := count(t, m, treeID, "alternate_names"); n != 2 {
-		t.Errorf("alternate names = %d, want 2", n)
-	}
-	if n := count(t, m, treeID, "individual_events"); n != 2 {
-		t.Errorf("events = %d, want 2", n)
+	if len(report) != 5 {
+		t.Fatalf("seeded %d trees, want 5", len(report))
 	}
 
-	db, err := m.Tree(ctx, treeID)
-	if err != nil {
-		t.Fatal(err)
+	counts := map[string]map[string]int{
+		"haile-lineage":      {"individuals": 10, "parent_child": 12, "unions": 3},
+		"senait-line":        {"individuals": 9, "parent_child": 10, "unions": 3},
+		"adoptive-household": {"individuals": 9, "parent_child": 11, "unions": 3},
+		"blended-remarriage": {"individuals": 9, "parent_child": 8, "unions": 4},
+		"sparse-records":     {"individuals": 5, "parent_child": 4, "unions": 0},
 	}
-	for id, want := range map[string]string{
-		"demo-hana":    "Hana Kebede Tesfaye",
-		"demo-dawit":   "Dawit Tigist",
-		"demo-yonas":   "Yonas Kebede Tesfaye",
-		"demo-selam":   "Selam",
-		"demo-tesfaye": "Tesfaye",
-	} {
-		got, err := lineage.SynthesizeFullName(ctx, db, id, 3, lineage.ScriptLatin, false)
+	bySlug := make(map[string]string)
+	for _, r := range report {
+		bySlug[r.Slug] = r.ID
+		if r.People != counts[r.Slug]["individuals"] {
+			t.Errorf("%s reports %d people", r.Slug, r.People)
+		}
+	}
+	for slug, want := range counts {
+		db, err := m.Tree(ctx, bySlug[slug])
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got != want {
-			t.Errorf("%s = %q, want %q", id, got, want)
+		for table, n := range want {
+			var got int
+			if err := db.QueryRowContext(ctx,
+				`SELECT COUNT(*) FROM `+table).Scan(&got); err != nil {
+				t.Fatal(err)
+			}
+			if got != n {
+				t.Errorf("%s.%s = %d, want %d", slug, table, got, n)
+			}
 		}
 	}
 
-	if _, err := DemoTree(ctx, m, userID, "Demo Again", "demo"); err == nil {
-		t.Error("expected error for duplicate slug")
+	// Name synthesis across naming modes.
+	db, err := m.Tree(ctx, bySlug["haile-lineage"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := lineage.SynthesizeFullName(ctx, db, "haile-lineage-yared", 4, lineage.ScriptLatin, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "Yared Abebe Girma Haile" {
+		t.Errorf("patronymic chain = %q", got)
+	}
+
+	// Reruns abort on the taken slug before writing anything.
+	if _, err := SeedAll(ctx, m, stubHash); err == nil {
+		t.Error("expected slug collision error on reseed")
+	} else if !strings.Contains(err.Error(), "already exists") {
+		t.Errorf("unexpected reseed error: %v", err)
+	}
+}
+
+func TestSeedOwners(t *testing.T) {
+	ctx := context.Background()
+	m := seedManager(t)
+
+	if _, err := SeedAll(ctx, m, stubHash); err != nil {
+		t.Fatal(err)
+	}
+	master, err := m.Master(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var users int
+	if err := master.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM users WHERE email LIKE '%@demo.example.com'`).Scan(&users); err != nil {
+		t.Fatal(err)
+	}
+	if users != 5 {
+		t.Errorf("demo owners = %d, want 5", users)
+	}
+	var owners int
+	if err := master.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM tree_members WHERE role = 'OWNER'`).Scan(&owners); err != nil {
+		t.Fatal(err)
+	}
+	if owners != 5 {
+		t.Errorf("owner memberships = %d, want 5", owners)
+	}
+	var stored string
+	if err := master.QueryRowContext(ctx,
+		`SELECT password FROM users WHERE email = 'haile@demo.example.com'`).Scan(&stored); err != nil {
+		t.Fatal(err)
+	}
+	if stored != "hash:"+DemoPassword {
+		t.Errorf("owner password not hashed: %q", stored)
 	}
 }

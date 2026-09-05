@@ -3,18 +3,17 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/joho/godotenv"
+	credentialpassword "github.com/thecodearcher/limen/plugins/credential-password"
 
 	"github.com/beabzk/zer/internal/api"
 	"github.com/beabzk/zer/internal/auth"
@@ -24,7 +23,7 @@ import (
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "seed" {
-		if err := runSeed(os.Args[2:]); err != nil {
+		if err := runSeed(); err != nil {
 			fmt.Fprintln(os.Stderr, "seed: "+err.Error())
 			os.Exit(1)
 		}
@@ -36,22 +35,8 @@ func main() {
 	}
 }
 
-// runSeed creates a new tree filled with the deterministic demo fixture.
-// Usage: zer seed --name "Demo" [--slug demo] --user-email you@example.com
-func runSeed(args []string) error {
-	flags := flag.NewFlagSet("seed", flag.ContinueOnError)
-	name := flags.String("name", "Demo Family", "tree name")
-	slug := flags.String("slug", "", "tree slug, derived from the name when empty")
-	email := flags.String("user-email", "", "owner account email (required)")
-	if err := flags.Parse(args); err != nil {
-		return err
-	}
-	if strings.TrimSpace(*email) == "" {
-		return fmt.Errorf("--user-email is required")
-	}
-	if strings.TrimSpace(*slug) == "" {
-		*slug = deriveSlug(*name)
-	}
+// runSeed creates every demo tree with its owner account.
+func runSeed() error {
 	_ = godotenv.Load()
 
 	ctx := context.Background()
@@ -61,36 +46,20 @@ func runSeed(args []string) error {
 	if err != nil {
 		return err
 	}
-	var userID int64
-	if err := master.QueryRowContext(ctx,
-		`SELECT id FROM users WHERE email = ?`, strings.ToLower(strings.TrimSpace(*email))).Scan(&userID); err != nil {
-		return fmt.Errorf("unknown user %q: sign up or log in once first", *email)
-	}
-	treeID, err := seed.DemoTree(ctx, manager, userID, strings.TrimSpace(*name), *slug)
+	cfg := configFromEnv()
+	engine, err := auth.InitAuth(master, cfg.baseURL, false, true)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("seeded tree %s (%s)\n", treeID, *slug)
-	return nil
-}
-
-func deriveSlug(name string) string {
-	name = strings.ToLower(strings.TrimSpace(name))
-	var b strings.Builder
-	prevDash := true
-	for _, r := range name {
-		switch {
-		case r >= 'a' && r <= 'z' || r >= '0' && r <= '9':
-			b.WriteRune(r)
-			prevDash = false
-		case r == ' ' || r == '_' || r == '-':
-			if !prevDash {
-				b.WriteRune('-')
-				prevDash = true
-			}
-		}
+	hasher := credentialpassword.Use(engine)
+	report, err := seed.SeedAll(ctx, manager, hasher.HashPassword)
+	if err != nil {
+		return err
 	}
-	return strings.Trim(b.String(), "-")
+	for _, r := range report {
+		fmt.Printf("seeded %s (%s): %d people\n", r.Slug, r.ID, r.People)
+	}
+	return nil
 }
 
 func run() error {
