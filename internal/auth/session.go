@@ -31,6 +31,12 @@ func SessionFrom(ctx context.Context) (*limen.ValidatedSession, bool) {
 	return session, ok && session != nil
 }
 
+// ContextWithSession stores a session the way RequireSession does. Tests
+// and non-cookie transports use it to inject an authenticated context.
+func ContextWithSession(ctx context.Context, session *limen.ValidatedSession) context.Context {
+	return context.WithValue(ctx, sessionKey{}, session)
+}
+
 func writeAuthError(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusUnauthorized)

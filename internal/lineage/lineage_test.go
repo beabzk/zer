@@ -53,7 +53,7 @@ func seedFamily(t *testing.T, db *sql.DB) {
 	addPerson(t, db, "mother", "Mn", "M", "FEMALE", "")
 	addPerson(t, db, "child", "Cn", "C", "MALE", `["Ato"]`)
 	addPerson(t, db, "sib", "Sn", "S", "FEMALE", "")
-	addPerson(t, db, "stranger", "Xn", "X", "OTHER", "")
+	addPerson(t, db, "stranger", "Xn", "X", "FEMALE", "")
 
 	addEdge(t, db, "gp", "father", "BIOLOGICAL", 1)
 	addEdge(t, db, "father", "child", "BIOLOGICAL", 1)

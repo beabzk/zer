@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/joho/godotenv"
 
+	"github.com/beabzk/zer/internal/api"
 	"github.com/beabzk/zer/internal/auth"
 	"github.com/beabzk/zer/internal/database"
 )
@@ -54,12 +55,7 @@ func run() error {
 	// Handle keeps the full path, which the Limen router matches verbatim.
 	r.Handle("/auth/*", engine.Handler())
 
-	r.Route("/api/v1", func(r chi.Router) {
-		r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"status":"ok"}`))
-		})
-	})
+	api.Mount(r, api.Deps{Manager: manager, Engine: engine})
 
 	return http.ListenAndServe(":"+cfg.port, r)
 }

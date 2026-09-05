@@ -5,7 +5,7 @@ CREATE TABLE individuals (
     id TEXT PRIMARY KEY,
     given_name_native TEXT NOT NULL,
     given_name_latin TEXT NOT NULL,
-    gender TEXT NOT NULL CHECK(gender IN ('MALE', 'FEMALE', 'OTHER')),
+    gender TEXT NOT NULL CHECK(gender IN ('MALE', 'FEMALE')),
     titles TEXT,
     titles_display_enabled INTEGER NOT NULL DEFAULT 1,
     birth_year_ec INTEGER,
