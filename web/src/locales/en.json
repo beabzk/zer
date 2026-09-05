@@ -1,0 +1,125 @@
+{
+  "app": {
+    "title": "zer",
+    "tagline": "Family graph for patronymic lineages"
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "email": "Email",
+    "password": "Password",
+    "withGoogle": "Continue with Google",
+    "signOut": "Sign out",
+    "needAccount": "New here? Create an account",
+    "haveAccount": "Have an account? Sign in",
+    "failed": "Authentication failed"
+  },
+  "trees": {
+    "title": "Family trees",
+    "create": "New tree",
+    "name": "Name",
+    "description": "Description",
+    "language": "Language",
+    "empty": "No trees yet. Create the first one.",
+    "members": "members",
+    "individuals": "people",
+    "edges": "parent links",
+    "unions": "unions"
+  },
+  "views": {
+    "canvas": "Canvas",
+    "pedigree": "Pedigree",
+    "cards": "Cards",
+    "kinship": "Kinship"
+  },
+  "person": {
+    "person": "Person",
+    "add": "Add person",
+    "edit": "Edit person",
+    "nativeName": "Given name (native script)",
+    "latinName": "Given name (Latin script)",
+    "gender": "Gender",
+    "male": "Male",
+    "female": "Female",
+    "titles": "Titles (comma separated)",
+    "birth": "Birth",
+    "death": "Death",
+    "deceased": "Deceased",
+    "place": "Place",
+    "note": "Note",
+    "photo": "Photo URL",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "confirmDelete": "Delete this person and all their links?",
+    "search": "Search people",
+    "select": "Select",
+    "clearDate": "Clear date",
+    "cleared": "Date will be removed on save",
+    "partialHint": "Gregorian date appears when year, month, and day are all set"
+  },
+  "edge": {
+    "addParent": "Add parent",
+    "addChild": "Add child",
+    "addUnion": "Add union",
+    "relationshipType": "Relationship type",
+    "biological": "Birth",
+    "adoptive": "Adoptive",
+    "foster": "Foster",
+    "nameSource": "Name source",
+    "nameSourceHint": "The child inherits this parent's name",
+    "unionType": "Union type",
+    "traditional": "Traditional",
+    "religious": "Religious",
+    "civil": "Civil",
+    "status": "Status",
+    "active": "Active",
+    "dissolved": "Dissolved",
+    "widowed": "Widowed"
+  },
+  "kinship": {
+    "personA": "First person",
+    "personB": "Second person",
+    "find": "Find connection",
+    "degrees": "degrees",
+    "none": "No connection found",
+    "self": "Same person"
+  },
+  "canvas": {
+    "fit": "Fit view",
+    "depth": "Depth",
+    "focus": "Focus",
+    "empty": "Select a person to draw the graph"
+  },
+  "admin": {
+    "panel": "Admin",
+    "users": "Users",
+    "allTrees": "All trees",
+    "confirmDeleteTree": "Delete this tree and its database file?",
+    "confirmDeleteUser": "Delete this user with all sessions and memberships?"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "retry": "Retry",
+    "close": "Close",
+    "year": "Year",
+    "month": "Month",
+    "day": "Day"
+  },
+  "months": [
+    "Meskerem",
+    "Tikimt",
+    "Hidar",
+    "Tahsas",
+    "Tir",
+    "Yekatit",
+    "Megabit",
+    "Miyazya",
+    "Ginbot",
+    "Sene",
+    "Hamle",
+    "Nehase",
+    "Pagume"
+  ]
+}

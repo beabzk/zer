@@ -1,0 +1,8 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "ignorePatterns": ["node_modules/**", "dist/**"],
+  "categories": {
+    "correctness": "deny",
+    "suspicious": "warn"
+  }
+}

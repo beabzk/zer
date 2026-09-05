@@ -1,0 +1,200 @@
+export interface Tree {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  default_lang: string;
+  role?: string;
+}
+
+export interface Individual {
+  id: string;
+  given_name_native: string;
+  given_name_latin: string;
+  gender: string;
+  titles?: string;
+  titles_display_enabled: number;
+  birth_year_ec?: number;
+  birth_month_ec?: number;
+  birth_day_ec?: number;
+  birth_date_gc?: string;
+  birth_place?: string;
+  birth_note?: string;
+  is_deceased: number;
+  death_year_ec?: number;
+  death_month_ec?: number;
+  death_day_ec?: number;
+  death_date_gc?: string;
+  death_place?: string;
+  death_note?: string;
+  profile_photo_url?: string;
+  full_native: string;
+  full_latin: string;
+  display_name?: string;
+}
+
+export interface PersonHit {
+  id: string;
+  full_native: string;
+  full_latin: string;
+  gender: string;
+}
+
+export interface KinshipSegment {
+  from_id: string;
+  to_id: string;
+  relation: string;
+}
+
+export interface KinshipResult {
+  path_key: string;
+  segments: KinshipSegment[];
+  degrees_of_sep: number;
+}
+
+export interface LineageNode {
+  id: string;
+  depth: number;
+  path: string[];
+}
+
+export interface FlowNode {
+  id: string;
+  data: {
+    given_name_native: string;
+    given_name_latin: string;
+    gender: string;
+    full_native: string;
+    full_latin: string;
+  };
+}
+
+export interface FlowEdge {
+  id: string;
+  source: string;
+  target: string;
+  label: string;
+}
+
+export interface TreeStats {
+  tree_id: string;
+  individuals: number;
+  edges: number;
+  unions: number;
+  events: number;
+  members: number;
+}
+
+export interface AdminUser {
+  id: number;
+  email: string;
+  email_verified_at?: string;
+  first_name?: string;
+  last_name?: string;
+  created_at: string;
+  is_admin: boolean;
+}
+
+export interface AdminTree {
+  id: string;
+  name: string;
+  slug: string;
+  default_lang: string;
+  created_at: string;
+  members: number;
+}
+
+export class ApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, {
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    ...init,
+  });
+  if (res.status === 204) {
+    return undefined as T;
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const message =
+      typeof data === "object" && data !== null && "error" in data
+        ? String((data as Record<string, unknown>).error)
+        : `request failed with ${res.status}`;
+    throw new ApiError(res.status, message);
+  }
+  return data as T;
+}
+
+const get = <T>(path: string) => request<T>(path);
+const post = <T>(path: string, body: unknown) =>
+  request<T>(path, { method: "POST", body: JSON.stringify(body) });
+const put = <T>(path: string, body: unknown) =>
+  request<T>(path, { method: "PUT", body: JSON.stringify(body) });
+const del = <T>(path: string) => request<T>(path, { method: "DELETE" });
+
+export const api = {
+  trees: {
+    list: () => get<Tree[]>("/api/v1/trees"),
+    create: (body: { name: string; slug?: string; description?: string; default_lang?: string }) =>
+      post<Tree>("/api/v1/trees", body),
+    stats: (treeId: string) => get<TreeStats>(`/api/v1/trees/${treeId}/stats`),
+    addMember: (treeId: string, body: { user_id: number; role: string }) =>
+      post(`/api/v1/trees/${treeId}/members`, body),
+  },
+  individuals: {
+    list: (treeId: string, q?: string) =>
+      get<PersonHit[]>(
+        `/api/v1/trees/${treeId}/individuals${q ? `?q=${encodeURIComponent(q)}` : ""}`,
+      ),
+    get: (treeId: string, id: string, depth = 3) =>
+      get<Individual>(`/api/v1/trees/${treeId}/individuals/${id}?depth=${depth}`),
+    create: (treeId: string, body: Record<string, unknown>) =>
+      post<Individual>(`/api/v1/trees/${treeId}/individuals`, body),
+    update: (treeId: string, id: string, body: Record<string, unknown>) =>
+      put<Individual>(`/api/v1/trees/${treeId}/individuals/${id}`, body),
+    remove: (treeId: string, id: string) =>
+      del<void>(`/api/v1/trees/${treeId}/individuals/${id}`),
+  },
+  relationships: {
+    addParentChild: (
+      treeId: string,
+      body: { parent_id: string; child_id: string; relationship_type?: string; is_name_source?: boolean },
+    ) => post(`/api/v1/trees/${treeId}/relationships/parent-child`, body),
+    updateParentChild: (
+      treeId: string,
+      body: { parent_id: string; child_id: string; relationship_type?: string; is_name_source?: boolean },
+    ) => put(`/api/v1/trees/${treeId}/relationships/parent-child`, body),
+    addUnion: (
+      treeId: string,
+      body: { partner_a_id: string; partner_b_id: string; union_type?: string; status?: string },
+    ) => post(`/api/v1/trees/${treeId}/relationships/union`, body),
+  },
+  analysis: {
+    kinship: (treeId: string, a: string, b: string) =>
+      get<KinshipResult>(
+        `/api/v1/trees/${treeId}/analysis/kinship?person_a=${a}&person_b=${b}`,
+      ),
+    lineage: (treeId: string, id: string, direction: "ancestors" | "descendants", depth: number) =>
+      get<{ root_id: string; direction: string; depth: number; nodes: LineageNode[] }>(
+        `/api/v1/trees/${treeId}/analysis/lineage/${id}?direction=${direction}&depth=${depth}`,
+      ),
+    subgraph: (treeId: string, rootId: string, depth: number) =>
+      get<{ nodes: FlowNode[]; edges: FlowEdge[] }>(
+        `/api/v1/trees/${treeId}/graph/subgraph?root_id=${rootId}&depth=${depth}`,
+      ),
+  },
+  admin: {
+    status: () => get<{ is_admin: boolean }>("/api/v1/admin/status"),
+    users: () => get<AdminUser[]>("/api/v1/admin/users"),
+    trees: () => get<AdminTree[]>("/api/v1/admin/trees"),
+    deleteTree: (treeId: string) => del<void>(`/api/v1/admin/trees/${treeId}`),
+    deleteUser: (userId: number) => del<void>(`/api/v1/admin/users/${userId}`),
+  },
+};
