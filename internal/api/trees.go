@@ -65,7 +65,7 @@ func (d Deps) handleCreateTree(w http.ResponseWriter, r *http.Request) {
 	id := uuid.NewString()
 	master, err := d.Manager.Master(r.Context())
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	// Registry and membership commit atomically. The tree file lives on a
@@ -73,7 +73,7 @@ func (d Deps) handleCreateTree(w http.ResponseWriter, r *http.Request) {
 	// the two writes and any failure rolls everything back.
 	tx, err := master.Begin()
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	committed := false
@@ -91,21 +91,21 @@ func (d Deps) handleCreateTree(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusConflict, "slug already exists")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	if _, err := d.Manager.Tree(r.Context(), id); err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	if _, err := tx.ExecContext(r.Context(),
 		`INSERT INTO tree_members (id, tree_id, user_id, role) VALUES (?, ?, ?, 'OWNER')`,
 		uuid.NewString(), id, userID); err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	if err := tx.Commit(); err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	committed = true
@@ -128,7 +128,7 @@ func (d Deps) handleListTrees(w http.ResponseWriter, r *http.Request) {
 	}
 	master, err := d.Manager.Master(r.Context())
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	rows, err := master.QueryContext(r.Context(),
@@ -136,7 +136,7 @@ func (d Deps) handleListTrees(w http.ResponseWriter, r *http.Request) {
 		FROM trees t JOIN tree_members m ON m.tree_id = t.id
 		WHERE m.user_id = ? ORDER BY t.name`, userID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	defer rows.Close()
@@ -145,7 +145,7 @@ func (d Deps) handleListTrees(w http.ResponseWriter, r *http.Request) {
 		var tr treeResponse
 		var desc *string
 		if err := rows.Scan(&tr.ID, &tr.Name, &tr.Slug, &desc, &tr.DefaultLang, &tr.Role); err != nil {
-			writeError(w, http.StatusInternalServerError, "storage unavailable")
+			writeInternalError(w, r, err)
 			return
 		}
 		if desc != nil {
@@ -154,7 +154,7 @@ func (d Deps) handleListTrees(w http.ResponseWriter, r *http.Request) {
 		trees = append(trees, tr)
 	}
 	if err := rows.Err(); err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, trees)
@@ -172,7 +172,7 @@ func (d Deps) handleTreeStats(w http.ResponseWriter, r *http.Request) {
 	}
 	master, err := d.Manager.Master(r.Context())
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	var members int
@@ -215,7 +215,7 @@ func (d Deps) handleAddMember(w http.ResponseWriter, r *http.Request) {
 	}
 	master, err := d.Manager.Master(r.Context())
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	var userCount int
@@ -231,7 +231,7 @@ func (d Deps) handleAddMember(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusConflict, "user is already a member")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{

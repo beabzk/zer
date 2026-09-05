@@ -49,7 +49,7 @@ func (d Deps) handleAddParentChild(w http.ResponseWriter, r *http.Request) {
 	}
 	tx, err := db.Begin()
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	defer tx.Rollback()
@@ -57,7 +57,7 @@ func (d Deps) handleAddParentChild(w http.ResponseWriter, r *http.Request) {
 		// One name source per child keeps synthesis unambiguous.
 		if _, err := tx.ExecContext(r.Context(),
 			`UPDATE parent_child SET is_name_source = 0 WHERE child_id = ?`, body.ChildID); err != nil {
-			writeError(w, http.StatusInternalServerError, "storage unavailable")
+			writeInternalError(w, r, err)
 			return
 		}
 	}
@@ -66,11 +66,11 @@ func (d Deps) handleAddParentChild(w http.ResponseWriter, r *http.Request) {
 		`INSERT INTO parent_child (id, parent_id, child_id, relationship_type, is_name_source)
 		VALUES (?, ?, ?, ?, ?)`,
 		id, body.ParentID, body.ChildID, rel, boolToInt(body.IsNameSource)); err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	if err := tx.Commit(); err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{
@@ -120,27 +120,27 @@ func (d Deps) handleUpdateParentChild(w http.ResponseWriter, r *http.Request) {
 	}
 	tx, err := db.Begin()
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	defer tx.Rollback()
 	if body.IsNameSource != nil && *body.IsNameSource {
 		if _, err := tx.ExecContext(r.Context(),
 			`UPDATE parent_child SET is_name_source = 0 WHERE child_id = ?`, body.ChildID); err != nil {
-			writeError(w, http.StatusInternalServerError, "storage unavailable")
+			writeInternalError(w, r, err)
 			return
 		}
 		if _, err := tx.ExecContext(r.Context(),
 			`UPDATE parent_child SET is_name_source = 1 WHERE parent_id = ? AND child_id = ?`,
 			body.ParentID, body.ChildID); err != nil {
-			writeError(w, http.StatusInternalServerError, "storage unavailable")
+			writeInternalError(w, r, err)
 			return
 		}
 	} else if body.IsNameSource != nil {
 		if _, err := tx.ExecContext(r.Context(),
 			`UPDATE parent_child SET is_name_source = 0 WHERE parent_id = ? AND child_id = ?`,
 			body.ParentID, body.ChildID); err != nil {
-			writeError(w, http.StatusInternalServerError, "storage unavailable")
+			writeInternalError(w, r, err)
 			return
 		}
 	}
@@ -148,12 +148,12 @@ func (d Deps) handleUpdateParentChild(w http.ResponseWriter, r *http.Request) {
 		if _, err := tx.ExecContext(r.Context(),
 			`UPDATE parent_child SET relationship_type = ? WHERE parent_id = ? AND child_id = ?`,
 			body.RelationshipType, body.ParentID, body.ChildID); err != nil {
-			writeError(w, http.StatusInternalServerError, "storage unavailable")
+			writeInternalError(w, r, err)
 			return
 		}
 	}
 	if err := tx.Commit(); err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -215,7 +215,7 @@ func (d Deps) handleAddUnion(w http.ResponseWriter, r *http.Request) {
 		`SELECT COUNT(*) FROM unions WHERE
 		(partner_a_id = ? AND partner_b_id = ?) OR (partner_a_id = ? AND partner_b_id = ?)`,
 		body.PartnerAID, body.PartnerBID, body.PartnerBID, body.PartnerAID).Scan(&dup); err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	if dup > 0 {
@@ -231,7 +231,7 @@ func (d Deps) handleAddUnion(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusUnprocessableEntity, "unknown partner")
 			return
 		}
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{

@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -131,7 +132,7 @@ func (d Deps) requireMember(minRole string) func(http.Handler) http.Handler {
 			treeID := chi.URLParam(r, "treeID")
 			master, err := d.Manager.Master(r.Context())
 			if err != nil {
-				writeError(w, http.StatusInternalServerError, "storage unavailable")
+				writeInternalError(w, r, err)
 				return
 			}
 			var role string
@@ -149,7 +150,7 @@ func (d Deps) requireMember(minRole string) func(http.Handler) http.Handler {
 				writeError(w, http.StatusForbidden, "not a member of this tree")
 				return
 			default:
-				writeError(w, http.StatusInternalServerError, "storage unavailable")
+				writeInternalError(w, r, err)
 				return
 			}
 			if roleRank[member.Role] < roleRank[minRole] {
@@ -171,7 +172,7 @@ func treeDB(w http.ResponseWriter, r *http.Request, d Deps) (*sql.DB, Member, bo
 	m := memberFrom(r)
 	db, err := d.Manager.Tree(r.Context(), m.TreeID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		writeInternalError(w, r, err)
 		return nil, m, false
 	}
 	return db, m, true
@@ -213,4 +214,11 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func writeError(w http.ResponseWriter, status int, message string) {
 	writeJSON(w, status, map[string]string{"error": message})
+}
+
+// writeInternalError reports a generic failure to the client while logging
+// the cause with the request path server-side.
+func writeInternalError(w http.ResponseWriter, r *http.Request, err error) {
+	log.Printf("%s %s: %v", r.Method, r.URL.Path, err)
+	writeInternalError(w, r, err)
 }
