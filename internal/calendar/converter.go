@@ -59,6 +59,28 @@ func (d Date) FormatGC() string {
 	return fmt.Sprintf("%04d-%02d-%02d", d.YearGC, d.MonthGC, d.DayGC)
 }
 
+// ValidatePartialEC range-checks any subset of Ethiopian coordinates.
+// A full trio still needs FromEC for leap-accurate validation. Pagume day
+// without a year allows up to 6, the leap maximum.
+func ValidatePartialEC(yearEC, monthEC, dayEC *int) error {
+	if yearEC != nil && *yearEC < 1 {
+		return fmt.Errorf("EC year must be positive")
+	}
+	if monthEC != nil && (*monthEC < 1 || *monthEC > 13) {
+		return fmt.Errorf("EC month must be 1 to 13")
+	}
+	if dayEC != nil {
+		max := 30
+		if monthEC != nil && *monthEC == 13 {
+			max = 6
+		}
+		if *dayEC < 1 || *dayEC > max {
+			return fmt.Errorf("EC day out of range for the month")
+		}
+	}
+	return nil
+}
+
 // IsLeapEC reports whether an Ethiopian year holds a sixth Pagume day.
 func IsLeapEC(yearEC int) bool {
 	return ethioqen.IsEthiopianLeapYear(yearEC)

@@ -95,6 +95,34 @@ func (m *Manager) Tree(ctx context.Context, treeID string) (*sql.DB, error) {
 	return db, nil
 }
 
+// DropTree closes the cached handle for a tree and deletes its database
+// files. Registry rows are removed by the caller.
+func (m *Manager) DropTree(treeID string) error {
+	if !validTreeID(treeID) {
+		return fmt.Errorf("invalid tree id %q", treeID)
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if db, ok := m.trees[treeID]; ok {
+		if err := db.Close(); err != nil {
+			return err
+		}
+		delete(m.trees, treeID)
+	}
+	base := filepath.Join(m.baseDir, treesDirName, treeID)
+	var errs []string
+	for _, suffix := range []string{".sqlite", ".sqlite-wal", ".sqlite-shm", ".sqlite-journal"} {
+		if err := os.Remove(base + suffix); err != nil && !os.IsNotExist(err) {
+			errs = append(errs, err.Error())
+		}
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("drop tree %s: %s", treeID, strings.Join(errs, "; "))
+	}
+	return nil
+}
+
 // Close releases the master handle and every cached tree handle.
 func (m *Manager) Close() error {
 	m.mu.Lock()

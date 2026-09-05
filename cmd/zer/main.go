@@ -55,7 +55,7 @@ func run() error {
 	// Handle keeps the full path, which the Limen router matches verbatim.
 	r.Handle("/auth/*", engine.Handler())
 
-	api.Mount(r, api.Deps{Manager: manager, Engine: engine})
+	api.Mount(r, api.Deps{Manager: manager, Engine: engine, AdminEmails: api.ParseAdminEmails(os.Getenv("ADMIN_EMAILS"))})
 
 	return http.ListenAndServe(":"+cfg.port, r)
 }

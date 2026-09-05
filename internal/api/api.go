@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/thecodearcher/limen"
@@ -37,6 +38,23 @@ var roleRank = map[string]int{
 type Deps struct {
 	Manager *database.Manager
 	Engine  *limen.Limen
+	// AdminEmails holds lowercased instance admin emails from ADMIN_EMAILS.
+	AdminEmails map[string]bool
+}
+
+// ParseAdminEmails splits a comma-separated env value into a lookup set.
+func ParseAdminEmails(raw string) map[string]bool {
+	out := make(map[string]bool)
+	for _, part := range strings.Split(raw, ",") {
+		if email := strings.ToLower(strings.TrimSpace(part)); email != "" {
+			out[email] = true
+		}
+	}
+	return out
+}
+
+func (d Deps) isAdminEmail(email string) bool {
+	return d.AdminEmails[strings.ToLower(strings.TrimSpace(email))]
 }
 
 type memberKey struct{}
@@ -46,6 +64,8 @@ type Member struct {
 	TreeID string
 	UserID int64
 	Role   string
+	// Admin marks instance admins, who bypass membership checks.
+	Admin bool
 }
 
 // Mount registers /api/v1 routes on r. Tests use mount with a stub session
@@ -61,11 +81,20 @@ func mount(r chi.Router, d Deps, sessionMW func(http.Handler) http.Handler) {
 			r.Use(sessionMW)
 			r.Post("/trees", d.handleCreateTree)
 			r.Get("/trees", d.handleListTrees)
+			r.Route("/admin", func(r chi.Router) {
+				r.Use(d.requireAdmin)
+				r.Get("/status", d.handleAdminStatus)
+				r.Get("/users", d.handleAdminListUsers)
+				r.Get("/trees", d.handleAdminListTrees)
+				r.Delete("/trees/{treeID}", d.handleAdminDeleteTree)
+				r.Delete("/users/{userID}", d.handleAdminDeleteUser)
+			})
 			r.Route("/trees/{treeID}", func(r chi.Router) {
 				r.Use(d.requireMember(RoleViewer))
 				r.Get("/stats", d.handleTreeStats)
 				r.With(d.requireMember(RoleAdmin)).Post("/members", d.handleAddMember)
 				r.With(d.requireMember(RoleEditor)).Post("/individuals", d.handleCreateIndividual)
+				r.Get("/individuals", d.handleListIndividuals)
 				r.Get("/individuals/{id}", d.handleGetIndividual)
 				r.With(d.requireMember(RoleEditor)).Put("/individuals/{id}", d.handleUpdateIndividual)
 				r.With(d.requireMember(RoleEditor)).Delete("/individuals/{id}", d.handleDeleteIndividual)
@@ -106,22 +135,28 @@ func (d Deps) requireMember(minRole string) func(http.Handler) http.Handler {
 				return
 			}
 			var role string
+			member := Member{TreeID: treeID, UserID: userID}
 			err = master.QueryRowContext(r.Context(),
 				`SELECT role FROM tree_members WHERE tree_id = ? AND user_id = ?`,
 				treeID, userID).Scan(&role)
-			if err != nil {
-				if err == sql.ErrNoRows {
-					writeError(w, http.StatusForbidden, "not a member of this tree")
-					return
-				}
+			switch {
+			case err == nil:
+				member.Role = role
+			case err == sql.ErrNoRows && d.isAdminEmail(session.User.Email):
+				member.Admin = true
+				member.Role = RoleOwner
+			case err == sql.ErrNoRows:
+				writeError(w, http.StatusForbidden, "not a member of this tree")
+				return
+			default:
 				writeError(w, http.StatusInternalServerError, "storage unavailable")
 				return
 			}
-			if roleRank[role] < roleRank[minRole] {
+			if roleRank[member.Role] < roleRank[minRole] {
 				writeError(w, http.StatusForbidden, "insufficient role")
 				return
 			}
-			ctx := context.WithValue(r.Context(), memberKey{}, Member{TreeID: treeID, UserID: userID, Role: role})
+			ctx := context.WithValue(r.Context(), memberKey{}, member)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

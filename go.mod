@@ -5,6 +5,7 @@ go 1.27
 require (
 	github.com/beabzk/ethioqen-go v0.1.0
 	github.com/go-chi/chi/v5 v5.3.2
+	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/thecodearcher/limen v0.2.1
 	github.com/thecodearcher/limen/adapters/sql v0.2.0
@@ -17,7 +18,6 @@ require (
 require (
 	cloud.google.com/go/compute/metadata v0.3.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/jmoiron/sqlx v1.4.0 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
