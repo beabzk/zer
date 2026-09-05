@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -31,15 +34,16 @@ func run() error {
 	cfg := configFromEnv()
 
 	manager := database.NewManager("data")
-	defer manager.Close()
 
 	ctx := context.Background()
 	master, err := manager.Master(ctx)
 	if err != nil {
+		manager.Close()
 		return err
 	}
 	engine, err := auth.InitAuth(master, cfg.baseURL, cfg.googleEnabled, cfg.passwordEnabled)
 	if err != nil {
+		manager.Close()
 		return err
 	}
 
@@ -57,7 +61,32 @@ func run() error {
 
 	api.Mount(r, api.Deps{Manager: manager, Engine: engine, AdminEmails: api.ParseAdminEmails(os.Getenv("ADMIN_EMAILS"))})
 
-	return http.ListenAndServe(":"+cfg.port, r)
+	srv := &http.Server{Addr: ":" + cfg.port, Handler: r}
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- srv.ListenAndServe()
+	}()
+
+	sigCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	select {
+	case err := <-errCh:
+		manager.Close()
+		if err != nil && err != http.ErrServerClosed {
+			return err
+		}
+		return nil
+	case <-sigCtx.Done():
+		fmt.Fprintln(os.Stderr, "shutting down")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			manager.Close()
+			return err
+		}
+		return manager.Close()
+	}
 }
 
 type serverConfig struct {
