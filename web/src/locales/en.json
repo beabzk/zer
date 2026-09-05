@@ -54,6 +54,8 @@
     "confirmDelete": "Delete this person and all their links?",
     "search": "Search people",
     "select": "Select",
+    "addNew": "Create new person",
+    "useExisting": "Choose existing person",
     "clearDate": "Clear date",
     "cleared": "Date will be removed on save",
     "partialHint": "Gregorian date appears when year, month, and day are all set"
