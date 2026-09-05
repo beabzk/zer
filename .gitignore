@@ -1,0 +1,14 @@
+# Local runtime data
+data/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+
+# Environment
+.env
+
+# Build output
+/zer
+/zer.exe
+web/dist/
