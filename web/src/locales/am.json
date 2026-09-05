@@ -54,6 +54,8 @@
     "confirmDelete": "ይህን ሰው ከሁሉም ማያያዣዎች ጋር ማጥፋት ይፈልጋሉ?",
     "search": "ሰዎች ፈልግ",
     "select": "ምረጥ",
+    "addNew": "አዲስ ሰው ፍጠር",
+    "useExisting": "ያለውን ሰው ምረጥ",
     "clearDate": "ቀኑን አጥፋ"
   },
   "edge": {

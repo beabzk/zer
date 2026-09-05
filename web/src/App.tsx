@@ -113,17 +113,28 @@ export function App() {
                 {t(locale, `views.${v}`)}
               </button>
             ))}
-            {isAdmin && (
-              <button
-                onClick={() => setView("admin")}
-                className={`px-3 py-1 text-sm rounded ${
-                  view === "admin" ? "bg-black text-white" : "border bg-white"
-                }`}
-              >
-                {t(locale, "admin.panel")}
-              </button>
-            )}
-          </nav>
+                {isAdmin && (
+                  <button
+                    onClick={() => setView("admin")}
+                    className={`px-3 py-1 text-sm rounded ${
+                      view === "admin" ? "bg-black text-white" : "border bg-white"
+                    }`}
+                  >
+                    {t(locale, "admin.panel")}
+                  </button>
+                )}
+                {treeId && (
+                  <button
+                    onClick={() => {
+                      setEditing(undefined);
+                      setShowPersonModal(true);
+                    }}
+                    className="px-3 py-1 text-sm rounded bg-black text-white ml-auto"
+                  >
+                    {t(locale, "person.add")}
+                  </button>
+                )}
+              </nav>
           {view === "admin" && isAdmin ? (
             <AdminPanel locale={locale} />
           ) : !treeId ? (

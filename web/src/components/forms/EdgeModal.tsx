@@ -20,6 +20,10 @@ export function EdgeModal({ locale, treeId, mode, onClose, onSaved }: Props) {
   const anchor =
     mode.kind === "parent" ? mode.child : mode.kind === "child" ? mode.parent : mode.partner;
   const [other, setOther] = useState<PersonHit | null>(null);
+  const [createNew, setCreateNew] = useState(false);
+  const [newNative, setNewNative] = useState("");
+  const [newLatin, setNewLatin] = useState("");
+  const [newGender, setNewGender] = useState("MALE");
   const [relType, setRelType] = useState("BIOLOGICAL");
   const [nameSource, setNameSource] = useState(mode.kind !== "union");
   const [unionType, setUnionType] = useState("TRADITIONAL");
@@ -34,19 +38,33 @@ export function EdgeModal({ locale, treeId, mode, onClose, onSaved }: Props) {
         : t(locale, "edge.addUnion");
 
   const submit = async () => {
-    if (!other) return;
     setError("");
     setSaving(true);
     try {
+      let otherId = other?.id ?? "";
+      if (createNew) {
+        if (!newNative.trim() || !newLatin.trim()) {
+          setError(t(locale, "common.error"));
+          setSaving(false);
+          return;
+        }
+        const created = await api.individuals.create(treeId, {
+          given_name_native: newNative.trim(),
+          given_name_latin: newLatin.trim(),
+          gender: newGender,
+        });
+        otherId = created.id;
+      }
+      if (!otherId) return;
       if (mode.kind === "union") {
         await api.relationships.addUnion(treeId, {
           partner_a_id: anchor.id,
-          partner_b_id: other.id,
+          partner_b_id: otherId,
           union_type: unionType,
         });
       } else {
-        const parentId = mode.kind === "parent" ? other.id : anchor.id;
-        const childId = mode.kind === "parent" ? anchor.id : other.id;
+        const parentId = mode.kind === "parent" ? otherId : anchor.id;
+        const childId = mode.kind === "parent" ? anchor.id : otherId;
         await api.relationships.addParentChild(treeId, {
           parent_id: parentId,
           child_id: childId,
@@ -63,6 +81,9 @@ export function EdgeModal({ locale, treeId, mode, onClose, onSaved }: Props) {
     }
   };
 
+  const canSubmit =
+    !saving && (other !== null || (createNew && newNative.trim() !== "" && newLatin.trim() !== ""));
+
   const input = "w-full px-3 py-2 border rounded text-sm";
   const label = "block text-xs font-medium text-gray-600 mb-1";
 
@@ -75,13 +96,52 @@ export function EdgeModal({ locale, treeId, mode, onClose, onSaved }: Props) {
         </p>
         {error && <p className="text-red-600 text-sm mb-3">{error}</p>}
         <div className="space-y-3">
-          <SearchSelect
-            locale={locale}
-            treeId={treeId}
-            excludeId={anchor.id}
-            value={other}
-            onChange={setOther}
-          />
+          <div className="flex gap-4 text-sm">
+            <label className="flex items-center gap-1">
+              <input
+                type="radio"
+                checked={!createNew}
+                onChange={() => setCreateNew(false)}
+              />
+              {t(locale, "person.useExisting")}
+            </label>
+            <label className="flex items-center gap-1">
+              <input type="radio" checked={createNew} onChange={() => setCreateNew(true)} />
+              {t(locale, "person.addNew")}
+            </label>
+          </div>
+          {createNew ? (
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                className={input}
+                placeholder={t(locale, "person.nativeName")}
+                value={newNative}
+                onChange={(e) => setNewNative(e.target.value)}
+              />
+              <input
+                className={input}
+                placeholder={t(locale, "person.latinName")}
+                value={newLatin}
+                onChange={(e) => setNewLatin(e.target.value)}
+              />
+              <select
+                className={input}
+                value={newGender}
+                onChange={(e) => setNewGender(e.target.value)}
+              >
+                <option value="MALE">{t(locale, "person.male")}</option>
+                <option value="FEMALE">{t(locale, "person.female")}</option>
+              </select>
+            </div>
+          ) : (
+            <SearchSelect
+              locale={locale}
+              treeId={treeId}
+              excludeId={anchor.id}
+              value={other}
+              onChange={setOther}
+            />
+          )}
           {mode.kind === "union" ? (
             <div>
               <label className={label}>{t(locale, "edge.unionType")}</label>
@@ -122,7 +182,7 @@ export function EdgeModal({ locale, treeId, mode, onClose, onSaved }: Props) {
           </button>
           <button
             onClick={submit}
-            disabled={saving || !other}
+            disabled={!canSubmit}
             className="px-4 py-2 text-sm bg-black text-white rounded disabled:opacity-50"
           >
             {t(locale, "person.save")}
