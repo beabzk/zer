@@ -68,7 +68,22 @@ func (d Deps) handleCreateTree(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "storage unavailable")
 		return
 	}
-	if _, err := master.ExecContext(r.Context(),
+	// Registry and membership commit atomically. The tree file lives on a
+	// separate handle outside the transaction, so file creation sits between
+	// the two writes and any failure rolls everything back.
+	tx, err := master.Begin()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		return
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+			_ = d.Manager.DropTree(id)
+		}
+	}()
+	if _, err := tx.ExecContext(r.Context(),
 		`INSERT INTO trees (id, name, slug, description, default_lang, created_by)
 		VALUES (?, ?, ?, ?, ?, ?)`,
 		id, body.Name, slug, nullIfEmpty(body.Description), lang, userID); err != nil {
@@ -80,16 +95,20 @@ func (d Deps) handleCreateTree(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err := d.Manager.Tree(r.Context(), id); err != nil {
-		_, _ = master.ExecContext(r.Context(), `DELETE FROM trees WHERE id = ?`, id)
 		writeError(w, http.StatusInternalServerError, "storage unavailable")
 		return
 	}
-	if _, err := master.ExecContext(r.Context(),
+	if _, err := tx.ExecContext(r.Context(),
 		`INSERT INTO tree_members (id, tree_id, user_id, role) VALUES (?, ?, ?, 'OWNER')`,
 		uuid.NewString(), id, userID); err != nil {
 		writeError(w, http.StatusInternalServerError, "storage unavailable")
 		return
 	}
+	if err := tx.Commit(); err != nil {
+		writeError(w, http.StatusInternalServerError, "storage unavailable")
+		return
+	}
+	committed = true
 	writeJSON(w, http.StatusCreated, treeResponse{
 		ID: id, Name: body.Name, Slug: slug,
 		Description: body.Description, DefaultLang: lang, Role: RoleOwner,

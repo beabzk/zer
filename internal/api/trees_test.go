@@ -77,6 +77,30 @@ func TestCreateTreeValidation(t *testing.T) {
 	}
 }
 
+func TestFailedCreateLeavesNoTrace(t *testing.T) {
+	d, manager, _ := testSetup(t, 1)
+	r := chi.NewRouter()
+	mount(r, d, stubSession(1))
+
+	before := countRows(t, manager, `SELECT COUNT(*) FROM trees`)
+	rec := doRequest(t, r, http.MethodPost, "/api/v1/trees", map[string]any{"name": ""})
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", rec.Code)
+	}
+	// A conflicting create rolls back registry and membership together.
+	createTree(t, r, "Atomic")
+	rec = doRequest(t, r, http.MethodPost, "/api/v1/trees", map[string]any{"name": "Atomic"})
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want 409", rec.Code)
+	}
+	if n := countRows(t, manager, `SELECT COUNT(*) FROM trees`); n != before+1 {
+		t.Errorf("trees rows = %d, want %d", n, before+1)
+	}
+	if n := countRows(t, manager, `SELECT COUNT(*) FROM tree_members`); n != 1 {
+		t.Errorf("members rows = %d, want 1", n)
+	}
+}
+
 func TestTreeMembershipEnforcement(t *testing.T) {
 	d, manager, _ := testSetup(t, 1)
 	ownerRouter := chi.NewRouter()
