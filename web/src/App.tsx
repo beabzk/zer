@@ -1,10 +1,21 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { auth } from "./lib/auth";
-import { api, type Individual, type PersonHit } from "./lib/api";
+import { api, type Individual, type PersonHit, type Tree } from "./lib/api";
 import { t, type Locale } from "./lib/i18n";
+import {
+  lastFocusKey,
+  parseLocation,
+  pathForView,
+  treeIdFromPath,
+  viewFromPath,
+  viewNeedsFocus,
+  type WorkspaceView,
+} from "./lib/navigation";
 import { Header } from "./components/layout/Header";
 import { TreeSwitcher } from "./components/layout/TreeSwitcher";
 import { LoginView } from "./components/visualization/LoginView";
+import { DashboardOverview } from "./components/visualization/DashboardOverview";
+import { PeopleDirectory } from "./components/visualization/PeopleDirectory";
 import { FamilyCanvas } from "./components/visualization/FamilyCanvas";
 import { PedigreeTree } from "./components/visualization/PedigreeTree";
 import { LineageCards } from "./components/visualization/LineageCards";
@@ -12,19 +23,32 @@ import { KinshipFinder } from "./components/visualization/KinshipFinder";
 import { AdminPanel } from "./components/visualization/AdminPanel";
 import { IndividualModal } from "./components/forms/IndividualModal";
 import { EdgeModal, type EdgeMode } from "./components/forms/EdgeModal";
-import { SearchSelect } from "./components/forms/SearchSelect";
-
-type View = "canvas" | "pedigree" | "cards" | "kinship" | "admin";
+import { PersonPanel } from "./components/visualization/PersonPanel";
+import { Button, Card, CardContent, Empty, Separator, Skeleton, ToastProvider } from "./components/ui";
 
 function storedLocale(): Locale {
   const raw = localStorage.getItem("zer-locale");
   return raw === "am" || raw === "om" || raw === "ti" ? raw : "en";
 }
 
+function initialTreeId(): string {
+  return treeIdFromPath() || localStorage.getItem("zer-tree") || "";
+}
+
+const primaryViews: Array<{ id: WorkspaceView; label: string; eyebrow: string }> = [
+  { id: "overview", label: "views.overview", eyebrow: "01" },
+  { id: "people", label: "views.people", eyebrow: "02" },
+  { id: "canvas", label: "views.canvas", eyebrow: "03" },
+  { id: "pedigree", label: "views.pedigree", eyebrow: "04" },
+  { id: "kinship", label: "views.kinship", eyebrow: "05" },
+];
+
 export function App() {
   const [locale, setLocale] = useState<Locale>(storedLocale);
-  const [treeId, setTreeId] = useState(() => localStorage.getItem("zer-tree") ?? "");
-  const [view, setView] = useState<View>("canvas");
+  const [treeId, setTreeIdState] = useState(initialTreeId);
+  const [trees, setTrees] = useState<Tree[]>([]);
+  const [treesReady, setTreesReady] = useState(false);
+  const [view, setViewState] = useState<WorkspaceView>(() => viewFromPath());
   const [focus, setFocus] = useState<PersonHit | null>(null);
   const [selectedId, setSelectedId] = useState("");
   const [selected, setSelected] = useState<Individual | null>(null);
@@ -34,36 +58,120 @@ export function App() {
   const [edgeMode, setEdgeMode] = useState<EdgeMode | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [treeMenuOpen, setTreeMenuOpen] = useState(false);
 
   const session = auth.useSession() as unknown as {
     data: { user: { email: string } } | null;
     isPending: boolean;
   };
 
+  // Refs mirror the current location so navigation helpers can read the
+  // latest view and tree without stale closures or impure state updaters.
+  const viewRef = useRef(view);
+  const treeRef = useRef(treeId);
+  viewRef.current = view;
+  treeRef.current = treeId;
+
+  const setTreeId = useCallback((id: string) => {
+    setTreeIdState(id);
+    treeRef.current = id;
+    if (id) {
+      localStorage.setItem("zer-tree", id);
+    } else {
+      localStorage.removeItem("zer-tree");
+    }
+  }, []);
+
+  const setView = useCallback((next: WorkspaceView, replace = false) => {
+    setViewState(next);
+    viewRef.current = next;
+    const path = pathForView(next, treeRef.current);
+    window.history[replace ? "replaceState" : "pushState"]({}, "", path);
+  }, []);
+
+  const handleTreesLoaded = useCallback((list: Tree[]) => {
+    setTrees(list);
+    setTreesReady(true);
+  }, []);
+
   useEffect(() => {
     localStorage.setItem("zer-locale", locale);
   }, [locale]);
+
+  // Keep view and tree selection in sync with the address bar.
+  useEffect(() => {
+    const onPopState = () => {
+      const location = parseLocation(window.location.pathname);
+      setViewState(location.view);
+      viewRef.current = location.view;
+      if (location.treeId) {
+        setTreeId(location.treeId);
+      }
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [setTreeId]);
+
+  useEffect(() => {
+    if (!window.location.pathname || window.location.pathname === "/") {
+      window.history.replaceState({}, "", pathForView(view, treeId));
+    }
+  }, [treeId, view]);
 
   useEffect(() => {
     if (!session.data) {
       setIsAdmin(false);
       return;
     }
-    api.admin
-      .status()
-      .then((s) => setIsAdmin(s.is_admin))
-      .catch(() => setIsAdmin(false));
+    api.admin.status().then((status) => setIsAdmin(status.is_admin)).catch(() => setIsAdmin(false));
   }, [session.data]);
 
-  const pickTree = (id: string) => {
+  const pickTree = useCallback((id: string) => {
     setTreeId(id);
-    localStorage.setItem("zer-tree", id);
     setFocus(null);
     setSelectedId("");
     setSelected(null);
-  };
+    setTreeMenuOpen(false);
+    // Preserve the workspace mode across trees. Views that need a
+    // focused person fall back to the overview because focus is cleared.
+    const next = viewNeedsFocus(viewRef.current) ? "overview" : viewRef.current;
+    setViewState(next);
+    viewRef.current = next;
+    window.history.pushState({}, "", pathForView(next, id));
+  }, [setTreeId]);
 
-  const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
+  const clearTree = useCallback(() => {
+    setTreeId("");
+    setFocus(null);
+    setSelectedId("");
+    setSelected(null);
+    setViewState("overview");
+    viewRef.current = "overview";
+    window.history.pushState({}, "", pathForView("overview", ""));
+  }, [setTreeId]);
+
+  const refresh = useCallback(() => setRefreshKey((key) => key + 1), []);
+
+  const openPerson = useCallback((person: PersonHit) => {
+    setFocus(person);
+    setSelectedId(person.id);
+    const currentTree = treeRef.current;
+    if (currentTree) {
+      try {
+        localStorage.setItem(lastFocusKey(currentTree), JSON.stringify(person));
+      } catch {
+        // Storage may be unavailable; the focus state still applies.
+      }
+    }
+    // Overview and directory selections lead into the graph workspace
+    // where the person detail panel is visible.
+    const currentView = viewRef.current;
+    if (currentView === "overview" || currentView === "people") {
+      setViewState("canvas");
+      viewRef.current = "canvas";
+      window.history.pushState({}, "", pathForView("canvas", currentTree));
+    }
+  }, []);
 
   useEffect(() => {
     if (!treeId || !selectedId) {
@@ -71,10 +179,9 @@ export function App() {
       return;
     }
     let live = true;
-    api.individuals
-      .get(treeId, selectedId)
-      .then((p) => {
-        if (live) setSelected(p);
+    api.individuals.get(treeId, selectedId)
+      .then((person) => {
+        if (live) setSelected(person);
       })
       .catch(() => {
         if (live) setSelected(null);
@@ -82,219 +189,132 @@ export function App() {
     return () => {
       live = false;
     };
-  }, [treeId, selectedId, refreshKey]);
+  }, [refreshKey, selectedId, treeId]);
+
+  const tree = useMemo(() => trees.find((candidate) => candidate.id === treeId), [treeId, trees]);
 
   if (session.isPending) {
-    return <p className="p-4 text-sm">{t(locale, "common.loading")}</p>;
+    return <p className="p-6 text-sm text-muted-foreground">{t(locale, "common.loading")}</p>;
   }
   if (!session.data) {
     return <LoginView locale={locale} />;
   }
 
+  const startAddPerson = () => {
+    setEditing(undefined);
+    setShowPersonModal(true);
+  };
+
+  const nav = (next: WorkspaceView) => setView(next);
   const focusId = focus?.id ?? "";
+  // The stored id may reference a tree the user can no longer access.
+  const treeInaccessible = Boolean(treeId && treesReady && trees.length > 0 && !tree);
+  const bottomItems: Array<{ id: WorkspaceView; label: string }> = isAdmin
+    ? [...primaryViews, { id: "admin" as WorkspaceView, label: "admin.panel" }]
+    : primaryViews;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <ToastProvider>
+    <div className="min-h-screen bg-background">
       <Header locale={locale} onLocaleChange={setLocale} email={session.data.user.email} />
-      <div className="flex flex-col md:flex-row">
-        <aside className="md:w-64 shrink-0 border-b md:border-b-0 md:border-r bg-white">
-          <TreeSwitcher locale={locale} activeId={treeId} onSelect={pickTree} refreshKey={refreshKey} isAdmin={isAdmin} />
+      <div className="mx-auto grid max-w-[1600px] md:grid-cols-[260px_minmax(0,1fr)]">
+        <aside className="hidden border-r border-border bg-panel/50 md:block">
+          <div className="sticky top-0 flex h-[calc(100vh-4rem)] flex-col">
+            <TreeSwitcher locale={locale} activeId={treeId} onSelect={pickTree} refreshKey={refreshKey} isAdmin={isAdmin} onTreesLoaded={handleTreesLoaded} />
+            <div className="mt-auto p-4">
+              <Separator />
+              <p className="pt-4 text-xs leading-5 text-muted-foreground">{t(locale, "app.shellHint")}</p>
+            </div>
+          </div>
         </aside>
-        <main className="flex-1 min-w-0">
-          <nav className="flex gap-1 px-4 pt-3">
-            {(["canvas", "pedigree", "cards", "kinship"] as View[]).map((v) => (
-              <button
-                key={v}
-                onClick={() => setView(v)}
-                className={`px-3 py-1 text-sm rounded ${
-                  view === v ? "bg-black text-white" : "border bg-white"
-                }`}
-              >
-                {t(locale, `views.${v}`)}
-              </button>
-            ))}
-                {isAdmin && (
-                  <button
-                    onClick={() => setView("admin")}
-                    className={`px-3 py-1 text-sm rounded ${
-                      view === "admin" ? "bg-black text-white" : "border bg-white"
-                    }`}
-                  >
-                    {t(locale, "admin.panel")}
-                  </button>
-                )}
-                {treeId && (
-                  <button
-                    onClick={() => {
-                      setEditing(undefined);
-                      setShowPersonModal(true);
-                    }}
-                    className="px-3 py-1 text-sm rounded bg-black text-white ml-auto"
-                  >
-                    {t(locale, "person.add")}
-                  </button>
-                )}
-              </nav>
-          {view === "admin" && isAdmin ? (
-            <AdminPanel locale={locale} />
-          ) : !treeId ? (
-            <p className="p-4 text-sm text-gray-500">{t(locale, "trees.empty")}</p>
-          ) : (
-            <>
-              {!focusId && view !== "kinship" ? (
-                <div className="p-4 max-w-md space-y-3">
-                  <SearchSelect
-                    locale={locale}
-                    treeId={treeId}
-                    value={focus}
-                    onChange={setFocus}
-                  />
-                  <button
-                    onClick={() => {
-                      setEditing(undefined);
-                      setShowPersonModal(true);
-                    }}
-                    className="px-4 py-2 text-sm bg-black text-white rounded"
-                  >
-                    {t(locale, "person.add")}
-                  </button>
-                </div>
-              ) : (
-                <div className="flex flex-col lg:flex-row">
-                  <div className="flex-1 min-w-0">
-                    {view === "canvas" && focusId && (
-                      <FamilyCanvas
-                        locale={locale}
-                        treeId={treeId}
-                        focusId={focusId}
-                        depth={depth}
-                        onDepthChange={setDepth}
-                        selectedId={selectedId}
-                        onSelect={setSelectedId}
-                        refreshKey={refreshKey}
-                      />
-                    )}
-                    {view === "pedigree" && focusId && (
-                      <PedigreeTree
-                        locale={locale}
-                        treeId={treeId}
-                        rootId={focusId}
-                        refreshKey={refreshKey}
-                        onSelect={setSelectedId}
-                      />
-                    )}
-                    {view === "cards" && focusId && (
-                      <LineageCards
-                        locale={locale}
-                        treeId={treeId}
-                        rootId={focusId}
-                        refreshKey={refreshKey}
-                        onSelect={setSelectedId}
-                      />
-                    )}
-                    {view === "kinship" && <KinshipFinder locale={locale} treeId={treeId} />}
-                  </div>
-                  {selected && (
-                    <aside className="lg:w-72 shrink-0 border-t lg:border-t-0 lg:border-l bg-white p-4">
-                      <PersonPanel
-                        locale={locale}
-                        person={selected}
-                        onEdit={() => {
-                          setEditing(selected);
-                          setShowPersonModal(true);
-                        }}
-                        onEdge={(mode) => setEdgeMode(mode)}
-                        onFocus={() => {
-                          setFocus({
-                            id: selected.id,
-                            full_native: selected.full_native,
-                            full_latin: selected.full_latin,
-                            gender: selected.gender,
-                          });
-                          setView("canvas");
-                        }}
-                      />
-                    </aside>
+
+        <main className="min-w-0 pb-20 md:pb-0">
+          <div className="border-b border-border bg-background/80 px-4 py-4 backdrop-blur sm:px-6 lg:px-8">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="relative md:hidden">
+                  <Button variant="outline" size="sm" onClick={() => setTreeMenuOpen((open) => !open)} aria-expanded={treeMenuOpen}>
+                    {tree?.name ?? t(locale, "trees.title")}
+                  </Button>
+                  {treeMenuOpen && (
+                    <div className="absolute left-0 top-11 z-20 w-[min(88vw,320px)] rounded-lg border border-border bg-panel p-2 shadow-panel">
+                      <TreeSwitcher locale={locale} activeId={treeId} onSelect={pickTree} refreshKey={refreshKey} isAdmin={isAdmin} onTreesLoaded={handleTreesLoaded} />
+                    </div>
                   )}
                 </div>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    {treeId && !treesReady ? <Skeleton className="h-3 w-32" /> : (tree?.name ?? t(locale, "dashboard.workspace"))}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">{tree ? t(locale, "dashboard.workspaceHint") : t(locale, "dashboard.chooseTree")}</p>
+                </div>
+              </div>
+              {treeId && !treeInaccessible && <Button size="sm" onClick={startAddPerson}>{t(locale, "person.add")}</Button>}
+            </div>
+            <nav className="mt-5 hidden gap-1 overflow-x-auto pb-1 md:flex" aria-label={t(locale, "dashboard.navigation")}>
+              {primaryViews.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => nav(item.id)}
+                  aria-current={view === item.id ? "page" : undefined}
+                  className={`flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${view === item.id ? "bg-foreground text-background" : "text-muted-foreground hover:bg-panel-muted hover:text-foreground"}`}
+                >
+                  <span className="font-mono text-[10px] opacity-60">{item.eyebrow}</span>{t(locale, item.label)}
+                </button>
+              ))}
+              {isAdmin && (
+                <button
+                  onClick={() => nav("admin")}
+                  aria-current={view === "admin" ? "page" : undefined}
+                  className={`ml-auto flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${view === "admin" ? "bg-foreground text-background" : "text-muted-foreground hover:bg-panel-muted hover:text-foreground"}`}
+                >
+                  {t(locale, "admin.panel")}
+                </button>
               )}
-            </>
-          )}
+            </nav>
+          </div>
+
+          <div className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+            {view === "admin" && isAdmin ? <AdminPanel locale={locale} /> : treeInaccessible ? (
+              <Empty
+                title={t(locale, "shell.forbiddenTitle")}
+                description={t(locale, "shell.forbiddenDescription")}
+                action={<Button variant="outline" onClick={clearTree}>{t(locale, "shell.clearSelection")}</Button>}
+              />
+            ) : view === "overview" ? (
+              <DashboardOverview
+                locale={locale}
+                tree={tree}
+                treeId={treeInaccessible ? "" : treeId}
+                onAddPerson={startAddPerson}
+                onExplore={() => nav(focusId ? "canvas" : "people")}
+                onSelectPerson={openPerson}
+                onTreeCreated={(id) => { pickTree(id); refresh(); }}
+              />
+            ) : !treeId ? <Empty title={t(locale, "dashboard.chooseTree")} description={t(locale, "dashboard.chooseTreeDescription")} /> : view === "people" ? <PeopleDirectory locale={locale} treeId={treeId} onAdd={startAddPerson} onSelect={openPerson} /> : view === "kinship" ? <KinshipFinder locale={locale} treeId={treeId} /> : !focusId ? <Card><CardContent className="p-6"><Empty title={t(locale, "canvas.empty")} description={t(locale, "dashboard.focusDescription")} /></CardContent></Card> : <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">{view === "canvas" && <FamilyCanvas locale={locale} treeId={treeId} focusId={focusId} depth={depth} onDepthChange={setDepth} selectedId={selectedId} onSelect={setSelectedId} refreshKey={refreshKey} />}{view === "pedigree" && <PedigreeTree locale={locale} treeId={treeId} rootId={focusId} refreshKey={refreshKey} onSelect={setSelectedId} />}{view === "cards" && <LineageCards locale={locale} treeId={treeId} rootId={focusId} refreshKey={refreshKey} onSelect={setSelectedId} />}{selected && <PersonPanel locale={locale} person={selected} onEdit={() => { setEditing(selected); setShowPersonModal(true); }} onEdge={setEdgeMode} onFocus={() => nav("canvas")} />}</div>}
+          </div>
         </main>
       </div>
-      {showPersonModal && (
-        <IndividualModal
-          locale={locale}
-          treeId={treeId}
-          initial={editing}
-          onClose={() => setShowPersonModal(false)}
-          onSaved={(p) => {
-            if (!focus) {
-              setFocus({
-                id: p.id,
-                full_native: p.full_native,
-                full_latin: p.full_latin,
-                gender: p.gender,
-              });
-            }
-            setSelectedId(p.id);
-            refresh();
-          }}
-        />
-      )}
-      {edgeMode && (
-        <EdgeModal
-          locale={locale}
-          treeId={treeId}
-          mode={edgeMode}
-          onClose={() => setEdgeMode(null)}
-          onSaved={refresh}
-        />
-      )}
-    </div>
-  );
-}
 
-function PersonPanel({
-  locale,
-  person,
-  onEdit,
-  onEdge,
-  onFocus,
-}: {
-  locale: Locale;
-  person: Individual;
-  onEdit: () => void;
-  onEdge: (mode: EdgeMode) => void;
-  onFocus: () => void;
-}) {
-  const anchor: PersonHit = {
-    id: person.id,
-    full_native: person.full_native,
-    full_latin: person.full_latin,
-    gender: person.gender,
-  };
-  const btn = "w-full px-3 py-1 text-sm border rounded text-left hover:bg-gray-50";
-  return (
-    <div className="space-y-2">
-      <h3 className="font-semibold">{person.full_latin}</h3>
-      <p className="text-sm text-gray-600">{person.full_native}</p>
-      {person.birth_date_gc && (
-        <p className="text-xs text-gray-500">
-          {t(locale, "person.birth")}: {person.birth_date_gc}
-        </p>
-      )}
-      <button className={btn} onClick={onEdit}>{t(locale, "person.edit")}</button>
-      <button className={btn} onClick={onFocus}>{t(locale, "canvas.focus")}</button>
-      <button className={btn} onClick={() => onEdge({ kind: "parent", child: anchor })}>
-        {t(locale, "edge.addParent")}
-      </button>
-      <button className={btn} onClick={() => onEdge({ kind: "child", parent: anchor })}>
-        {t(locale, "edge.addChild")}
-      </button>
-      <button className={btn} onClick={() => onEdge({ kind: "union", partner: anchor })}>
-        {t(locale, "edge.addUnion")}
-      </button>
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-panel/95 backdrop-blur md:hidden" aria-label={t(locale, "dashboard.navigation")}>
+        <div className={`grid ${isAdmin ? "grid-cols-6" : "grid-cols-5"}`}>
+          {bottomItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => nav(item.id)}
+              aria-current={view === item.id ? "page" : undefined}
+              className={`flex min-w-0 flex-col items-center gap-1 px-1 py-2.5 text-[11px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent ${view === item.id ? "text-foreground" : "text-muted-foreground"}`}
+            >
+              <span className={`h-1 w-6 rounded-full ${view === item.id ? "bg-accent" : "bg-transparent"}`} aria-hidden="true" />
+              <span className="w-full truncate text-center leading-tight">{t(locale, item.label)}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
+
+      {showPersonModal && treeId && <IndividualModal locale={locale} treeId={treeId} initial={editing} onClose={() => setShowPersonModal(false)} onSaved={(person) => { setFocus({ id: person.id, full_native: person.full_native, full_latin: person.full_latin, gender: person.gender }); setSelectedId(person.id); refresh(); }} />}
+      {edgeMode && <EdgeModal locale={locale} treeId={treeId} mode={edgeMode} onClose={() => setEdgeMode(null)} onSaved={refresh} />}
     </div>
+    </ToastProvider>
   );
 }

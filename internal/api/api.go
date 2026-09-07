@@ -220,5 +220,5 @@ func writeError(w http.ResponseWriter, status int, message string) {
 // the cause with the request path server-side.
 func writeInternalError(w http.ResponseWriter, r *http.Request, err error) {
 	log.Printf("%s %s: %v", r.Method, r.URL.Path, err)
-	writeInternalError(w, r, err)
+	writeError(w, http.StatusInternalServerError, "internal server error")
 }

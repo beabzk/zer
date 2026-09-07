@@ -1,7 +1,8 @@
 {
   "app": {
     "title": "ዘር",
-    "tagline": "የቤተሰብ ዝር ለአባታዊ ትውልዶች"
+    "tagline": "የቤተሰብ ዝር ለአባታዊ ትውልዶች",
+    "shellHint": "ዝሩን ተመርጦ ሳለ ሰዎችን፣ ግንኙነቶችን እና ትውልድን ዳስስ።"
   },
   "auth": {
     "signIn": "ግባ",
@@ -24,9 +25,13 @@
     "members": "አባላት",
     "individuals": "ሰዎች",
     "edges": "የወላጅ ማያያዣዎች",
-    "unions": "ጥምረቶች"
+    "unions": "ጥምረቶች",
+    "switchHint": "ለመጀመር የቤተሰብ ዛፍ ምረጥ።",
+    "created": "ዛፍ ተፈጥሯል"
   },
   "views": {
+    "overview": "አጠቃላይ እይታ",
+    "people": "ሰዎች",
     "canvas": "ካርታ",
     "pedigree": "ትውልድ",
     "cards": "ካርዶች",
@@ -56,7 +61,11 @@
     "select": "ምረጥ",
     "addNew": "አዲስ ሰው ፍጠር",
     "useExisting": "ያለውን ሰው ምረጥ",
-    "clearDate": "ቀኑን አጥፋ"
+    "clearDate": "ቀኑን አጥፋ",
+    "cleared": "ቀኑ ሲቀመጥ ይሰረዛል",
+    "partialHint": "ዓመት፣ ወር እና ቀን ሦስቱም ሲሞሉ የግሪጎሪያን ቀን ይታያል",
+    "living": "ሕያው",
+    "noBirthDate": "የልደት ቀን አልተመዘገበም"
   },
   "edge": {
     "addParent": "ወላጅ ጨምር",
@@ -97,6 +106,47 @@
     "allTrees": "ሁሉም ዛፎች",
     "confirmDeleteTree": "ይህን ዝር ከመረጃ ቋቱ ጋር ማጥፋት ይፈልጋሉ?",
     "confirmDeleteUser": "ይህን ተጠቃሚ ከሁሉም ክፍለ-ጊዜያት እና አባልነቶች ጋር ማጥፋት ይፈልጋሉ?"
+  },
+  "dashboard": {
+    "overview": "የዛፉ አጠቃላይ እይታ",
+    "workspace": "የቤተሰብ የሥራ ቦታ",
+    "workspaceHint": "የሰዎችና የግንኙነቶች ሕያው መዝገብ።",
+    "chooseTree": "የቤተሰብ ዛፍ ምረጥ",
+    "chooseTreeDescription": "አጠቃላይ እይታውን እና የቤተሰብ ግራፉን ለመክፈት ከጎን አሞሌ ዛፍ ምረጥ።",
+    "description": "ስለ ቤተሰብህ ግልጽ የሆነ የጋራ ምስል እና የሚያገናኙዋቸውን ትውልዶች ገንባ።",
+    "navigation": "የሥራ ቦታ ዳሰሳ",
+    "welcome": "በታሪክህ አካል ከሆኑ ሰዎች ጀምር።",
+    "welcomeDescription": "የቤተሰብ ዛፍ ፍጠር፣ ሰዎቹን መዝግብ እና እያንዳንዱን ግንኙነት በእጅህ ፍጥነት ተከታተል።",
+    "startTitle": "የቤተሰብ የሥራ ቦታ ክፈት",
+    "startDescription": "የመጀመሪያ ሰውህን ፍጠር፣ ከዚያ ግራፉን ተጠቅመህ ወላጆችን፣ ልጆችን እና ጥምረቶችን አገናኝ።",
+    "startHint": "ቀናትን በኢትዮጵያ አቆጣጠር መጨመር እና ስሞችን በመነሻ ጽሑፍ እና በላቲን አንድ ላይ ማቆየት ትችላለህ።",
+    "events": "ዝግጅቶች",
+    "peopleTitle": "በዚህ ዛፍ ያሉ ሰዎች",
+    "peopleDescription": "በዛፉ ያሉ መዝገቦች ፈጣን መነሻ።",
+    "emptyPeople": "ዛፍህ ለመጀመሪያ ሰው ዝግጁ ነው።",
+    "emptyPeopleDescription": "ለዚህ የሥራ ቦታ መልሕቅ ለመስጠት ሰው ጨምር።",
+    "nextTitle": "ቀጣይ እርምጃህን ምረጥ",
+    "nextDescription": "ግራፉን ዳስስ ወይም መዝገቡን አንድ ሰው በአንድ ጊዜ መገንባት ቀጥል።",
+    "explore": "ግራፉን ዳስስ",
+    "openGraph": "የቤተሰብ ግራፍ ክፈት",
+    "recordPerson": "ሰው መዝግብ",
+    "focusDescription": "የቤተሰብ ግራፉን ለመዳሰስ ከአጠቃላይ እይታ ወይም ከሰዎች ማውጫ ሰው ምረጥ።",
+    "continueTitle": "ካቆምክበት ቀጥል",
+    "continueDescription": "በዚህ ዛፍ ለመጨረሻ ጊዜ ያተኮርክበት ሰው ተመለስ።",
+    "createTree": "አዲስ ዛፍ"
+  },
+  "people": {
+    "title": "ሰዎች",
+    "description": "በዚህ ዛፍ ያሉ ሰዎች ፈልግ እና መዝገብ ለመቀጠል ክፈት።",
+    "directory": "የሰዎች ማውጫ",
+    "searchDescription": "በተሰጠ ስም በሁለቱም ጽሑፎች ፈልግ።",
+    "empty": "ከዚህ ፍለጋ ጋር የሚዛመድ ሰው የለም።",
+    "emptyDescription": "ሌላ ፍለጋ ሞክር ወይም አዲስ ሰው ወደ ዛፉ ጨምር።"
+  },
+  "shell": {
+    "forbiddenTitle": "ወደዚህ ዛፍ መዳረሻ የለም",
+    "forbiddenDescription": "መዳረሻ የለህም፣ ወይም ተሰርዟል። ሌላ ዛፍ ምረጥ።",
+    "clearSelection": "ምርጫ አጽዳ"
   },
   "common": {
     "loading": "በመጫን ላይ...",

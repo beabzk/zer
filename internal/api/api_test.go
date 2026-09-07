@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -102,5 +103,21 @@ func TestHealthIsOpen(t *testing.T) {
 	rec := doRequest(t, r, http.MethodGet, "/api/v1/health", nil)
 	if rec.Code != http.StatusOK {
 		t.Errorf("status = %d, want 200", rec.Code)
+	}
+}
+
+func TestWriteInternalErrorReturnsServerError(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/test", nil)
+	rec := httptest.NewRecorder()
+
+	writeInternalError(rec, req, errors.New("database unavailable"))
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want 500", rec.Code)
+	}
+	var body map[string]string
+	decodeBody(t, rec, &body)
+	if body["error"] != "internal server error" {
+		t.Fatalf("error = %q, want generic internal error", body["error"])
 	}
 }

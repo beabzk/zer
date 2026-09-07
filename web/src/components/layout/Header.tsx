@@ -1,5 +1,6 @@
 import { auth } from "../../lib/auth";
 import { localeNames, t, type Locale } from "../../lib/i18n";
+import { Button, Select } from "../ui";
 
 interface Props {
   locale: Locale;
@@ -9,18 +10,19 @@ interface Props {
 
 export function Header({ locale, onLocaleChange, email }: Props) {
   return (
-    <header className="flex items-center justify-between px-4 py-2 border-b bg-white">
-      <div>
-        <span className="font-bold text-lg">{t(locale, "app.title")}</span>
-        <span className="hidden sm:inline text-xs text-gray-500 ml-2">
+    <header className="border-b border-border bg-panel/90 backdrop-blur">
+      <div className="mx-auto flex min-h-16 max-w-[1600px] items-center justify-between gap-4 px-4 sm:px-6">
+      <div className="min-w-0">
+        <span className="font-display text-2xl font-semibold tracking-tight">{t(locale, "app.title")}</span>
+        <span className="ml-3 hidden max-w-md truncate text-xs uppercase tracking-[0.12em] text-muted-foreground lg:inline">
           {t(locale, "app.tagline")}
         </span>
       </div>
-      <div className="flex items-center gap-3">
-        <select
+      <div className="flex items-center gap-2 sm:gap-3">
+        <Select
           value={locale}
           onChange={(e) => onLocaleChange(e.target.value as Locale)}
-          className="border rounded text-sm px-2 py-1"
+          className="h-9 w-auto text-xs"
           aria-label={t(locale, "trees.language")}
         >
           {(Object.keys(localeNames) as Locale[]).map((l) => (
@@ -28,14 +30,16 @@ export function Header({ locale, onLocaleChange, email }: Props) {
               {localeNames[l]}
             </option>
           ))}
-        </select>
-        <span className="hidden md:inline text-sm text-gray-600">{email}</span>
-        <button
+        </Select>
+        <span className="hidden max-w-48 truncate text-sm text-muted-foreground md:inline">{email}</span>
+        <Button
+          size="sm"
+          variant="outline"
           onClick={() => void auth.signout()}
-          className="text-sm border rounded px-3 py-1"
         >
           {t(locale, "auth.signOut")}
-        </button>
+        </Button>
+      </div>
       </div>
     </header>
   );
