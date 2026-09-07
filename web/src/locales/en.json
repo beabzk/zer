@@ -1,7 +1,8 @@
 {
   "app": {
     "title": "zer",
-    "tagline": "Family graph for patronymic lineages"
+    "tagline": "Family graph for patronymic lineages",
+    "shellHint": "Keep the tree selected while you explore people, relationships, and lineage."
   },
   "auth": {
     "signIn": "Sign in",
@@ -24,9 +25,13 @@
     "members": "members",
     "individuals": "people",
     "edges": "parent links",
-    "unions": "unions"
+    "unions": "unions",
+    "switchHint": "Choose a family tree to begin.",
+    "created": "Tree created"
   },
   "views": {
+    "overview": "Overview",
+    "people": "People",
     "canvas": "Canvas",
     "pedigree": "Pedigree",
     "cards": "Cards",
@@ -58,7 +63,9 @@
     "useExisting": "Choose existing person",
     "clearDate": "Clear date",
     "cleared": "Date will be removed on save",
-    "partialHint": "Gregorian date appears when year, month, and day are all set"
+    "partialHint": "Gregorian date appears when year, month, and day are all set",
+    "living": "Living",
+    "noBirthDate": "Birth date not recorded"
   },
   "edge": {
     "addParent": "Add parent",
@@ -99,6 +106,47 @@
     "allTrees": "All trees",
     "confirmDeleteTree": "Delete this tree and its database file?",
     "confirmDeleteUser": "Delete this user with all sessions and memberships?"
+  },
+  "dashboard": {
+    "overview": "Tree overview",
+    "workspace": "Family workspace",
+    "workspaceHint": "A living record of people, connections, and the stories between them.",
+    "chooseTree": "Choose a family tree",
+    "chooseTreeDescription": "Select a tree from the rail to open its overview and family graph.",
+    "description": "Build a clear, shared picture of your family and the lineages that connect it.",
+    "navigation": "Workspace navigation",
+    "welcome": "Start with the people who make your story.",
+    "welcomeDescription": "Create a family tree, record the people in it, and follow each connection at your own pace.",
+    "startTitle": "Open a family workspace",
+    "startDescription": "Create your first person, then use the graph to connect parents, children, and unions.",
+    "startHint": "You can add dates in the Ethiopian calendar and keep native and Latin names together.",
+    "events": "events",
+    "peopleTitle": "People in this tree",
+    "peopleDescription": "A quick starting point for the records already in your tree.",
+    "emptyPeople": "Your tree is ready for its first person.",
+    "emptyPeopleDescription": "Add a person to give this workspace an anchor.",
+    "nextTitle": "Choose your next step",
+    "nextDescription": "Explore the graph or keep building the record one person at a time.",
+    "explore": "Explore graph",
+    "openGraph": "Open family graph",
+    "recordPerson": "Record a person",
+    "focusDescription": "Choose a person from the overview or people directory to explore their family graph.",
+    "continueTitle": "Continue where you left off",
+    "continueDescription": "Jump back to the last person you focused in this tree.",
+    "createTree": "New tree"
+  },
+  "shell": {
+    "forbiddenTitle": "No access to this tree",
+    "forbiddenDescription": "You no longer have access, or it was deleted. Choose another tree.",
+    "clearSelection": "Clear selection"
+  },
+  "people": {
+    "title": "People",
+    "description": "Search the people in this tree and open a record to keep working.",
+    "directory": "People directory",
+    "searchDescription": "Search by a given name in either script.",
+    "empty": "No people match this search.",
+    "emptyDescription": "Try another search or add a new person to the tree."
   },
   "common": {
     "loading": "Loading...",
