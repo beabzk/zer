@@ -173,13 +173,6 @@ export function App() {
 
   const tree = useMemo(() => trees.find((candidate) => candidate.id === treeId), [treeId, trees]);
 
-  if (session.isPending) {
-    return <p className="p-6 text-sm text-muted-foreground">{t(locale, "common.loading")}</p>;
-  }
-  if (!session.data) {
-    return <LoginView locale={locale} />;
-  }
-
   const startAddPerson = () => {
     setEditor({});
   };
@@ -215,6 +208,13 @@ export function App() {
     setWorkspaceId(null);
     refresh();
   }, [refresh]);
+
+  if (session.isPending) {
+    return <p className="p-6 text-sm text-muted-foreground">{t(locale, "common.loading")}</p>;
+  }
+  if (!session.data) {
+    return <LoginView locale={locale} />;
+  }
 
   const nav = (next: WorkspaceView) => setView(next);
   const focusId = focus?.id ?? "";
@@ -254,9 +254,9 @@ export function App() {
                   )}
                 </div>
                 <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                     {treeId && !treesReady ? <Skeleton className="h-3 w-32" /> : (tree?.name ?? t(locale, "dashboard.workspace"))}
-                  </p>
+                  </div>
                   <p className="mt-1 text-sm text-muted-foreground">{tree ? t(locale, "dashboard.workspaceHint") : t(locale, "dashboard.chooseTree")}</p>
                 </div>
               </div>
