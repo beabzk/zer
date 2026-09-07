@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ApiError, api, type DirectoryOrder, type PersonHit } from "../../lib/api";
 import { t, type Locale } from "../../lib/i18n";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Empty, Input, Select, Skeleton } from "../ui";
@@ -10,23 +10,34 @@ const orderOptions: DirectoryOrder[] = ["created", "recent", "name"];
 export function PeopleDirectory({ locale, treeId, onAdd, onSelect }: { locale: Locale; treeId: string; onAdd: () => void; onSelect: (person: PersonHit) => void }) {
   const [query, setQuery] = useState("");
   const [order, setOrder] = useState<DirectoryOrder>("created");
+  const [gender, setGender] = useState<"ALL" | "MALE" | "FEMALE">("ALL");
+  const [status, setStatus] = useState<"ALL" | "LIVING" | "DECEASED">("ALL");
   const [page, setPage] = useState(0);
   const [people, setPeople] = useState<PersonHit[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [loadKey, setLoadKey] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const rowRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   useEffect(() => {
     let live = true;
     const timer = setTimeout(() => {
       setLoading(true);
       setError("");
-      api.individuals.list(treeId, query || undefined, { limit: pageSize, offset: page * pageSize, order })
+      api.individuals.list(treeId, query || undefined, {
+        limit: pageSize,
+        offset: page * pageSize,
+        order,
+        gender: gender === "ALL" ? undefined : gender,
+        deceased: status === "ALL" ? undefined : status === "DECEASED",
+      })
         .then((next) => {
           if (!live) return;
           setPeople(next.individuals);
           setTotal(next.total);
+          setActiveIndex(0);
         })
         .catch((e) => {
           if (live) setError(e instanceof ApiError ? e.message : t(locale, "common.error"));
@@ -39,7 +50,22 @@ export function PeopleDirectory({ locale, treeId, onAdd, onSelect }: { locale: L
       live = false;
       clearTimeout(timer);
     };
-  }, [locale, query, order, page, treeId, loadKey]);
+  }, [locale, query, order, gender, status, page, treeId, loadKey]);
+
+  const resetPage = () => setPage(0);
+
+  const onListKeyDown = (event: React.KeyboardEvent) => {
+    if (people.length === 0) return;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const delta = event.key === "ArrowDown" ? 1 : -1;
+      const next = Math.min(people.length - 1, Math.max(0, activeIndex + delta));
+      setActiveIndex(next);
+      rowRefs.current[next]?.scrollIntoView({ block: "nearest" });
+    } else if (event.key === "Enter" && people[activeIndex]) {
+      onSelect(people[activeIndex]);
+    }
+  };
 
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
 
@@ -57,7 +83,7 @@ export function PeopleDirectory({ locale, treeId, onAdd, onSelect }: { locale: L
         <CardHeader>
           <CardTitle>{t(locale, "people.directory")}</CardTitle>
           <CardDescription>{t(locale, "people.searchDescription")}</CardDescription>
-          <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_200px]">
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_160px_160px_160px]">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground" htmlFor="people-search">
                 {t(locale, "person.search")}
@@ -65,7 +91,7 @@ export function PeopleDirectory({ locale, treeId, onAdd, onSelect }: { locale: L
               <Input
                 id="people-search"
                 value={query}
-                onChange={(e) => { setQuery(e.target.value); setPage(0); }}
+                onChange={(e) => { setQuery(e.target.value); resetPage(); }}
                 placeholder={t(locale, "person.search")}
                 className="mt-2 h-11"
               />
@@ -77,12 +103,42 @@ export function PeopleDirectory({ locale, treeId, onAdd, onSelect }: { locale: L
               <Select
                 id="people-order"
                 value={order}
-                onChange={(e) => { setOrder(e.target.value as DirectoryOrder); setPage(0); }}
+                onChange={(e) => { setOrder(e.target.value as DirectoryOrder); resetPage(); }}
                 className="mt-2 h-11"
               >
                 {orderOptions.map((option) => (
                   <option key={option} value={option}>{t(locale, `people.order_${option}`)}</option>
                 ))}
+              </Select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground" htmlFor="people-gender">
+                {t(locale, "person.gender")}
+              </label>
+              <Select
+                id="people-gender"
+                value={gender}
+                onChange={(e) => { setGender(e.target.value as "ALL" | "MALE" | "FEMALE"); resetPage(); }}
+                className="mt-2 h-11"
+              >
+                <option value="ALL">{t(locale, "people.all")}</option>
+                <option value="MALE">{t(locale, "person.male")}</option>
+                <option value="FEMALE">{t(locale, "person.female")}</option>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground" htmlFor="people-status">
+                {t(locale, "people.status")}
+              </label>
+              <Select
+                id="people-status"
+                value={status}
+                onChange={(e) => { setStatus(e.target.value as "ALL" | "LIVING" | "DECEASED"); resetPage(); }}
+                className="mt-2 h-11"
+              >
+                <option value="ALL">{t(locale, "people.all")}</option>
+                <option value="LIVING">{t(locale, "person.living")}</option>
+                <option value="DECEASED">{t(locale, "person.deceased")}</option>
               </Select>
             </div>
           </div>
@@ -97,7 +153,7 @@ export function PeopleDirectory({ locale, treeId, onAdd, onSelect }: { locale: L
             </div>
           )}
           {loading ? (
-            <div className="flex flex-col gap-2">{[1, 2, 3].map((row) => <Skeleton key={row} className="h-16 w-full" />)}</div>
+            <div className="flex flex-col gap-2">{[1, 2, 3].map((row) => <Skeleton key={row} className="h-24 w-full" />)}</div>
           ) : people.length === 0 ? (
             <Empty title={t(locale, "people.empty")} description={t(locale, "people.emptyDescription")} action={<Button onClick={onAdd}>{t(locale, "person.add")}</Button>} />
           ) : (
@@ -105,9 +161,18 @@ export function PeopleDirectory({ locale, treeId, onAdd, onSelect }: { locale: L
               <p className="mb-3 text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
                 {total} {t(locale, "trees.individuals")}
               </p>
-              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                {people.map((person) => (
-                  <button key={person.id} onClick={() => onSelect(person)} className="rounded-md border border-border bg-panel px-4 py-4 text-left transition-colors hover:border-accent hover:bg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3" role="listbox" aria-label={t(locale, "people.directory")} onKeyDown={onListKeyDown}>
+                {people.map((person, index) => (
+                  <button
+                    key={person.id}
+                    ref={(el) => { rowRefs.current[index] = el; }}
+                    role="option"
+                    aria-selected={index === activeIndex}
+                    onMouseEnter={() => setActiveIndex(index)}
+                    onFocus={() => setActiveIndex(index)}
+                    onClick={() => onSelect(person)}
+                    className={`min-h-24 rounded-md border bg-panel px-4 py-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${index === activeIndex ? "border-accent bg-accent-soft" : "border-border hover:border-accent"}`}
+                  >
                     <span className="block truncate text-sm font-semibold">{person.full_latin}</span>
                     <span className="mt-1 block truncate text-sm text-muted-foreground">{person.full_native}</span>
                     <span className="mt-3 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">{person.gender === "FEMALE" ? t(locale, "person.female") : t(locale, "person.male")}</span>

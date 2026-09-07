@@ -260,10 +260,67 @@ func TestDirectoryValidation(t *testing.T) {
 	treeID := createTree(t, r, "DirValid")
 
 	for _, query := range []string{"?limit=0", "?limit=-2", "?limit=abc", "?limit=201",
-		"?offset=-1", "?offset=abc", "?order=bogus"} {
+		"?offset=-1", "?offset=abc", "?order=bogus", "?gender=UNKNOWN", "?deceased=maybe"} {
 		if code, _ := getDirectory(t, r, treeID, query); code != http.StatusBadRequest {
 			t.Errorf("query %s: status = %d, want 400", query, code)
 		}
+	}
+}
+
+func TestDirectoryFilters(t *testing.T) {
+	_, _, r := testSetup(t, 1)
+	treeID := createTree(t, r, "Filters")
+
+	a := createPerson(t, r, treeID, map[string]any{
+		"given_name_native": "N-A", "given_name_latin": "Abebe", "gender": "MALE"})
+	createPerson(t, r, treeID, map[string]any{
+		"given_name_native": "N-B", "given_name_latin": "Aster", "gender": "FEMALE"})
+	if rec := doRequest(t, r, http.MethodPut, "/api/v1/trees/"+treeID+"/individuals/"+a,
+		map[string]any{"is_deceased": true}); rec.Code != http.StatusOK {
+		t.Fatalf("mark deceased: status = %d", rec.Code)
+	}
+
+	code, male := getDirectory(t, r, treeID, "?gender=MALE&order=name")
+	if code != http.StatusOK {
+		t.Fatalf("gender filter: status = %d", code)
+	}
+	if names := directoryNames(t, male); len(names) != 1 || names[0] != "Abebe" {
+		t.Fatalf("gender filter: %+v", names)
+	}
+	if male["total"] != float64(1) {
+		t.Fatalf("gender total: %+v", male)
+	}
+
+	code, dead := getDirectory(t, r, treeID, "?deceased=true&order=name")
+	if code != http.StatusOK {
+		t.Fatalf("deceased filter: status = %d", code)
+	}
+	if names := directoryNames(t, dead); len(names) != 1 || names[0] != "Abebe" {
+		t.Fatalf("deceased filter: %+v", names)
+	}
+
+	code, living := getDirectory(t, r, treeID, "?deceased=false&order=name")
+	if code != http.StatusOK {
+		t.Fatalf("living filter: status = %d", code)
+	}
+	if names := directoryNames(t, living); len(names) != 1 || names[0] != "Aster" {
+		t.Fatalf("living filter: %+v", names)
+	}
+
+	code, combo := getDirectory(t, r, treeID, "?gender=FEMALE&deceased=false")
+	if code != http.StatusOK {
+		t.Fatalf("combined filter: status = %d", code)
+	}
+	if names := directoryNames(t, combo); len(names) != 1 || names[0] != "Aster" {
+		t.Fatalf("combined filter: %+v", names)
+	}
+
+	code, miss := getDirectory(t, r, treeID, "?gender=FEMALE&deceased=true")
+	if code != http.StatusOK {
+		t.Fatalf("miss filter: status = %d", code)
+	}
+	if miss["total"] != float64(0) || len(directoryNames(t, miss)) != 0 {
+		t.Fatalf("miss filter: %+v", miss)
 	}
 }
 
