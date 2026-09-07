@@ -3,6 +3,7 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -17,6 +18,9 @@ import (
 )
 
 var validGenders = map[string]bool{"MALE": true, "FEMALE": true}
+
+// errIndividualNotFound maps to a 404 at the response boundary.
+var errIndividualNotFound = errors.New("individual not found")
 
 type individualBody struct {
 	GivenNameNative      string   `json:"given_name_native"`
@@ -99,13 +103,11 @@ func (d Deps) handleListIndividuals(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	filter := ""
-	args := []any{}
-	if q != "" {
-		like := "%" + q + "%"
-		filter = `WHERE given_name_native LIKE ? OR given_name_latin LIKE ?`
-		args = append(args, like, like)
+	filter, filterArgs, ok := directoryFilter(w, r, q)
+	if !ok {
+		return
 	}
+	args := filterArgs
 	var total int
 	if err := db.QueryRowContext(r.Context(),
 		`SELECT COUNT(*) FROM individuals `+filter, args...).Scan(&total); err != nil {
@@ -197,6 +199,41 @@ func directoryOrder(w http.ResponseWriter, r *http.Request) (string, bool) {
 	}
 }
 
+// directoryFilter builds the shared WHERE clause for the total count and
+// the page query so both describe the same filtered set.
+func directoryFilter(w http.ResponseWriter, r *http.Request, q string) (string, []any, bool) {
+	conds := []string{}
+	args := []any{}
+	if q != "" {
+		like := "%" + q + "%"
+		conds = append(conds, `(given_name_native LIKE ? OR given_name_latin LIKE ?)`)
+		args = append(args, like, like)
+	}
+	if gender := r.URL.Query().Get("gender"); gender != "" {
+		if !validGenders[gender] {
+			writeError(w, http.StatusBadRequest, "gender must be MALE or FEMALE")
+			return "", nil, false
+		}
+		conds = append(conds, `gender = ?`)
+		args = append(args, gender)
+	}
+	if raw := r.URL.Query().Get("deceased"); raw != "" {
+		switch raw {
+		case "true":
+			conds = append(conds, `is_deceased = 1`)
+		case "false":
+			conds = append(conds, `is_deceased = 0`)
+		default:
+			writeError(w, http.StatusBadRequest, "deceased must be true or false")
+			return "", nil, false
+		}
+	}
+	if len(conds) == 0 {
+		return "", args, true
+	}
+	return `WHERE ` + strings.Join(conds, " AND "), args, true
+}
+
 func (d Deps) handleUpdateIndividual(w http.ResponseWriter, r *http.Request) {
 	var body individualBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -260,10 +297,21 @@ func (d Deps) handleDeleteIndividual(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d Deps) respondIndividual(w http.ResponseWriter, r *http.Request, db *sql.DB, id string) {
-	depth := queryDepth(r, 3)
-	withTitles := r.URL.Query().Get("titles") != "0"
+	row, err := d.fetchIndividualRow(r, db, id, queryDepth(r, 3), r.URL.Query().Get("titles") != "0")
+	if err != nil {
+		if err == errIndividualNotFound {
+			writeError(w, http.StatusNotFound, "individual not found")
+			return
+		}
+		writeInternalError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, row)
+}
 
-	var row map[string]any
+// fetchIndividualRow reads one person with server-synthesized full names.
+// Callers map errIndividualNotFound to a 404 response.
+func (d Deps) fetchIndividualRow(r *http.Request, db *sql.DB, id string, depth int, withTitles bool) (map[string]any, error) {
 	cols := []string{"id", "given_name_native", "given_name_latin", "gender", "titles",
 		"titles_display_enabled", "birth_year_ec", "birth_month_ec", "birth_day_ec",
 		"birth_date_gc", "birth_place", "birth_note", "is_deceased",
@@ -278,37 +326,32 @@ func (d Deps) respondIndividual(w http.ResponseWriter, r *http.Request, db *sql.
 	}
 	if err := qrow.Scan(ptrs...); err != nil {
 		if err == sql.ErrNoRows {
-			writeError(w, http.StatusNotFound, "individual not found")
-			return
+			return nil, errIndividualNotFound
 		}
-		writeInternalError(w, r, err)
-		return
+		return nil, err
 	}
-	row = make(map[string]any, len(cols)+2)
+	row := make(map[string]any, len(cols)+2)
 	for i, c := range cols {
 		row[c] = vals[i]
 	}
 	native, err := lineage.SynthesizeFullName(r.Context(), db, id, depth, lineage.ScriptNative, false)
 	if err != nil {
-		writeInternalError(w, r, err)
-		return
+		return nil, err
 	}
 	latin, err := lineage.SynthesizeFullName(r.Context(), db, id, depth, lineage.ScriptLatin, false)
 	if err != nil {
-		writeInternalError(w, r, err)
-		return
+		return nil, err
 	}
 	row["full_native"] = native
 	row["full_latin"] = latin
 	if withTitles {
 		titled, err := lineage.SynthesizeFullName(r.Context(), db, id, depth, lineage.ScriptLatin, true)
 		if err != nil {
-			writeInternalError(w, r, err)
-			return
+			return nil, err
 		}
 		row["display_name"] = titled
 	}
-	writeJSON(w, http.StatusOK, row)
+	return row, nil
 }
 
 // individualColumns validates a body and maps it to column names and values.

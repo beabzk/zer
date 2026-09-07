@@ -49,8 +49,40 @@ export interface DirectoryPage {
 
 export type DirectoryOrder = "created" | "recent" | "name";
 
+export interface DirectoryFilters {
+  limit?: number;
+  offset?: number;
+  order?: DirectoryOrder;
+  gender?: "MALE" | "FEMALE";
+  deceased?: boolean;
+}
+
 export interface OverviewPerson extends PersonHit {
   updated_at: string;
+}
+
+export interface DetailEdge extends PersonHit {
+  relationship_type: string;
+  is_name_source: boolean;
+}
+
+export interface DetailUnion {
+  id: string;
+  union_type: string;
+  status: string;
+  partner: PersonHit;
+}
+
+export interface PersonDetail {
+  individual: Individual;
+  parents: DetailEdge[];
+  children: DetailEdge[];
+  unions: DetailUnion[];
+  events: OverviewEvent[];
+  permissions: {
+    can_edit: boolean;
+    can_delete: boolean;
+  };
 }
 
 export interface OverviewEvent {
@@ -188,15 +220,19 @@ export const api = {
       post(`/api/v1/trees/${treeId}/members`, body),
   },
   individuals: {
-    list: (treeId: string, q?: string, opts?: { limit?: number; offset?: number; order?: DirectoryOrder }) => {
+    list: (treeId: string, q?: string, opts?: DirectoryFilters) => {
       const params = new URLSearchParams();
       if (q) params.set("q", q);
       if (opts?.limit !== undefined) params.set("limit", String(opts.limit));
       if (opts?.offset !== undefined) params.set("offset", String(opts.offset));
       if (opts?.order) params.set("order", opts.order);
+      if (opts?.gender) params.set("gender", opts.gender);
+      if (opts?.deceased !== undefined) params.set("deceased", String(opts.deceased));
       const suffix = params.size > 0 ? `?${params.toString()}` : "";
       return get<DirectoryPage>(`/api/v1/trees/${treeId}/individuals${suffix}`);
     },
+    detail: (treeId: string, id: string, depth = 3) =>
+      get<PersonDetail>(`/api/v1/trees/${treeId}/individuals/${id}/detail?depth=${depth}`),
     get: (treeId: string, id: string, depth = 3) =>
       get<Individual>(`/api/v1/trees/${treeId}/individuals/${id}?depth=${depth}`),
     create: (treeId: string, body: Record<string, unknown>) =>

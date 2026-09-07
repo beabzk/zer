@@ -21,10 +21,10 @@ import { PedigreeTree } from "./components/visualization/PedigreeTree";
 import { LineageCards } from "./components/visualization/LineageCards";
 import { KinshipFinder } from "./components/visualization/KinshipFinder";
 import { AdminPanel } from "./components/visualization/AdminPanel";
-import { IndividualModal } from "./components/forms/IndividualModal";
+import { IndividualForm } from "./components/forms/IndividualForm";
 import { EdgeModal, type EdgeMode } from "./components/forms/EdgeModal";
-import { PersonPanel } from "./components/visualization/PersonPanel";
-import { Button, Card, CardContent, Empty, Separator, Skeleton, ToastProvider } from "./components/ui";
+import { PersonWorkspace } from "./components/visualization/PersonWorkspace";
+import { Button, Card, CardContent, Empty, Separator, Sheet, Skeleton, ToastProvider } from "./components/ui";
 
 function storedLocale(): Locale {
   const raw = localStorage.getItem("zer-locale");
@@ -51,10 +51,9 @@ export function App() {
   const [view, setViewState] = useState<WorkspaceView>(() => viewFromPath());
   const [focus, setFocus] = useState<PersonHit | null>(null);
   const [selectedId, setSelectedId] = useState("");
-  const [selected, setSelected] = useState<Individual | null>(null);
   const [depth, setDepth] = useState(3);
-  const [showPersonModal, setShowPersonModal] = useState(false);
-  const [editing, setEditing] = useState<Individual | undefined>(undefined);
+  const [editor, setEditor] = useState<{ initial?: Individual } | null>(null);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [edgeMode, setEdgeMode] = useState<EdgeMode | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -130,7 +129,7 @@ export function App() {
     setTreeId(id);
     setFocus(null);
     setSelectedId("");
-    setSelected(null);
+    setWorkspaceId(null);
     setTreeMenuOpen(false);
     // Preserve the workspace mode across trees. Views that need a
     // focused person fall back to the overview because focus is cleared.
@@ -144,7 +143,7 @@ export function App() {
     setTreeId("");
     setFocus(null);
     setSelectedId("");
-    setSelected(null);
+    setWorkspaceId(null);
     setViewState("overview");
     viewRef.current = "overview";
     window.history.pushState({}, "", pathForView("overview", ""));
@@ -163,33 +162,16 @@ export function App() {
         // Storage may be unavailable; the focus state still applies.
       }
     }
-    // Overview and directory selections lead into the graph workspace
-    // where the person detail panel is visible.
+    // Overview selections lead into the graph workspace where the
+    // person workspace panel is visible. Directory selections open the
+    // workspace drawer instead and keep their search state.
     const currentView = viewRef.current;
-    if (currentView === "overview" || currentView === "people") {
+    if (currentView === "overview") {
       setViewState("canvas");
       viewRef.current = "canvas";
       window.history.pushState({}, "", pathForView("canvas", currentTree));
     }
   }, []);
-
-  useEffect(() => {
-    if (!treeId || !selectedId) {
-      setSelected(null);
-      return;
-    }
-    let live = true;
-    api.individuals.get(treeId, selectedId)
-      .then((person) => {
-        if (live) setSelected(person);
-      })
-      .catch(() => {
-        if (live) setSelected(null);
-      });
-    return () => {
-      live = false;
-    };
-  }, [refreshKey, selectedId, treeId]);
 
   const tree = useMemo(() => trees.find((candidate) => candidate.id === treeId), [treeId, trees]);
 
@@ -201,9 +183,40 @@ export function App() {
   }
 
   const startAddPerson = () => {
-    setEditing(undefined);
-    setShowPersonModal(true);
+    setEditor({});
   };
+
+  const openEditor = (person: Individual) => {
+    setEditor({ initial: person });
+  };
+
+  // Directory selection opens the workspace drawer. The directory keeps
+  // its search state because the view never changes.
+  const openWorkspace = useCallback((person: PersonHit) => {
+    setWorkspaceId(person.id);
+  }, []);
+
+  const closeWorkspace = useCallback(() => {
+    setWorkspaceId(null);
+  }, []);
+
+  const handlePersonSaved = useCallback((person: Individual) => {
+    setFocus({
+      id: person.id,
+      full_native: person.full_native,
+      full_latin: person.full_latin,
+      gender: person.gender,
+    });
+    setSelectedId(person.id);
+    refresh();
+  }, [refresh]);
+
+  const handlePersonDeleted = useCallback(() => {
+    setFocus(null);
+    setSelectedId("");
+    setWorkspaceId(null);
+    refresh();
+  }, [refresh]);
 
   const nav = (next: WorkspaceView) => setView(next);
   const focusId = focus?.id ?? "";
@@ -291,7 +304,7 @@ export function App() {
                 onSelectPerson={openPerson}
                 onTreeCreated={(id) => { pickTree(id); refresh(); }}
               />
-            ) : !treeId ? <Empty title={t(locale, "dashboard.chooseTree")} description={t(locale, "dashboard.chooseTreeDescription")} /> : view === "people" ? <PeopleDirectory locale={locale} treeId={treeId} onAdd={startAddPerson} onSelect={openPerson} /> : view === "kinship" ? <KinshipFinder locale={locale} treeId={treeId} /> : !focusId ? <Card><CardContent className="p-6"><Empty title={t(locale, "canvas.empty")} description={t(locale, "dashboard.focusDescription")} /></CardContent></Card> : <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">{view === "canvas" && <FamilyCanvas locale={locale} treeId={treeId} focusId={focusId} depth={depth} onDepthChange={setDepth} selectedId={selectedId} onSelect={setSelectedId} refreshKey={refreshKey} />}{view === "pedigree" && <PedigreeTree locale={locale} treeId={treeId} rootId={focusId} refreshKey={refreshKey} onSelect={setSelectedId} />}{view === "cards" && <LineageCards locale={locale} treeId={treeId} rootId={focusId} refreshKey={refreshKey} onSelect={setSelectedId} />}{selected && <PersonPanel locale={locale} person={selected} onEdit={() => { setEditing(selected); setShowPersonModal(true); }} onEdge={setEdgeMode} onFocus={() => nav("canvas")} />}</div>}
+            ) : !treeId ? <Empty title={t(locale, "dashboard.chooseTree")} description={t(locale, "dashboard.chooseTreeDescription")} /> : view === "people" ? <PeopleDirectory locale={locale} treeId={treeId} onAdd={startAddPerson} onSelect={openWorkspace} /> : view === "kinship" ? <KinshipFinder locale={locale} treeId={treeId} /> : !focusId ? <Card><CardContent className="p-6"><Empty title={t(locale, "canvas.empty")} description={t(locale, "dashboard.focusDescription")} /></CardContent></Card> : <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">{view === "canvas" && <FamilyCanvas locale={locale} treeId={treeId} focusId={focusId} depth={depth} onDepthChange={setDepth} selectedId={selectedId} onSelect={setSelectedId} refreshKey={refreshKey} />}{view === "pedigree" && <PedigreeTree locale={locale} treeId={treeId} rootId={focusId} refreshKey={refreshKey} onSelect={setSelectedId} />}{view === "cards" && <LineageCards locale={locale} treeId={treeId} rootId={focusId} refreshKey={refreshKey} onSelect={setSelectedId} />}{selectedId && <PersonWorkspace locale={locale} treeId={treeId} personId={selectedId} refreshKey={refreshKey} onEdit={openEditor} onEdge={setEdgeMode} onFocus={() => nav("canvas")} onSelectPerson={(person) => { setFocus(person); setSelectedId(person.id); }} />}</div>}
           </div>
         </main>
       </div>
@@ -312,7 +325,33 @@ export function App() {
         </div>
       </nav>
 
-      {showPersonModal && treeId && <IndividualModal locale={locale} treeId={treeId} initial={editing} onClose={() => setShowPersonModal(false)} onSaved={(person) => { setFocus({ id: person.id, full_native: person.full_native, full_latin: person.full_latin, gender: person.gender }); setSelectedId(person.id); refresh(); }} />}
+      <Sheet open={editor !== null} onClose={() => setEditor(null)}>
+        {editor && treeId && (
+          <IndividualForm
+            locale={locale}
+            treeId={treeId}
+            initial={editor.initial}
+            canDelete={isAdmin || tree?.role !== "VIEWER"}
+            onClose={() => setEditor(null)}
+            onSaved={handlePersonSaved}
+            onDeleted={handlePersonDeleted}
+          />
+        )}
+      </Sheet>
+      <Sheet open={workspaceId !== null} onClose={closeWorkspace}>
+        {workspaceId && (
+          <PersonWorkspace
+            locale={locale}
+            treeId={treeId}
+            personId={workspaceId}
+            refreshKey={refreshKey}
+            onEdit={openEditor}
+            onEdge={setEdgeMode}
+            onFocus={(person) => { setFocus(person); setSelectedId(person.id); closeWorkspace(); nav("canvas"); }}
+            onSelectPerson={(person) => setWorkspaceId(person.id)}
+          />
+        )}
+      </Sheet>
       {edgeMode && <EdgeModal locale={locale} treeId={treeId} mode={edgeMode} onClose={() => setEdgeMode(null)} onSaved={refresh} />}
     </div>
     </ToastProvider>

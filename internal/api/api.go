@@ -98,6 +98,7 @@ func mount(r chi.Router, d Deps, sessionMW func(http.Handler) http.Handler) {
 				r.With(d.requireMember(RoleEditor)).Post("/individuals", d.handleCreateIndividual)
 				r.Get("/individuals", d.handleListIndividuals)
 				r.Get("/individuals/{id}", d.handleGetIndividual)
+				r.Get("/individuals/{id}/detail", d.handleGetIndividualDetail)
 				r.With(d.requireMember(RoleEditor)).Put("/individuals/{id}", d.handleUpdateIndividual)
 				r.With(d.requireMember(RoleEditor)).Delete("/individuals/{id}", d.handleDeleteIndividual)
 				r.With(d.requireMember(RoleEditor)).Post("/relationships/parent-child", d.handleAddParentChild)
