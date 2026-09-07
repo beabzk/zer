@@ -133,7 +133,12 @@
     "focusDescription": "Choose a person from the overview or people directory to explore their family graph.",
     "continueTitle": "Continue where you left off",
     "continueDescription": "Jump back to the last person you focused in this tree.",
-    "createTree": "New tree"
+    "createTree": "New tree",
+    "recentPeople": "Recently updated",
+    "latestEvents": "Latest events",
+    "eventsDescription": "Life events recorded in this tree, newest first.",
+    "noEvents": "No events recorded yet.",
+    "noEventsDescription": "Events added to a person will appear here."
   },
   "shell": {
     "forbiddenTitle": "No access to this tree",
@@ -146,13 +151,20 @@
     "directory": "People directory",
     "searchDescription": "Search by a given name in either script.",
     "empty": "No people match this search.",
-    "emptyDescription": "Try another search or add a new person to the tree."
+    "emptyDescription": "Try another search or add a new person to the tree.",
+    "order": "Order",
+    "order_created": "Oldest first",
+    "order_recent": "Recently updated",
+    "order_name": "Name",
+    "page": "Page"
   },
   "common": {
     "loading": "Loading...",
     "error": "Something went wrong",
     "retry": "Retry",
     "close": "Close",
+    "previous": "Previous",
+    "next": "Next",
     "year": "Year",
     "month": "Month",
     "day": "Day"

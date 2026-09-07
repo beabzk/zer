@@ -133,7 +133,12 @@
     "focusDescription": "የቤተሰብ ግራፉን ለመዳሰስ ከአጠቃላይ እይታ ወይም ከሰዎች ማውጫ ሰው ምረጥ።",
     "continueTitle": "ካቆምክበት ቀጥል",
     "continueDescription": "በዚህ ዛፍ ለመጨረሻ ጊዜ ያተኮርክበት ሰው ተመለስ።",
-    "createTree": "አዲስ ዛፍ"
+    "createTree": "አዲስ ዛፍ",
+    "recentPeople": "በቅርቡ የታደሱ",
+    "latestEvents": "የቅርብ ጊዜ ዝግጅቶች",
+    "eventsDescription": "በዚህ ዛፍ የተመዘገቡ የሕይወት ዝግጅቶች፣ ከአዲሱ ጀምሮ።",
+    "noEvents": "ገና ምንም ዝግጅት አልተመዘገበም።",
+    "noEventsDescription": "ለሰው የሚጨመሩ ዝግጅቶች እዚህ ይታያሉ።"
   },
   "people": {
     "title": "ሰዎች",
@@ -141,7 +146,12 @@
     "directory": "የሰዎች ማውጫ",
     "searchDescription": "በተሰጠ ስም በሁለቱም ጽሑፎች ፈልግ።",
     "empty": "ከዚህ ፍለጋ ጋር የሚዛመድ ሰው የለም።",
-    "emptyDescription": "ሌላ ፍለጋ ሞክር ወይም አዲስ ሰው ወደ ዛፉ ጨምር።"
+    "emptyDescription": "ሌላ ፍለጋ ሞክር ወይም አዲስ ሰው ወደ ዛፉ ጨምር።",
+    "order": "ቅደም ተከተል",
+    "order_created": "ከአሮጌው ጀምሮ",
+    "order_recent": "በቅርብ ጊዜ የታደሱ",
+    "order_name": "በስም",
+    "page": "ገጽ"
   },
   "shell": {
     "forbiddenTitle": "ወደዚህ ዛፍ መዳረሻ የለም",
@@ -153,6 +163,8 @@
     "error": "ስህተት ተፈጥሯል",
     "retry": "እንደገና ሞክር",
     "close": "ዝጋ",
+    "previous": "ቀዳሚ",
+    "next": "ቀጣይ",
     "year": "ዓመት",
     "month": "ወር",
     "day": "ቀን"
