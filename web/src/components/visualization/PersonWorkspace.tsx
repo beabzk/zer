@@ -4,11 +4,13 @@ import {
   api,
   type Individual,
   type LineageNode,
+  type OverviewEvent,
   type PersonDetail,
   type PersonHit,
 } from "../../lib/api";
 import { months, t, type Locale } from "../../lib/i18n";
-import { type EdgeMode } from "../forms/EdgeModal";
+import { type RelationshipMode } from "../forms/RelationshipForm";
+import { EventForm } from "../forms/EventForm";
 import {
   Badge,
   Button,
@@ -18,6 +20,7 @@ import {
   CardTitle,
   Empty,
   Select,
+  Sheet,
   Skeleton,
   TabTrigger,
   Tabs,
@@ -29,7 +32,7 @@ interface Props {
   personId: string;
   refreshKey: number;
   onEdit: (person: Individual) => void;
-  onEdge: (mode: EdgeMode) => void;
+  onEdge: (mode: RelationshipMode) => void;
   onFocus: (person: PersonHit) => void;
   onSelectPerson: (person: PersonHit) => void;
 }
@@ -69,6 +72,7 @@ export function PersonWorkspace({ locale, treeId, personId, refreshKey, onEdit, 
   const [lineage, setLineage] = useState<LineageNode[]>([]);
   const [lineageNames, setLineageNames] = useState<Record<string, PersonHit>>({});
   const [lineageLoading, setLineageLoading] = useState(false);
+  const [eventEditor, setEventEditor] = useState<{ initial?: OverviewEvent } | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -232,14 +236,28 @@ export function PersonWorkspace({ locale, treeId, personId, refreshKey, onEdit, 
               ) : (
                 <ul className="mt-2 flex flex-col gap-2">
                   {detail.parents.map((edge) => (
-                    <li key={edge.id}>
-                      <button onClick={() => onSelectPerson(edge)} className="w-full rounded-md border border-border bg-panel px-3 py-2 text-left transition-colors hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                    <li key={edge.id} className="rounded-md border border-border bg-panel px-3 py-2">
+                      <button onClick={() => onSelectPerson(edge)} className="w-full rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                         <span className="block truncate text-sm font-semibold">{edge.full_latin}</span>
                         <span className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                           {t(locale, `edge.${edge.relationship_type.toLowerCase()}`)}
                           {edge.is_name_source && <Badge variant="accent">{t(locale, "workspace.nameSource")}</Badge>}
                         </span>
                       </button>
+                      {canEdit && (
+                        <button
+                          onClick={() => onEdge({
+                            kind: "edit-parent",
+                            parent: edge,
+                            child: anchor,
+                            relationshipType: edge.relationship_type,
+                            isNameSource: edge.is_name_source,
+                          })}
+                          className="mt-2 rounded text-xs text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                        >
+                          {t(locale, "edge.editRelationship")}
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -252,11 +270,25 @@ export function PersonWorkspace({ locale, treeId, personId, refreshKey, onEdit, 
               ) : (
                 <ul className="mt-2 flex flex-col gap-2">
                   {detail.children.map((edge) => (
-                    <li key={edge.id}>
-                      <button onClick={() => onSelectPerson(edge)} className="w-full rounded-md border border-border bg-panel px-3 py-2 text-left transition-colors hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                    <li key={edge.id} className="rounded-md border border-border bg-panel px-3 py-2">
+                      <button onClick={() => onSelectPerson(edge)} className="w-full rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                         <span className="block truncate text-sm font-semibold">{edge.full_latin}</span>
                         <span className="mt-1 block text-xs text-muted-foreground">{t(locale, `edge.${edge.relationship_type.toLowerCase()}`)}</span>
                       </button>
+                      {canEdit && (
+                        <button
+                          onClick={() => onEdge({
+                            kind: "edit-parent",
+                            parent: anchor,
+                            child: edge,
+                            relationshipType: edge.relationship_type,
+                            isNameSource: edge.is_name_source,
+                          })}
+                          className="mt-2 rounded text-xs text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                        >
+                          {t(locale, "edge.editRelationship")}
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -269,13 +301,27 @@ export function PersonWorkspace({ locale, treeId, personId, refreshKey, onEdit, 
               ) : (
                 <ul className="mt-2 flex flex-col gap-2">
                   {detail.unions.map((union) => (
-                    <li key={union.id}>
-                      <button onClick={() => onSelectPerson(union.partner)} className="w-full rounded-md border border-border bg-panel px-3 py-2 text-left transition-colors hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                    <li key={union.id} className="rounded-md border border-border bg-panel px-3 py-2">
+                      <button onClick={() => onSelectPerson(union.partner)} className="w-full rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
                         <span className="block truncate text-sm font-semibold">{union.partner.full_latin}</span>
                         <span className="mt-1 block text-xs text-muted-foreground">
                           {t(locale, `edge.${union.union_type.toLowerCase()}`)} · {t(locale, `edge.${union.status.toLowerCase()}`)}
                         </span>
                       </button>
+                      {canEdit && (
+                        <button
+                          onClick={() => onEdge({
+                            kind: "edit-union",
+                            partnerA: anchor,
+                            partnerB: union.partner,
+                            unionType: union.union_type,
+                            status: union.status,
+                          })}
+                          className="mt-2 rounded text-xs text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                        >
+                          {t(locale, "edge.editUnion")}
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -333,26 +379,53 @@ export function PersonWorkspace({ locale, treeId, personId, refreshKey, onEdit, 
 
         {tab === "events" && (
           <div className="flex flex-col gap-2">
+            {canEdit && (
+              <div>
+                <Button size="sm" onClick={() => setEventEditor({})}>{t(locale, "event.add")}</Button>
+              </div>
+            )}
             {detail.events.length === 0 ? (
               <Empty title={t(locale, "dashboard.noEvents")} description={t(locale, "dashboard.noEventsDescription")} />
             ) : (
-              <ul className="flex flex-col gap-2">
+              <ol className="flex flex-col gap-2">
                 {detail.events.map((event) => (
-                  <li key={event.id} className="rounded-md border border-border bg-panel px-3 py-2">
+                  <li key={event.id} className="relative rounded-md border border-border bg-panel px-3 py-2 pl-5">
+                    <span className="absolute left-2 top-3 bottom-3 w-px bg-border" aria-hidden="true" />
                     <span className="block text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">{event.event_type}</span>
-                    {(event.event_date_gc || event.event_place) && (
+                    {(event.event_date_gc || event.event_year_ec != null || event.event_place) && (
                       <span className="mt-1 block text-sm">
-                        {[event.event_date_gc, event.event_place].filter(Boolean).join(" · ")}
+                        {[event.event_date_gc, event.event_year_ec != null ? String(event.event_year_ec) : "", event.event_place].filter(Boolean).join(" · ")}
                       </span>
                     )}
                     {event.description && <span className="mt-1 block text-sm text-muted-foreground">{event.description}</span>}
+                    {canEdit && (
+                      <button
+                        onClick={() => setEventEditor({ initial: event })}
+                        className="mt-2 rounded text-xs text-muted-foreground hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                      >
+                        {t(locale, "event.edit")}
+                      </button>
+                    )}
                   </li>
                 ))}
-              </ul>
+              </ol>
             )}
           </div>
         )}
       </CardContent>
+      <Sheet open={eventEditor !== null} onClose={() => setEventEditor(null)}>
+        {eventEditor && (
+          <EventForm
+            locale={locale}
+            treeId={treeId}
+            personId={personId}
+            initial={eventEditor.initial}
+            onClose={() => setEventEditor(null)}
+            onSaved={() => setLoadKey((key) => key + 1)}
+            onDeleted={() => setLoadKey((key) => key + 1)}
+          />
+        )}
+      </Sheet>
     </Card>
   );
 }

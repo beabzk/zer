@@ -3,7 +3,61 @@ package api
 import (
 	"net/http"
 	"testing"
+
+	"github.com/go-chi/chi/v5"
 )
+
+func TestUpdateUnion(t *testing.T) {
+	d, manager, _ := testSetup(t, 1)
+	ownerRouter := chi.NewRouter()
+	mount(ownerRouter, d, stubSession(1))
+	viewerRouter := chi.NewRouter()
+	mount(viewerRouter, d, stubSession(2))
+
+	treeID := createTree(t, ownerRouter, "UnionEdit")
+	addMembership(t, manager, treeID, 2, RoleViewer)
+	a := createPerson(t, ownerRouter, treeID, map[string]any{
+		"given_name_native": "A", "given_name_latin": "A", "gender": "MALE"})
+	b := createPerson(t, ownerRouter, treeID, map[string]any{
+		"given_name_native": "B", "given_name_latin": "B", "gender": "FEMALE"})
+	unionPath := "/api/v1/trees/" + treeID + "/relationships/union"
+	rec := doRequest(t, ownerRouter, http.MethodPost, unionPath, map[string]any{
+		"partner_a_id": a, "partner_b_id": b})
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("add union: status = %d", rec.Code)
+	}
+
+	// Partner order is insignificant for the lookup.
+	rec = doRequest(t, ownerRouter, http.MethodPut, unionPath, map[string]any{
+		"partner_a_id": b, "partner_b_id": a,
+		"union_type": "CIVIL", "status": "DISSOLVED"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("update union: status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var updated map[string]any
+	decodeBody(t, rec, &updated)
+	if updated["union_type"] != "CIVIL" || updated["status"] != "DISSOLVED" {
+		t.Fatalf("updated: %+v", updated)
+	}
+
+	for name, body := range map[string]map[string]any{
+		"unknown type":   {"partner_a_id": a, "partner_b_id": b, "union_type": "SPACE"},
+		"unknown status": {"partner_a_id": a, "partner_b_id": b, "status": "COMPLICATED"},
+		"nothing to update": {"partner_a_id": a, "partner_b_id": b},
+	} {
+		if rec := doRequest(t, ownerRouter, http.MethodPut, unionPath, body); rec.Code != http.StatusBadRequest {
+			t.Errorf("%s: status = %d, want 400", name, rec.Code)
+		}
+	}
+	if rec := doRequest(t, ownerRouter, http.MethodPut, unionPath, map[string]any{
+		"partner_a_id": a, "partner_b_id": a, "status": "WIDOWED"}); rec.Code != http.StatusNotFound {
+		t.Errorf("self pair: status = %d, want 404", rec.Code)
+	}
+	if rec := doRequest(t, viewerRouter, http.MethodPut, unionPath, map[string]any{
+		"partner_a_id": a, "partner_b_id": b, "status": "WIDOWED"}); rec.Code != http.StatusForbidden {
+		t.Errorf("viewer update: status = %d, want 403", rec.Code)
+	}
+}
 
 func TestParentChildLifecycle(t *testing.T) {
 	_, _, r := testSetup(t, 1)

@@ -73,6 +73,9 @@
     "addParent": "Add parent",
     "addChild": "Add child",
     "addUnion": "Add union",
+    "editRelationship": "Edit relationship",
+    "editUnion": "Edit union",
+    "saved": "Relationship saved",
     "relationshipType": "Relationship type",
     "biological": "Birth",
     "adoptive": "Adoptive",
@@ -171,6 +174,23 @@
     "forbiddenTitle": "No access to this tree",
     "forbiddenDescription": "You no longer have access, or it was deleted. Choose another tree.",
     "clearSelection": "Clear selection"
+  },
+  "event": {
+    "add": "Add event",
+    "edit": "Edit event",
+    "delete": "Delete event",
+    "type": "Event type",
+    "typeRequired": "Enter an event type.",
+    "dateGC": "Gregorian date",
+    "yearEC": "Ethiopian year",
+    "dateHint": "Give one or both dates. The server validates the Gregorian date and the Ethiopian year.",
+    "invalidGC": "Enter a real Gregorian date as YYYY-MM-DD.",
+    "invalidEC": "Enter an Ethiopian year of 1 or later.",
+    "place": "Place",
+    "description": "Description",
+    "saved": "Event saved",
+    "deleted": "Event deleted",
+    "confirmDelete": "Delete this event?"
   },
   "people": {
     "title": "People",

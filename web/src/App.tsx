@@ -21,7 +21,7 @@ import { LineageWorkspace } from "./components/visualization/LineageWorkspace";
 import { KinshipWorkspace } from "./components/visualization/KinshipWorkspace";
 import { AdminPanel } from "./components/visualization/AdminPanel";
 import { IndividualForm } from "./components/forms/IndividualForm";
-import { EdgeModal, type EdgeMode } from "./components/forms/EdgeModal";
+import { RelationshipForm, type RelationshipMode } from "./components/forms/RelationshipForm";
 import { PersonWorkspace } from "./components/visualization/PersonWorkspace";
 import { Button, Card, CardContent, Empty, Separator, Sheet, Skeleton, ToastProvider } from "./components/ui";
 
@@ -52,7 +52,7 @@ export function App() {
   const [selectedId, setSelectedId] = useState("");
   const [editor, setEditor] = useState<{ initial?: Individual } | null>(null);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
-  const [edgeMode, setEdgeMode] = useState<EdgeMode | null>(null);
+  const [edgeMode, setEdgeMode] = useState<RelationshipMode | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
   const [treeMenuOpen, setTreeMenuOpen] = useState(false);
@@ -350,7 +350,17 @@ export function App() {
           />
         )}
       </Sheet>
-      {edgeMode && <EdgeModal locale={locale} treeId={treeId} mode={edgeMode} onClose={() => setEdgeMode(null)} onSaved={refresh} />}
+      <Sheet open={edgeMode !== null} onClose={() => setEdgeMode(null)}>
+        {edgeMode && (
+          <RelationshipForm
+            locale={locale}
+            treeId={treeId}
+            mode={edgeMode}
+            onClose={() => setEdgeMode(null)}
+            onSaved={refresh}
+          />
+        )}
+      </Sheet>
     </div>
     </ToastProvider>
   );
