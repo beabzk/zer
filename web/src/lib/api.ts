@@ -255,6 +255,20 @@ export const api = {
       treeId: string,
       body: { partner_a_id: string; partner_b_id: string; union_type?: string; status?: string },
     ) => post(`/api/v1/trees/${treeId}/relationships/union`, body),
+    updateUnion: (
+      treeId: string,
+      body: { partner_a_id: string; partner_b_id: string; union_type?: string; status?: string },
+    ) => put(`/api/v1/trees/${treeId}/relationships/union`, body),
+  },
+  events: {
+    list: (treeId: string, personId: string) =>
+      get<OverviewEvent[]>(`/api/v1/trees/${treeId}/individuals/${personId}/events`),
+    create: (treeId: string, personId: string, body: Record<string, unknown>) =>
+      post<OverviewEvent>(`/api/v1/trees/${treeId}/individuals/${personId}/events`, body),
+    update: (treeId: string, personId: string, eventId: string, body: Record<string, unknown>) =>
+      put<OverviewEvent>(`/api/v1/trees/${treeId}/individuals/${personId}/events/${eventId}`, body),
+    remove: (treeId: string, personId: string, eventId: string) =>
+      del<void>(`/api/v1/trees/${treeId}/individuals/${personId}/events/${eventId}`),
   },
   analysis: {
     kinship: (treeId: string, a: string, b: string) =>

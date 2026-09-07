@@ -73,6 +73,9 @@
     "addParent": "ወላጅ ጨምር",
     "addChild": "ልጅ ጨምር",
     "addUnion": "ጥምረት ጨምር",
+    "editRelationship": "ዝምድና አርም",
+    "editUnion": "ጥምረት አርም",
+    "saved": "ዝምድና ተቀምጧል",
     "relationshipType": "የዝምድና ዓይነት",
     "biological": "የልደት",
     "adoptive": "የጉዲፈቻ",
@@ -166,6 +169,23 @@
     "eventsDescription": "በዚህ ዛፍ የተመዘገቡ የሕይወት ዝግጅቶች፣ ከአዲሱ ጀምሮ።",
     "noEvents": "ገና ምንም ዝግጅት አልተመዘገበም።",
     "noEventsDescription": "ለሰው የሚጨመሩ ዝግጅቶች እዚህ ይታያሉ።"
+  },
+  "event": {
+    "add": "ዝግጅት ጨምር",
+    "edit": "ዝግጅት አርም",
+    "delete": "ዝግጅት ሰርዝ",
+    "type": "የዝግጅት ዓይነት",
+    "typeRequired": "የዝግጅት ዓይነት አስገባ።",
+    "dateGC": "የግሪጎሪያን ቀን",
+    "yearEC": "የኢትዮጵያ ዓመት",
+    "dateHint": "አንዱን ወይም ሁለቱንም ቀናት ስጥ። አገልጋዩ የግሪጎሪያን ቀኑን እና የኢትዮጵያ ዓመቱን ያረጋግጣል።",
+    "invalidGC": "ትክክለኛ የግሪጎሪያን ቀን እንደ YYYY-MM-DD አስገባ።",
+    "invalidEC": "የኢትዮጵያ ዓመት ከ1 በላይ አስገባ።",
+    "place": "ቦታ",
+    "description": "መግለጫ",
+    "saved": "ዝግጅት ተቀምጧል",
+    "deleted": "ዝግጅት ተሰርዟል",
+    "confirmDelete": "ይህን ዝግጅት ማጥፋት ይፈልጋሉ?"
   },
   "people": {
     "title": "ሰዎች",

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -166,6 +167,88 @@ type unionBody struct {
 	PartnerBID string `json:"partner_b_id"`
 	UnionType  string `json:"union_type"`
 	Status     string `json:"status"`
+}
+
+type updateUnionBody struct {
+	PartnerAID string `json:"partner_a_id"`
+	PartnerBID string `json:"partner_b_id"`
+	UnionType  string `json:"union_type"`
+	Status     string `json:"status"`
+}
+
+// handleUpdateUnion changes the type or status of an existing union.
+// Partner order is insignificant for the lookup.
+func (d Deps) handleUpdateUnion(w http.ResponseWriter, r *http.Request) {
+	var body updateUnionBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	if body.PartnerAID == "" || body.PartnerBID == "" {
+		writeError(w, http.StatusBadRequest, "partner_a_id and partner_b_id are required")
+		return
+	}
+	if body.UnionType != "" && !validUnionTypes[body.UnionType] {
+		writeError(w, http.StatusBadRequest, "unknown union_type")
+		return
+	}
+	if body.Status != "" && !validUnionStatuses[body.Status] {
+		writeError(w, http.StatusBadRequest, "unknown status")
+		return
+	}
+	if body.UnionType == "" && body.Status == "" {
+		writeError(w, http.StatusBadRequest, "nothing to update")
+		return
+	}
+	db, _, ok := treeDB(w, r, d)
+	if !ok {
+		return
+	}
+	var id string
+	if err := db.QueryRowContext(r.Context(),
+		`SELECT id FROM unions WHERE
+		(partner_a_id = ? AND partner_b_id = ?) OR (partner_a_id = ? AND partner_b_id = ?)`,
+		body.PartnerAID, body.PartnerBID, body.PartnerBID, body.PartnerAID).Scan(&id); err != nil {
+		if err == sql.ErrNoRows {
+			writeError(w, http.StatusNotFound, "union not found")
+			return
+		}
+		writeInternalError(w, r, err)
+		return
+	}
+	set := []string{}
+	args := []any{}
+	if body.UnionType != "" {
+		set = append(set, `union_type = ?`)
+		args = append(args, body.UnionType)
+	}
+	if body.Status != "" {
+		set = append(set, `status = ?`)
+		args = append(args, body.Status)
+	}
+	args = append(args, id)
+	if _, err := db.ExecContext(r.Context(),
+		`UPDATE unions SET `+strings.Join(set, ", ")+` WHERE id = ?`, args...); err != nil {
+		writeInternalError(w, r, err)
+		return
+	}
+	var row map[string]any
+	cols := []string{"id", "partner_a_id", "partner_b_id", "union_type", "status"}
+	vals := make([]any, len(cols))
+	ptrs := make([]any, len(cols))
+	for i := range vals {
+		ptrs[i] = &vals[i]
+	}
+	if err := db.QueryRowContext(r.Context(),
+		`SELECT `+strings.Join(cols, ", ")+` FROM unions WHERE id = ?`, id).Scan(ptrs...); err != nil {
+		writeInternalError(w, r, err)
+		return
+	}
+	row = make(map[string]any, len(cols))
+	for i, c := range cols {
+		row[c] = vals[i]
+	}
+	writeJSON(w, http.StatusOK, row)
 }
 
 func (d Deps) handleAddUnion(w http.ResponseWriter, r *http.Request) {
