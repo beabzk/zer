@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ApiError, api, type PersonHit, type Tree, type TreeStats } from "../../lib/api";
+import { ApiError, api, type OverviewEvent, type PersonHit, type Tree, type TreeOverview } from "../../lib/api";
 import { t, type Locale } from "../../lib/i18n";
 import { lastFocusKey } from "../../lib/navigation";
 import {
@@ -33,62 +33,53 @@ const metricKeys = [
   "trees.members",
 ] as const;
 
-function metricValue(stats: TreeStats | null, key: (typeof metricKeys)[number]): number | undefined {
+function metricValue(overview: TreeOverview | null, key: (typeof metricKeys)[number]): number | undefined {
+  if (!overview) return undefined;
   switch (key) {
     case "trees.individuals":
-      return stats?.individuals;
+      return overview.counts.individuals;
     case "trees.edges":
-      return stats?.edges;
+      return overview.counts.edges;
     case "trees.unions":
-      return stats?.unions;
+      return overview.counts.unions;
     case "dashboard.events":
-      return stats?.events;
+      return overview.counts.events;
     case "trees.members":
-      return stats?.members;
+      return overview.counts.members;
   }
 }
 
+function eventSummary(event: OverviewEvent): string | undefined {
+  const parts = [event.event_date_gc, event.event_place].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : undefined;
+}
+
 export function DashboardOverview({ locale, tree, treeId, onAddPerson, onExplore, onSelectPerson, onTreeCreated }: Props) {
-  const [stats, setStats] = useState<TreeStats | null>(null);
-  const [statsLoading, setStatsLoading] = useState(Boolean(treeId));
-  const [statsError, setStatsError] = useState("");
-  const [people, setPeople] = useState<PersonHit[]>([]);
-  const [peopleLoading, setPeopleLoading] = useState(Boolean(treeId));
-  const [peopleError, setPeopleError] = useState("");
+  const [overview, setOverview] = useState<TreeOverview | null>(null);
+  const [loading, setLoading] = useState(Boolean(treeId));
+  const [error, setError] = useState("");
   const [loadKey, setLoadKey] = useState(0);
   const [lastFocus, setLastFocus] = useState<PersonHit | null>(null);
   const [newTreeName, setNewTreeName] = useState("");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState("");
 
-  // Stats and the people preview load independently so one failure
-  // still leaves the other visible with a retry affordance.
+  // One overview request carries counts, recent people, and recent
+  // events. The rail keeps using the stats endpoint per tree.
   useEffect(() => {
     if (!treeId) return;
     let live = true;
-    setStatsLoading(true);
-    setPeopleLoading(true);
-    setStatsError("");
-    setPeopleError("");
-    api.trees.stats(treeId)
+    setLoading(true);
+    setError("");
+    api.trees.overview(treeId)
       .then((next) => {
-        if (live) setStats(next);
+        if (live) setOverview(next);
       })
       .catch((e) => {
-        if (live) setStatsError(e instanceof ApiError ? e.message : t(locale, "common.error"));
+        if (live) setError(e instanceof ApiError ? e.message : t(locale, "common.error"));
       })
       .finally(() => {
-        if (live) setStatsLoading(false);
-      });
-    api.individuals.list(treeId)
-      .then((next) => {
-        if (live) setPeople(next.slice(0, 6));
-      })
-      .catch((e) => {
-        if (live) setPeopleError(e instanceof ApiError ? e.message : t(locale, "common.error"));
-      })
-      .finally(() => {
-        if (live) setPeopleLoading(false);
+        if (live) setLoading(false);
       });
     return () => {
       live = false;
@@ -96,7 +87,6 @@ export function DashboardOverview({ locale, tree, treeId, onAddPerson, onExplore
   }, [locale, treeId, loadKey]);
 
   // Continue-exploring slot backed by the last focused person per tree.
-  // The overview endpoint in Phase 2 will replace this local slot.
   useEffect(() => {
     if (!treeId) {
       setLastFocus(null);
@@ -183,21 +173,21 @@ export function DashboardOverview({ locale, tree, treeId, onAddPerson, onExplore
         </div>
       </section>
 
-      {(statsError || peopleError) && (
+      {error && (
         <div className="flex flex-col gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between">
-          <p>{statsError || peopleError}</p>
+          <p>{error}</p>
           <Button size="sm" variant="outline" onClick={retry}>{t(locale, "common.retry")}</Button>
         </div>
       )}
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label={t(locale, "dashboard.overview")}>
         {metricKeys.map((key) => {
-          const value = metricValue(stats, key);
+          const value = metricValue(overview, key);
           return (
             <Card key={key}>
               <CardContent className="p-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">{t(locale, key)}</p>
-                {statsLoading || value === undefined ? <Skeleton className="mt-3 h-9 w-16" /> : <p className="mt-3 font-display text-3xl font-semibold">{value}</p>}
+                {loading || value === undefined ? <Skeleton className="mt-3 h-9 w-16" /> : <p className="mt-3 font-display text-3xl font-semibold">{value}</p>}
               </CardContent>
             </Card>
           );
@@ -205,30 +195,59 @@ export function DashboardOverview({ locale, tree, treeId, onAddPerson, onExplore
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>{t(locale, "dashboard.peopleTitle")}</CardTitle>
-            <CardDescription>{t(locale, "dashboard.peopleDescription")}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {peopleLoading ? (
-              <div className="flex flex-col gap-2">
-                {[1, 2, 3].map((row) => <Skeleton key={row} className="h-16 w-full" />)}
-              </div>
-            ) : people.length === 0 ? (
-              <Empty title={t(locale, "dashboard.emptyPeople")} description={t(locale, "dashboard.emptyPeopleDescription")} action={<Button onClick={onAddPerson}>{t(locale, "person.add")}</Button>} />
-            ) : (
-              <div className="grid gap-2 sm:grid-cols-2">
-                {people.map((person) => (
-                  <button key={person.id} onClick={() => onSelectPerson(person)} className="rounded-md border border-border bg-panel px-4 py-3 text-left transition-colors hover:border-accent hover:bg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
-                    <span className="block truncate text-sm font-semibold">{person.full_latin}</span>
-                    <span className="mt-1 block truncate text-sm text-muted-foreground">{person.full_native}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <div className="flex flex-col gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>{t(locale, "dashboard.recentPeople")}</CardTitle>
+              <CardDescription>{t(locale, "dashboard.peopleDescription")}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex flex-col gap-2">
+                  {[1, 2, 3].map((row) => <Skeleton key={row} className="h-16 w-full" />)}
+                </div>
+              ) : !overview || overview.recent_individuals.length === 0 ? (
+                <Empty title={t(locale, "dashboard.emptyPeople")} description={t(locale, "dashboard.emptyPeopleDescription")} action={<Button onClick={onAddPerson}>{t(locale, "person.add")}</Button>} />
+              ) : (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {overview.recent_individuals.map((person) => (
+                    <button key={person.id} onClick={() => onSelectPerson(person)} className="rounded-md border border-border bg-panel px-4 py-3 text-left transition-colors hover:border-accent hover:bg-accent-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+                      <span className="block truncate text-sm font-semibold">{person.full_latin}</span>
+                      <span className="mt-1 block truncate text-sm text-muted-foreground">{person.full_native}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>{t(locale, "dashboard.latestEvents")}</CardTitle>
+              <CardDescription>{t(locale, "dashboard.eventsDescription")}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex flex-col gap-2">
+                  {[1, 2].map((row) => <Skeleton key={row} className="h-16 w-full" />)}
+                </div>
+              ) : !overview || overview.recent_events.length === 0 ? (
+                <Empty title={t(locale, "dashboard.noEvents")} description={t(locale, "dashboard.noEventsDescription")} />
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {overview.recent_events.map((event) => (
+                    <li key={event.id} className="rounded-md border border-border bg-panel px-4 py-3">
+                      <span className="block truncate text-sm font-semibold">{event.full_latin}</span>
+                      <span className="mt-1 block truncate text-sm text-muted-foreground">{event.full_native}</span>
+                      <span className="mt-2 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                        {event.event_type}{eventSummary(event) ? ` · ${eventSummary(event)}` : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        </div>
         <div className="flex flex-col gap-6">
           {lastFocus && (
             <Card>

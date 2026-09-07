@@ -112,6 +112,26 @@ func TestUpdateAndDeleteIndividual(t *testing.T) {
 	}
 }
 
+func getDirectory(t *testing.T, r chi.Router, treeID, query string) (int, map[string]any) {
+	t.Helper()
+	rec := doRequest(t, r, http.MethodGet, "/api/v1/trees/"+treeID+"/individuals"+query, nil)
+	var body map[string]any
+	decodeBody(t, rec, &body)
+	return rec.Code, body
+}
+
+func directoryNames(t *testing.T, body map[string]any) []string {
+	t.Helper()
+	items, _ := body["individuals"].([]any)
+	names := []string{}
+	for _, item := range items {
+		row, _ := item.(map[string]any)
+		name, _ := row["full_latin"].(string)
+		names = append(names, name)
+	}
+	return names
+}
+
 func TestListAndSearchIndividuals(t *testing.T) {
 	_, _, r := testSetup(t, 1)
 	treeID := createTree(t, r, "Search")
@@ -121,24 +141,129 @@ func TestListAndSearchIndividuals(t *testing.T) {
 	createPerson(t, r, treeID, map[string]any{
 		"given_name_native": "N2", "given_name_latin": "Almaz", "gender": "FEMALE"})
 
-	rec := doRequest(t, r, http.MethodGet, "/api/v1/trees/"+treeID+"/individuals", nil)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("list: status = %d", rec.Code)
+	code, all := getDirectory(t, r, treeID, "")
+	if code != http.StatusOK {
+		t.Fatalf("list: status = %d", code)
 	}
-	var all []map[string]any
-	decodeBody(t, rec, &all)
-	if len(all) != 2 {
-		t.Fatalf("list count = %d, want 2", len(all))
+	if all["total"] != float64(2) || all["limit"] != float64(50) || all["offset"] != float64(0) {
+		t.Fatalf("list meta: %+v", all)
+	}
+	if names := directoryNames(t, all); len(names) != 2 {
+		t.Fatalf("list count = %d, want 2", len(names))
 	}
 
-	rec = doRequest(t, r, http.MethodGet, "/api/v1/trees/"+treeID+"/individuals?q=Alm", nil)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("search: status = %d", rec.Code)
+	code, found := getDirectory(t, r, treeID, "?q=Alm")
+	if code != http.StatusOK {
+		t.Fatalf("search: status = %d", code)
 	}
-	var found []map[string]any
-	decodeBody(t, rec, &found)
-	if len(found) != 1 || found[0]["full_latin"] != "Almaz" {
-		t.Fatalf("search result: %+v", found)
+	if names := directoryNames(t, found); len(names) != 1 || names[0] != "Almaz" {
+		t.Fatalf("search result: %+v", names)
+	}
+	if found["total"] != float64(1) {
+		t.Fatalf("search total: %+v", found)
+	}
+
+	code, none := getDirectory(t, r, treeID, "?q=Zzz")
+	if code != http.StatusOK {
+		t.Fatalf("empty search: status = %d", code)
+	}
+	if none["total"] != float64(0) || len(directoryNames(t, none)) != 0 {
+		t.Fatalf("empty search: %+v", none)
+	}
+}
+
+func TestDirectoryPagination(t *testing.T) {
+	_, _, r := testSetup(t, 1)
+	treeID := createTree(t, r, "Pages")
+
+	for _, name := range []string{"A-one", "B-two", "C-three", "D-four", "E-five"} {
+		createPerson(t, r, treeID, map[string]any{
+			"given_name_native": "N-" + name, "given_name_latin": name, "gender": "MALE"})
+	}
+
+	code, first := getDirectory(t, r, treeID, "?limit=2&offset=0&order=name")
+	if code != http.StatusOK {
+		t.Fatalf("page one: status = %d", code)
+	}
+	if names := directoryNames(t, first); len(names) != 2 || names[0] != "A-one" || names[1] != "B-two" {
+		t.Fatalf("page one: %+v", names)
+	}
+	if first["total"] != float64(5) || first["limit"] != float64(2) || first["offset"] != float64(0) {
+		t.Fatalf("page one meta: %+v", first)
+	}
+
+	code, second := getDirectory(t, r, treeID, "?limit=2&offset=2&order=name")
+	if code != http.StatusOK {
+		t.Fatalf("page two: status = %d", code)
+	}
+	if names := directoryNames(t, second); len(names) != 2 || names[0] != "C-three" || names[1] != "D-four" {
+		t.Fatalf("page two: %+v", names)
+	}
+
+	code, tail := getDirectory(t, r, treeID, "?limit=2&offset=4&order=name")
+	if code != http.StatusOK {
+		t.Fatalf("tail: status = %d", code)
+	}
+	if names := directoryNames(t, tail); len(names) != 1 || names[0] != "E-five" {
+		t.Fatalf("tail: %+v", names)
+	}
+
+	code, past := getDirectory(t, r, treeID, "?limit=2&offset=9")
+	if code != http.StatusOK {
+		t.Fatalf("past end: status = %d", code)
+	}
+	if past["total"] != float64(5) || len(directoryNames(t, past)) != 0 {
+		t.Fatalf("past end: %+v", past)
+	}
+}
+
+func TestDirectoryOrdering(t *testing.T) {
+	_, _, r := testSetup(t, 1)
+	treeID := createTree(t, r, "Order")
+
+	createPerson(t, r, treeID, map[string]any{
+		"given_name_native": "N-Z", "given_name_latin": "Zola", "gender": "MALE"})
+	early := createPerson(t, r, treeID, map[string]any{
+		"given_name_native": "N-A", "given_name_latin": "Abebe", "gender": "MALE"})
+	if rec := doRequest(t, r, http.MethodPut, "/api/v1/trees/"+treeID+"/individuals/"+early,
+		map[string]any{"birth_place": "Harar"}); rec.Code != http.StatusOK {
+		t.Fatalf("update: status = %d", rec.Code)
+	}
+
+	code, byName := getDirectory(t, r, treeID, "?order=name")
+	if code != http.StatusOK {
+		t.Fatalf("name order: status = %d", code)
+	}
+	if names := directoryNames(t, byName); len(names) != 2 || names[0] != "Abebe" || names[1] != "Zola" {
+		t.Fatalf("name order: %+v", names)
+	}
+
+	code, recent := getDirectory(t, r, treeID, "?order=recent")
+	if code != http.StatusOK {
+		t.Fatalf("recent order: status = %d", code)
+	}
+	if names := directoryNames(t, recent); len(names) != 2 || names[0] != "Abebe" {
+		t.Fatalf("recent order: %+v, want updated Abebe first", names)
+	}
+
+	code, created := getDirectory(t, r, treeID, "")
+	if code != http.StatusOK {
+		t.Fatalf("default order: status = %d", code)
+	}
+	if names := directoryNames(t, created); len(names) != 2 || names[0] != "Zola" || names[1] != "Abebe" {
+		t.Fatalf("default order: %+v, want insertion order", names)
+	}
+}
+
+func TestDirectoryValidation(t *testing.T) {
+	_, _, r := testSetup(t, 1)
+	treeID := createTree(t, r, "DirValid")
+
+	for _, query := range []string{"?limit=0", "?limit=-2", "?limit=abc", "?limit=201",
+		"?offset=-1", "?offset=abc", "?order=bogus"} {
+		if code, _ := getDirectory(t, r, treeID, query); code != http.StatusBadRequest {
+			t.Errorf("query %s: status = %d, want 400", query, code)
+		}
 	}
 }
 

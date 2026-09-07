@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -77,28 +78,43 @@ func (d Deps) handleGetIndividual(w http.ResponseWriter, r *http.Request) {
 	d.respondIndividual(w, r, db, chi.URLParam(r, "id"))
 }
 
-// handleListIndividuals searches people by name fragment for pickers and
-// lists. Results carry synthesized names at depth 3.
+// handleListIndividuals serves the people directory. Query, page size,
+// offset, and ordering are explicit at the response boundary while the
+// returned entries keep the lightweight selector shape used by pickers.
 func (d Deps) handleListIndividuals(w http.ResponseWriter, r *http.Request) {
 	db, _, ok := treeDB(w, r, d)
 	if !ok {
 		return
 	}
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
-	limit := queryDepth(r, 50)
-	if limit > 200 {
-		limit = 200
+	limit, ok := directoryLimit(w, r)
+	if !ok {
+		return
 	}
-	query := `SELECT id FROM individuals ORDER BY created_at LIMIT ?`
-	args := []any{limit}
+	offset, ok := directoryOffset(w, r)
+	if !ok {
+		return
+	}
+	order, ok := directoryOrder(w, r)
+	if !ok {
+		return
+	}
+	filter := ""
+	args := []any{}
 	if q != "" {
 		like := "%" + q + "%"
-		query = `SELECT id FROM individuals
-			WHERE given_name_native LIKE ? OR given_name_latin LIKE ?
-			ORDER BY created_at LIMIT ?`
-		args = []any{like, like, limit}
+		filter = `WHERE given_name_native LIKE ? OR given_name_latin LIKE ?`
+		args = append(args, like, like)
 	}
-	rows, err := db.QueryContext(r.Context(), query, args...)
+	var total int
+	if err := db.QueryRowContext(r.Context(),
+		`SELECT COUNT(*) FROM individuals `+filter, args...).Scan(&total); err != nil {
+		writeInternalError(w, r, err)
+		return
+	}
+	rows, err := db.QueryContext(r.Context(),
+		`SELECT id FROM individuals `+filter+` `+order+` LIMIT ? OFFSET ?`,
+		append(args, limit, offset)...)
 	if err != nil {
 		writeInternalError(w, r, err)
 		return
@@ -131,7 +147,54 @@ func (d Deps) handleListIndividuals(w http.ResponseWriter, r *http.Request) {
 			"id": id, "full_native": native, "full_latin": latin, "gender": gender,
 		})
 	}
-	writeJSON(w, http.StatusOK, out)
+	writeJSON(w, http.StatusOK, map[string]any{
+		"individuals": out, "total": total, "limit": limit, "offset": offset,
+	})
+}
+
+// directoryLimit reads an explicit page size. The list handler previously
+// read the depth value as its limit, so depth still applies when limit is absent.
+func directoryLimit(w http.ResponseWriter, r *http.Request) (int, bool) {
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n < 1 || n > 200 {
+			writeError(w, http.StatusBadRequest, "limit must be between 1 and 200")
+			return 0, false
+		}
+		return n, true
+	}
+	limit := queryDepth(r, 50)
+	if limit > 200 {
+		limit = 200
+	}
+	return limit, true
+}
+
+func directoryOffset(w http.ResponseWriter, r *http.Request) (int, bool) {
+	raw := r.URL.Query().Get("offset")
+	if raw == "" {
+		return 0, true
+	}
+	n, err := strconv.Atoi(raw)
+	if err != nil || n < 0 {
+		writeError(w, http.StatusBadRequest, "offset must be a non-negative integer")
+		return 0, false
+	}
+	return n, true
+}
+
+func directoryOrder(w http.ResponseWriter, r *http.Request) (string, bool) {
+	switch r.URL.Query().Get("order") {
+	case "", "created":
+		return `ORDER BY created_at, rowid`, true
+	case "recent":
+		return `ORDER BY updated_at DESC, rowid DESC`, true
+	case "name":
+		return `ORDER BY given_name_latin COLLATE NOCASE, given_name_native, rowid`, true
+	default:
+		writeError(w, http.StatusBadRequest, "order must be created, recent, or name")
+		return "", false
+	}
 }
 
 func (d Deps) handleUpdateIndividual(w http.ResponseWriter, r *http.Request) {
@@ -159,7 +222,9 @@ func (d Deps) handleUpdateIndividual(w http.ResponseWriter, r *http.Request) {
 		set = append(set, c+` = ?`)
 	}
 	set = append(set, `updated_at = ?`)
-	vals = append(vals, time.Now().UTC().Format("2006-01-02 15:04:05"))
+	// Micros keep updated_at lexicographically chronological with the
+	// creation default so recent-first ordering stays correct.
+	vals = append(vals, time.Now().UTC().Format("2006-01-02 15:04:05.000000"))
 	vals = append(vals, id)
 	var exists int
 	if err := db.QueryRowContext(r.Context(),

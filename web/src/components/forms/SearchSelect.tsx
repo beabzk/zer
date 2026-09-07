@@ -19,8 +19,8 @@ export function SearchSelect({ locale, treeId, excludeId, value, onChange }: Pro
     const timer = setTimeout(() => {
       api.individuals
         .list(treeId, query || undefined)
-        .then((all) => {
-          if (live) setHits(all.filter((p) => p.id !== excludeId).slice(0, 8));
+        .then((page) => {
+          if (live) setHits(page.individuals.filter((p) => p.id !== excludeId).slice(0, 8));
         })
         .catch(() => {
           if (live) setHits([]);

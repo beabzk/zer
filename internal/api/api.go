@@ -93,6 +93,7 @@ func mount(r chi.Router, d Deps, sessionMW func(http.Handler) http.Handler) {
 			r.Route("/trees/{treeID}", func(r chi.Router) {
 				r.Use(d.requireMember(RoleViewer))
 				r.Get("/stats", d.handleTreeStats)
+				r.Get("/overview", d.handleTreeOverview)
 				r.With(d.requireMember(RoleAdmin)).Post("/members", d.handleAddMember)
 				r.With(d.requireMember(RoleEditor)).Post("/individuals", d.handleCreateIndividual)
 				r.Get("/individuals", d.handleListIndividuals)

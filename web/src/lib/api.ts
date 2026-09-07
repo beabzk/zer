@@ -40,6 +40,44 @@ export interface PersonHit {
   gender: string;
 }
 
+export interface DirectoryPage {
+  individuals: PersonHit[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export type DirectoryOrder = "created" | "recent" | "name";
+
+export interface OverviewPerson extends PersonHit {
+  updated_at: string;
+}
+
+export interface OverviewEvent {
+  id: string;
+  individual_id: string;
+  event_type: string;
+  event_date_gc?: string;
+  event_year_ec?: number;
+  event_place?: string;
+  description?: string;
+  full_native: string;
+  full_latin: string;
+}
+
+export interface TreeOverview {
+  tree: Tree;
+  counts: {
+    individuals: number;
+    edges: number;
+    unions: number;
+    events: number;
+    members: number;
+  };
+  recent_individuals: OverviewPerson[];
+  recent_events: OverviewEvent[];
+}
+
 export interface KinshipSegment {
   from_id: string;
   to_id: string;
@@ -145,14 +183,20 @@ export const api = {
     create: (body: { name: string; slug?: string; description?: string; default_lang?: string }) =>
       post<Tree>("/api/v1/trees", body),
     stats: (treeId: string) => get<TreeStats>(`/api/v1/trees/${treeId}/stats`),
+    overview: (treeId: string) => get<TreeOverview>(`/api/v1/trees/${treeId}/overview`),
     addMember: (treeId: string, body: { user_id: number; role: string }) =>
       post(`/api/v1/trees/${treeId}/members`, body),
   },
   individuals: {
-    list: (treeId: string, q?: string) =>
-      get<PersonHit[]>(
-        `/api/v1/trees/${treeId}/individuals${q ? `?q=${encodeURIComponent(q)}` : ""}`,
-      ),
+    list: (treeId: string, q?: string, opts?: { limit?: number; offset?: number; order?: DirectoryOrder }) => {
+      const params = new URLSearchParams();
+      if (q) params.set("q", q);
+      if (opts?.limit !== undefined) params.set("limit", String(opts.limit));
+      if (opts?.offset !== undefined) params.set("offset", String(opts.offset));
+      if (opts?.order) params.set("order", opts.order);
+      const suffix = params.size > 0 ? `?${params.toString()}` : "";
+      return get<DirectoryPage>(`/api/v1/trees/${treeId}/individuals${suffix}`);
+    },
     get: (treeId: string, id: string, depth = 3) =>
       get<Individual>(`/api/v1/trees/${treeId}/individuals/${id}?depth=${depth}`),
     create: (treeId: string, body: Record<string, unknown>) =>
