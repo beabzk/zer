@@ -16,10 +16,9 @@ import { TreeSwitcher } from "./components/layout/TreeSwitcher";
 import { LoginView } from "./components/visualization/LoginView";
 import { DashboardOverview } from "./components/visualization/DashboardOverview";
 import { PeopleDirectory } from "./components/visualization/PeopleDirectory";
-import { FamilyCanvas } from "./components/visualization/FamilyCanvas";
-import { PedigreeTree } from "./components/visualization/PedigreeTree";
-import { LineageCards } from "./components/visualization/LineageCards";
-import { KinshipFinder } from "./components/visualization/KinshipFinder";
+import { GraphWorkspace } from "./components/visualization/GraphWorkspace";
+import { LineageWorkspace } from "./components/visualization/LineageWorkspace";
+import { KinshipWorkspace } from "./components/visualization/KinshipWorkspace";
 import { AdminPanel } from "./components/visualization/AdminPanel";
 import { IndividualForm } from "./components/forms/IndividualForm";
 import { EdgeModal, type EdgeMode } from "./components/forms/EdgeModal";
@@ -51,7 +50,6 @@ export function App() {
   const [view, setViewState] = useState<WorkspaceView>(() => viewFromPath());
   const [focus, setFocus] = useState<PersonHit | null>(null);
   const [selectedId, setSelectedId] = useState("");
-  const [depth, setDepth] = useState(3);
   const [editor, setEditor] = useState<{ initial?: Individual } | null>(null);
   const [workspaceId, setWorkspaceId] = useState<string | null>(null);
   const [edgeMode, setEdgeMode] = useState<EdgeMode | null>(null);
@@ -304,7 +302,7 @@ export function App() {
                 onSelectPerson={openPerson}
                 onTreeCreated={(id) => { pickTree(id); refresh(); }}
               />
-            ) : !treeId ? <Empty title={t(locale, "dashboard.chooseTree")} description={t(locale, "dashboard.chooseTreeDescription")} /> : view === "people" ? <PeopleDirectory locale={locale} treeId={treeId} onAdd={startAddPerson} onSelect={openWorkspace} /> : view === "kinship" ? <KinshipFinder locale={locale} treeId={treeId} /> : !focusId ? <Card><CardContent className="p-6"><Empty title={t(locale, "canvas.empty")} description={t(locale, "dashboard.focusDescription")} /></CardContent></Card> : <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">{view === "canvas" && <FamilyCanvas locale={locale} treeId={treeId} focusId={focusId} depth={depth} onDepthChange={setDepth} selectedId={selectedId} onSelect={setSelectedId} refreshKey={refreshKey} />}{view === "pedigree" && <PedigreeTree locale={locale} treeId={treeId} rootId={focusId} refreshKey={refreshKey} onSelect={setSelectedId} />}{view === "cards" && <LineageCards locale={locale} treeId={treeId} rootId={focusId} refreshKey={refreshKey} onSelect={setSelectedId} />}{selectedId && <PersonWorkspace locale={locale} treeId={treeId} personId={selectedId} refreshKey={refreshKey} onEdit={openEditor} onEdge={setEdgeMode} onFocus={() => nav("canvas")} onSelectPerson={(person) => { setFocus(person); setSelectedId(person.id); }} />}</div>}
+            ) : !treeId ? <Empty title={t(locale, "dashboard.chooseTree")} description={t(locale, "dashboard.chooseTreeDescription")} /> : view === "people" ? <PeopleDirectory locale={locale} treeId={treeId} onAdd={startAddPerson} onSelect={openWorkspace} /> : view === "kinship" ? <KinshipWorkspace locale={locale} treeId={treeId} onSelectPerson={openWorkspace} /> : !focusId || !focus ? <Card><CardContent className="p-6"><Empty title={t(locale, "canvas.empty")} description={t(locale, "dashboard.focusDescription")} /></CardContent></Card> : <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">{view === "canvas" && <GraphWorkspace locale={locale} treeId={treeId} focus={focus} selectedId={selectedId} onSelect={setSelectedId} refreshKey={refreshKey} />}{(view === "pedigree" || view === "cards") && <LineageWorkspace locale={locale} treeId={treeId} rootId={focusId} refreshKey={refreshKey} onSelect={setSelectedId} />}{selectedId && <PersonWorkspace locale={locale} treeId={treeId} personId={selectedId} refreshKey={refreshKey} onEdit={openEditor} onEdge={setEdgeMode} onFocus={() => nav("canvas")} onSelectPerson={(person) => { setFocus(person); setSelectedId(person.id); }} />}</div>}
           </div>
         </main>
       </div>
