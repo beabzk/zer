@@ -89,18 +89,43 @@
     "widowed": "Widowed"
   },
   "kinship": {
+    "title": "Kinship",
+    "description": "Find the path between any two people.",
     "personA": "First person",
     "personB": "Second person",
     "find": "Find connection",
+    "swap": "Swap people",
+    "steps": "Connection path",
     "degrees": "degrees",
     "none": "No connection found",
-    "self": "Same person"
+    "noPathDescription": "These two people are not connected through recorded parents or unions.",
+    "self": "Same person",
+    "selfHint": "This is the same person.",
+    "parent": "Parent",
+    "child": "Child",
+    "spouse": "Spouse"
   },
   "canvas": {
     "fit": "Fit view",
+    "reset": "Reset view",
     "depth": "Depth",
     "focus": "Focus",
     "empty": "Select a person to draw the graph"
+  },
+  "graph": {
+    "parents": "Parent links",
+    "unions": "Unions",
+    "empty": "No connections to draw",
+    "emptyDescription": "Widen the depth or enable a relationship type."
+  },
+  "lineage": {
+    "title": "Lineage",
+    "description": "Follow ancestors or descendants to any depth.",
+    "root": "Focused person",
+    "generation": "Generation",
+    "empty": "No relatives found in this direction.",
+    "emptyDescription": "Try the other direction or a greater depth.",
+    "truncated": "Showing the first 80 people."
   },
   "admin": {
     "panel": "Admin",

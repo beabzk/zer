@@ -4,16 +4,21 @@ import { zoom, type ZoomTransform } from "d3-zoom";
 import { ApiError, api, type FlowEdge, type FlowNode } from "../../lib/api";
 import { t, type Locale } from "../../lib/i18n";
 import { CARD_H, CARD_W, GAP_X, GAP_Y, layoutGraph } from "./layout";
+import { Button, CardContent, Empty, Skeleton } from "../ui";
 
 interface Props {
   locale: Locale;
   treeId: string;
   focusId: string;
   depth: number;
-  onDepthChange: (depth: number) => void;
+  showParents: boolean;
+  showUnions: boolean;
   selectedId: string;
   onSelect: (id: string) => void;
   refreshKey: number;
+  retryKey: number;
+  fitKey: number;
+  onRetry: () => void;
 }
 
 interface ViewTransform {
@@ -22,26 +27,33 @@ interface ViewTransform {
   k: number;
 }
 
-/** Pan/zoom family graph. Nodes are HTML cards, edges are SVG paths. */
+/** Pan/zoom family graph. Nodes are HTML cards, edges are SVG paths.
+  Controls and states live in the workspace; the canvas stays calm. */
 export function FamilyCanvas({
   locale,
   treeId,
   focusId,
   depth,
-  onDepthChange,
+  showParents,
+  showUnions,
   selectedId,
   onSelect,
   refreshKey,
+  retryKey,
+  fitKey,
+  onRetry,
 }: Props) {
   const outerRef = useRef<HTMLDivElement>(null);
   const [nodes, setNodes] = useState<FlowNode[]>([]);
   const [edges, setEdges] = useState<FlowEdge[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
   const [view, setView] = useState<ViewTransform>({ x: 0, y: 0, k: 1 });
   const [fittedKey, setFittedKey] = useState("");
 
   useEffect(() => {
     let live = true;
+    setLoaded(false);
     setError("");
     api.analysis
       .subgraph(treeId, focusId, depth)
@@ -49,21 +61,30 @@ export function FamilyCanvas({
         if (!live) return;
         setNodes(res.nodes);
         setEdges(res.edges);
+        setLoaded(true);
         setFittedKey("");
       })
       .catch((e) => {
-        if (live) setError(e instanceof ApiError ? e.message : t(locale, "common.error"));
+        if (live) {
+          setError(e instanceof ApiError ? e.message : t(locale, "common.error"));
+          setLoaded(true);
+        }
       });
     return () => {
       live = false;
     };
-  }, [treeId, focusId, depth, refreshKey, locale]);
+  }, [treeId, focusId, depth, refreshKey, retryKey, locale]);
+
+  const visibleEdges = useMemo(
+    () => edges.filter((e) => (e.label === "parent" && showParents) || (e.label === "union" && showUnions)),
+    [edges, showParents, showUnions],
+  );
 
   const placed = useMemo(() => {
-    const parentEdges = edges
+    const parentEdges = visibleEdges
       .filter((e) => e.label === "parent")
       .map((e) => ({ source: e.source, target: e.target }));
-    const unionEdges = edges
+    const unionEdges = visibleEdges
       .filter((e) => e.label === "union")
       .map((e) => ({ source: e.source, target: e.target }));
     return layoutGraph(
@@ -71,7 +92,7 @@ export function FamilyCanvas({
       parentEdges,
       unionEdges,
     );
-  }, [nodes, edges]);
+  }, [nodes, visibleEdges]);
 
   const bounds = useMemo(() => {
     if (placed.length === 0) return { w: 0, h: 0 };
@@ -104,11 +125,17 @@ export function FamilyCanvas({
       x: (el.clientWidth - bounds.w * k) / 2,
       y: 24,
     });
-    setFittedKey(`${treeId}:${focusId}:${depth}:${refreshKey}`);
+    setFittedKey(`${treeId}:${focusId}:${depth}:${refreshKey}:${retryKey}:${fitKey}`);
   };
 
   useEffect(() => {
-    if (fittedKey !== `${treeId}:${focusId}:${depth}:${refreshKey}` && bounds.w > 0) {
+    if (fitKey > 0) fit();
+    // Parent-driven refit only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fitKey]);
+
+  useEffect(() => {
+    if (fittedKey !== `${treeId}:${focusId}:${depth}:${refreshKey}:${retryKey}:${fitKey}` && bounds.w > 0) {
       fit();
     }
     // Fit once per dataset; user pans freely afterwards.
@@ -136,77 +163,81 @@ export function FamilyCanvas({
     return `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`;
   };
 
-  if (error) return <p className="text-red-600 text-sm p-4">{error}</p>;
+  if (error) {
+    return (
+      <CardContent className="flex flex-col items-start gap-3 p-6">
+        <p className="text-sm text-destructive">{error}</p>
+        <Button size="sm" variant="outline" onClick={onRetry}>{t(locale, "common.retry")}</Button>
+      </CardContent>
+    );
+  }
+
+  if (!loaded) {
+    return (
+      <div className="flex h-[65vh] flex-col gap-2 p-4" aria-label={t(locale, "common.loading")}>
+        <Skeleton className="h-16 w-56" />
+        <Skeleton className="h-full w-full" />
+      </div>
+    );
+  }
+
+  if (nodes.length === 0) {
+    return (
+      <CardContent className="p-6">
+        <Empty title={t(locale, "graph.empty")} description={t(locale, "graph.emptyDescription")} />
+      </CardContent>
+    );
+  }
 
   return (
-    <div>
-      <div className="flex items-center gap-3 px-4 py-2">
-        <label className="text-xs text-gray-600">
-          {t(locale, "canvas.depth")}:{" "}
-          <select
-            value={depth}
-            onChange={(e) => onDepthChange(parseInt(e.target.value, 10))}
-            className="border rounded text-sm px-2 py-1"
-          >
-            {[2, 3, 4, 6].map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button onClick={fit} className="text-xs border rounded px-3 py-1">
-          {t(locale, "canvas.fit")}
-        </button>
-      </div>
-      <div ref={outerRef} className="relative overflow-hidden bg-gray-50 h-[65vh] cursor-grab">
-        <div
-          className="absolute origin-top-left"
-          style={{
-            width: bounds.w,
-            height: bounds.h,
-            transform: `translate(${view.x}px, ${view.y}px) scale(${view.k})`,
-          }}
+    <div ref={outerRef} className="relative h-[65vh] cursor-grab overflow-hidden bg-panel">
+      <div
+        className="absolute origin-top-left"
+        style={{
+          width: bounds.w,
+          height: bounds.h,
+          transform: `translate(${view.x}px, ${view.y}px) scale(${view.k})`,
+        }}
+      >
+        <svg
+          className="absolute top-0 left-0 pointer-events-none"
+          width={bounds.w}
+          height={bounds.h}
         >
-          <svg
-            className="absolute top-0 left-0 pointer-events-none"
-            width={bounds.w}
-            height={bounds.h}
-          >
-            {edges.map((e) => {
-              const d = edgePath(e);
-              if (!d) return null;
-              return (
-                <path
-                  key={e.id}
-                  d={d}
-                  fill="none"
-                  stroke={e.label === "union" ? "#111" : "#9ca3af"}
-                  strokeWidth={e.label === "union" ? 2 : 1.5}
-                  strokeDasharray={e.label === "union" ? "5 3" : undefined}
-                />
-              );
-            })}
-          </svg>
-          {placed.map((p) => {
-            const node = nodeById.get(p.id);
-            if (!node) return null;
-            const selected = p.id === selectedId;
+          {visibleEdges.map((e) => {
+            const d = edgePath(e);
+            if (!d) return null;
             return (
-              <button
-                key={p.id}
-                onClick={() => onSelect(p.id)}
-                className={`absolute bg-white border rounded-lg px-2 py-1 text-left shadow-sm hover:shadow overflow-hidden ${
-                  selected ? "border-black border-2" : ""
-                }`}
-                style={{ left: p.x, top: p.y, width: CARD_W, height: CARD_H }}
-              >
-                <span className="block text-xs font-medium truncate">{node.data.full_latin}</span>
-                <span className="block text-xs text-gray-600 truncate">{node.data.full_native}</span>
-              </button>
+              <path
+                key={e.id}
+                d={d}
+                fill="none"
+                stroke={e.label === "union" ? "var(--accent-strong)" : "var(--border)"}
+                strokeWidth={e.label === "union" ? 2 : 1.5}
+                strokeDasharray={e.label === "union" ? "5 3" : undefined}
+              />
             );
           })}
-        </div>
+        </svg>
+        {placed.map((p) => {
+          const node = nodeById.get(p.id);
+          if (!node) return null;
+          const selected = p.id === selectedId;
+          return (
+            <button
+              key={p.id}
+              onClick={() => onSelect(p.id)}
+              aria-pressed={selected}
+              className={`absolute overflow-hidden rounded-md border bg-panel px-2 py-1 text-left shadow-panel transition-shadow hover:shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                selected ? "border-2 border-accent" : "border-border"
+              }`}
+              style={{ left: p.x, top: p.y, width: CARD_W, height: CARD_H }}
+            >
+              <span className="block truncate text-xs font-medium">{node.data.full_latin}</span>
+              <span className="block truncate text-xs text-muted-foreground">{node.data.full_native}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
