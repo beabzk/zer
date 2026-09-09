@@ -13,7 +13,7 @@ export function Header({ locale, onLocaleChange, email }: Props) {
     <header className="border-b border-border bg-panel/90 backdrop-blur">
       <div className="mx-auto flex min-h-16 max-w-[1600px] items-center justify-between gap-4 px-4 sm:px-6">
       <div className="min-w-0">
-        <span className="font-display text-2xl font-semibold tracking-tight">{t(locale, "app.title")}</span>
+        <span className="font-display text-2xl font-semibold">{t(locale, "app.title")}</span>
         <span className="ml-3 hidden max-w-md truncate text-xs uppercase tracking-[0.12em] text-muted-foreground lg:inline">
           {t(locale, "app.tagline")}
         </span>

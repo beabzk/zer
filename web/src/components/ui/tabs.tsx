@@ -15,6 +15,7 @@ export function TabTrigger({
   onSelect,
   children,
   className,
+  onKeyDown,
   ...props
 }: {
   value: string;
@@ -28,12 +29,32 @@ export function TabTrigger({
       type="button"
       role="tab"
       aria-selected={active}
+      tabIndex={active ? 0 : -1}
+      data-tab-value={value}
       onClick={() => onSelect(value)}
       onKeyDown={(event) => {
+        onKeyDown?.(event);
+        if (event.defaultPrevented) return;
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
           onSelect(value);
+          return;
         }
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+        const tablist = event.currentTarget.closest('[role="tablist"]');
+        const tabs = tablist ? Array.from(tablist.querySelectorAll<HTMLButtonElement>('[role="tab"]:not([disabled])')) : [];
+        const current = tabs.indexOf(event.currentTarget);
+        if (current < 0 || tabs.length === 0) return;
+        event.preventDefault();
+        const nextIndex = event.key === "Home"
+          ? 0
+          : event.key === "End"
+            ? tabs.length - 1
+            : (current + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+        const next = tabs[nextIndex];
+        next.focus();
+        const nextValue = next.dataset.tabValue;
+        if (nextValue) onSelect(nextValue);
       }}
       className={cn(
         "flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors",

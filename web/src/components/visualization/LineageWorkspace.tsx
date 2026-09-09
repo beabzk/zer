@@ -142,7 +142,7 @@ export function LineageWorkspace({ locale, treeId, rootId, refreshKey, onSelect 
         </CardHeader>
         <CardContent>
           {error && (
-            <div className="mb-4 flex flex-col gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between">
+            <div role="alert" className="mb-4 flex flex-col gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between">
               <p>{error}</p>
               <Button size="sm" variant="outline" onClick={() => setLoadKey((key) => key + 1)}>
                 {t(locale, "common.retry")}

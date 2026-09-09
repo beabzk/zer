@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { api, type PersonHit } from "../../lib/api";
 import { t, type Locale } from "../../lib/i18n";
 import { Input } from "../ui";
@@ -17,6 +17,7 @@ export function SearchSelect({ locale, treeId, excludeId, value, onChange }: Pro
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const boxRef = useRef<HTMLDivElement>(null);
+  const listboxId = `search-select-${useId()}`;
 
   useEffect(() => {
     let live = true;
@@ -88,7 +89,10 @@ export function SearchSelect({ locale, treeId, excludeId, value, onChange }: Pro
             type="text"
             role="combobox"
             aria-expanded={open && query !== ""}
-            aria-controls="search-select-listbox"
+            aria-controls={listboxId}
+            aria-haspopup="listbox"
+            aria-autocomplete="list"
+            aria-activedescendant={open && hits[activeIndex] ? `${listboxId}-${hits[activeIndex].id}` : undefined}
             aria-label={t(locale, "person.search")}
             placeholder={t(locale, "person.search")}
             value={query}
@@ -101,7 +105,7 @@ export function SearchSelect({ locale, treeId, excludeId, value, onChange }: Pro
           />
           {open && query && (
             <ul
-              id="search-select-listbox"
+              id={listboxId}
               role="listbox"
               className="absolute inset-x-0 top-full z-20 mt-1 max-h-48 overflow-auto rounded-md border border-border bg-panel py-1 shadow-panel"
             >
@@ -109,7 +113,7 @@ export function SearchSelect({ locale, treeId, excludeId, value, onChange }: Pro
                 <li className="px-3 py-2 text-sm text-muted-foreground">{t(locale, "people.empty")}</li>
               ) : (
                 hits.map((p, index) => (
-                  <li key={p.id} role="option" aria-selected={index === activeIndex}>
+                  <li id={`${listboxId}-${p.id}`} key={p.id} role="option" aria-selected={index === activeIndex}>
                     <button
                       type="button"
                       onMouseEnter={() => setActiveIndex(index)}

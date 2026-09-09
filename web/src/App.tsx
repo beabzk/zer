@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { auth } from "./lib/auth";
 import { api, type Individual, type PersonHit, type Tree } from "./lib/api";
-import { t, type Locale } from "./lib/i18n";
+import { localeTag, t, type Locale } from "./lib/i18n";
 import {
   lastFocusKey,
   parseLocation,
@@ -93,6 +93,7 @@ export function App() {
 
   useEffect(() => {
     localStorage.setItem("zer-locale", locale);
+    document.documentElement.lang = localeTag(locale);
   }, [locale]);
 
   // Keep view and tree selection in sync with the address bar.
@@ -225,7 +226,7 @@ export function App() {
     : primaryViews;
 
   return (
-    <ToastProvider>
+    <ToastProvider dismissLabel={t(locale, "common.dismiss")}>
     <div className="min-h-screen bg-background">
       <Header locale={locale} onLocaleChange={setLocale} email={session.data.user.email} />
       <div className="mx-auto grid max-w-[1600px] md:grid-cols-[260px_minmax(0,1fr)]">
@@ -323,7 +324,7 @@ export function App() {
         </div>
       </nav>
 
-      <Sheet open={editor !== null} onClose={() => setEditor(null)}>
+      <Sheet open={editor !== null} onClose={() => setEditor(null)} closeLabel={t(locale, "common.close")}>
         {editor && treeId && (
           <IndividualForm
             locale={locale}
@@ -336,7 +337,7 @@ export function App() {
           />
         )}
       </Sheet>
-      <Sheet open={workspaceId !== null} onClose={closeWorkspace}>
+      <Sheet open={workspaceId !== null} onClose={closeWorkspace} closeLabel={t(locale, "common.close")}>
         {workspaceId && (
           <PersonWorkspace
             locale={locale}
@@ -350,7 +351,7 @@ export function App() {
           />
         )}
       </Sheet>
-      <Sheet open={edgeMode !== null} onClose={() => setEdgeMode(null)}>
+      <Sheet open={edgeMode !== null} onClose={() => setEdgeMode(null)} closeLabel={t(locale, "common.close")}>
         {edgeMode && (
           <RelationshipForm
             locale={locale}

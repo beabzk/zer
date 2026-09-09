@@ -142,7 +142,7 @@ export function IndividualForm({ locale, treeId, initial, canDelete, onClose, on
         <SheetTitle>{initial ? t(locale, "person.edit") : t(locale, "person.add")}</SheetTitle>
       </SheetHeader>
       <SheetContent className="flex flex-col gap-3">
-        {error && <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</p>}
+        {error && <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</p>}
         <div className="grid grid-cols-2 gap-3">
           <div className="col-span-2 sm:col-span-1">
             <label className={label} htmlFor="person-native">{t(locale, "person.nativeName")}</label>
@@ -254,7 +254,7 @@ export function IndividualForm({ locale, treeId, initial, canDelete, onClose, on
           </div>
         </div>
       </SheetFooter>
-      <Dialog open={confirmingDelete} onClose={() => setConfirmingDelete(false)}>
+      <Dialog open={confirmingDelete} onClose={() => setConfirmingDelete(false)} closeLabel={t(locale, "common.close")}>
         <DialogHeader>
           <DialogTitle>{t(locale, "person.delete")}</DialogTitle>
           <DialogDescription>{t(locale, "person.confirmDelete")}</DialogDescription>

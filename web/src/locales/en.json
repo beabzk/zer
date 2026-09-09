@@ -271,6 +271,7 @@
     "error": "Something went wrong",
     "retry": "Retry",
     "close": "Close",
+    "dismiss": "Dismiss notification",
     "previous": "Previous",
     "next": "Next",
     "year": "Year",

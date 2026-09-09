@@ -18,7 +18,7 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 
 let nextId = 1;
 
-export function ToastProvider({ children }: { children: ReactNode }) {
+export function ToastProvider({ children, dismissLabel = "Dismiss notification" }: { children: ReactNode; dismissLabel?: string }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
   const dismiss = useCallback((id: number) => {
@@ -43,7 +43,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((item) => (
           <div
             key={item.id}
-            role="status"
+            role={item.variant === "destructive" ? "alert" : "status"}
             className={cn(
               "pointer-events-auto rounded-md border px-4 py-3 text-sm shadow-panel",
               item.variant === "success" && "border-success bg-success-soft text-success",
@@ -59,10 +59,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               <button
                 type="button"
                 onClick={() => dismiss(item.id)}
-                aria-label="Dismiss notification"
+                aria-label={dismissLabel}
+                title={dismissLabel}
                 className="rounded px-1 text-xs opacity-60 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
-                OK
+                <span aria-hidden="true">×</span>
               </button>
             </div>
           </div>
