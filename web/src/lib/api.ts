@@ -174,6 +174,14 @@ export interface AdminTree {
   members: number;
 }
 
+export interface TreeMember {
+  tree_id: string;
+  user_id: number;
+  role: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
+  email: string;
+  created_at: string;
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -216,8 +224,13 @@ export const api = {
       post<Tree>("/api/v1/trees", body),
     stats: (treeId: string) => get<TreeStats>(`/api/v1/trees/${treeId}/stats`),
     overview: (treeId: string) => get<TreeOverview>(`/api/v1/trees/${treeId}/overview`),
-    addMember: (treeId: string, body: { user_id: number; role: string }) =>
-      post(`/api/v1/trees/${treeId}/members`, body),
+    addMember: (treeId: string, body: { user_id: number; role: TreeMember["role"] }) =>
+      post<TreeMember>(`/api/v1/trees/${treeId}/members`, body),
+    members: (treeId: string) => get<TreeMember[]>(`/api/v1/trees/${treeId}/members`),
+    updateMember: (treeId: string, userId: number, role: TreeMember["role"]) =>
+      put<TreeMember>(`/api/v1/trees/${treeId}/members/${userId}`, { role }),
+    removeMember: (treeId: string, userId: number) =>
+      del<void>(`/api/v1/trees/${treeId}/members/${userId}`),
   },
   individuals: {
     list: (treeId: string, q?: string, opts?: DirectoryFilters) => {

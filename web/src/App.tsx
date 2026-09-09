@@ -286,7 +286,7 @@ export function App() {
           </div>
 
           <div className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-            {view === "admin" && isAdmin ? <AdminPanel locale={locale} /> : treeInaccessible ? (
+            {view === "admin" && isAdmin ? <AdminPanel locale={locale} activeTreeId={treeId || undefined} onTreeDeleted={(deletedId) => { if (deletedId === treeId) clearTree(); else refresh(); }} /> : treeInaccessible ? (
               <Empty
                 title={t(locale, "shell.forbiddenTitle")}
                 description={t(locale, "shell.forbiddenDescription")}
