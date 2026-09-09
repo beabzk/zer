@@ -12,6 +12,13 @@ export const localeNames: Record<Locale, string> = {
   ti: "ትግርኛ",
 };
 
+const localeTags: Record<Locale, string> = {
+  en: "en",
+  am: "am",
+  om: "om",
+  ti: "ti",
+};
+
 type Bundle = Record<string, unknown>;
 
 const bundles: Record<Locale, Bundle> = {
@@ -28,6 +35,28 @@ function lookup(bundle: Bundle, key: string): unknown {
     }
     return undefined;
   }, bundle);
+}
+
+function keys(bundle: Bundle, prefix = ""): string[] {
+  return Object.entries(bundle).flatMap(([part, value]) => {
+    const key = prefix ? `${prefix}.${part}` : part;
+    return value && typeof value === "object" && !Array.isArray(value)
+      ? keys(value as Bundle, key)
+      : [key];
+  });
+}
+
+/** BCP-47 language tag used for document and assistive-technology metadata. */
+export function localeTag(locale: Locale): string {
+  return localeTags[locale];
+}
+
+/** Keys that currently fall back to English for a locale. */
+export function missingTranslationKeys(locale: Locale): string[] {
+  if (locale === "en") return [];
+  const englishKeys = keys(bundles.en);
+  const translatedKeys = new Set(keys(bundles[locale]));
+  return englishKeys.filter((key) => !translatedKeys.has(key));
 }
 
 /** Translate a dotted key, falling back to English, then the key itself. */

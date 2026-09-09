@@ -138,7 +138,7 @@ export function EventForm({
       </SheetHeader>
       <SheetContent className="flex flex-col gap-3">
         {error && (
-          <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+          <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
             {error}
           </p>
         )}
@@ -150,7 +150,7 @@ export function EventForm({
             id="event-type"
             value={eventType}
             onChange={(e) => setEventType(e.target.value)}
-            placeholder="GRADUATION"
+              placeholder={t(locale, "event.type")}
           />
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -245,6 +245,7 @@ export function EventForm({
       <Dialog
         open={confirmingDelete}
         onClose={() => setConfirmingDelete(false)}
+        closeLabel={t(locale, "common.close")}
       >
         <DialogHeader>
           <DialogTitle>{t(locale, "event.delete")}</DialogTitle>

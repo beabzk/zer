@@ -150,7 +150,7 @@ export function PersonWorkspace({ locale, treeId, personId, refreshKey, onEdit, 
     return (
       <Card className="h-fit">
         <CardContent className="flex flex-col gap-3 p-5">
-          <p className="text-sm text-destructive">{error || t(locale, "common.error")}</p>
+          <p role="alert" className="text-sm text-destructive">{error || t(locale, "common.error")}</p>
           <Button size="sm" variant="outline" onClick={() => setLoadKey((key) => key + 1)}>
             {t(locale, "common.retry")}
           </Button>
@@ -413,7 +413,7 @@ export function PersonWorkspace({ locale, treeId, personId, refreshKey, onEdit, 
           </div>
         )}
       </CardContent>
-      <Sheet open={eventEditor !== null} onClose={() => setEventEditor(null)}>
+      <Sheet open={eventEditor !== null} onClose={() => setEventEditor(null)} closeLabel={t(locale, "common.close")}>
         {eventEditor && (
           <EventForm
             locale={locale}

@@ -148,7 +148,7 @@ export function DashboardOverview({ locale, tree, treeId, onAddPerson, onExplore
                 if (e.key === "Enter") void createTree();
               }}
             />
-            {createError && <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">{createError}</p>}
+            {createError && <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">{createError}</p>}
             <Button onClick={() => void createTree()} disabled={creating || !newTreeName.trim()}>
               {creating ? t(locale, "common.loading") : t(locale, "dashboard.createTree")}
             </Button>
@@ -174,7 +174,7 @@ export function DashboardOverview({ locale, tree, treeId, onAddPerson, onExplore
       </section>
 
       {error && (
-        <div className="flex flex-col gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between">
+        <div role="alert" className="flex flex-col gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between">
           <p>{error}</p>
           <Button size="sm" variant="outline" onClick={retry}>{t(locale, "common.retry")}</Button>
         </div>

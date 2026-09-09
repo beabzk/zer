@@ -166,7 +166,7 @@ export function FamilyCanvas({
   if (error) {
     return (
       <CardContent className="flex flex-col items-start gap-3 p-6">
-        <p className="text-sm text-destructive">{error}</p>
+        <p role="alert" className="text-sm text-destructive">{error}</p>
         <Button size="sm" variant="outline" onClick={onRetry}>{t(locale, "common.retry")}</Button>
       </CardContent>
     );
@@ -190,7 +190,12 @@ export function FamilyCanvas({
   }
 
   return (
-    <div ref={outerRef} className="relative h-[65vh] cursor-grab overflow-hidden bg-panel">
+    <div
+      ref={outerRef}
+      role="region"
+      aria-label={t(locale, "views.canvas")}
+      className="relative h-[65vh] cursor-grab overflow-hidden bg-panel"
+    >
       <div
         className="absolute origin-top-left"
         style={{
@@ -203,6 +208,7 @@ export function FamilyCanvas({
           className="absolute top-0 left-0 pointer-events-none"
           width={bounds.w}
           height={bounds.h}
+          aria-hidden="true"
         >
           {visibleEdges.map((e) => {
             const d = edgePath(e);

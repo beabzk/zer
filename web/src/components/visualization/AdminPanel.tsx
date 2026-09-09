@@ -425,7 +425,7 @@ export function AdminPanel({ locale, activeTreeId, onTreeDeleted }: Props) {
         </CardContent>
       </Card>
 
-      <Dialog open={confirming !== null} onClose={() => !acting && setConfirming(null)}>
+      <Dialog open={confirming !== null} onClose={() => !acting && setConfirming(null)} closeLabel={t(locale, "common.close")}>
         <DialogHeader>
           <DialogTitle>{confirming?.kind === "member" ? t(locale, "admin.removeMember") : t(locale, "admin.confirmTitle")}</DialogTitle>
           <DialogDescription>

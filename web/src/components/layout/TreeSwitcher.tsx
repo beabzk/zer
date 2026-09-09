@@ -102,12 +102,12 @@ export function TreeSwitcher({ locale, activeId, onSelect, refreshKey, isAdmin, 
             }}
           />
           <Button onClick={() => void create()} size="sm">
-            OK
+            {t(locale, "trees.create")}
           </Button>
           </CardContent>
         </Card>
       )}
-      {error && <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</p>}
+      {error && <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</p>}
       {trees.length === 0 ? (
         <p className="text-sm leading-6 text-muted-foreground">{t(locale, "trees.empty")}</p>
       ) : (
