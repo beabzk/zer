@@ -234,9 +234,11 @@ func (d Deps) handleAddMember(w http.ResponseWriter, r *http.Request) {
 		writeInternalError(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusCreated, map[string]any{
-		"tree_id": m.TreeID, "user_id": body.UserID, "role": body.Role,
-	})
+	member, ok := d.memberWithUser(w, r, m, body.UserID)
+	if !ok {
+		return
+	}
+	writeJSON(w, http.StatusCreated, member)
 }
 
 // slugify keeps lowercase letters, digits, and hyphens.
