@@ -4,6 +4,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -77,6 +79,7 @@ func run() error {
 	_ = godotenv.Load()
 
 	cfg := configFromEnv()
+	log.Printf("starting zer %s (data=%s, port=%s)", version, cfg.dataDir, cfg.port)
 
 	manager := database.NewManager(cfg.dataDir)
 
@@ -108,10 +111,21 @@ func run() error {
 
 	r.Handle("/*", zerweb.Handler())
 
-	srv := &http.Server{Addr: ":" + cfg.port, Handler: r}
+	srv := &http.Server{Handler: r}
+	listener, err := net.Listen("tcp", ":"+cfg.port)
+	if err != nil {
+		manager.Close()
+		return fmt.Errorf("listen on %s: %w", cfg.port, err)
+	}
+	baseURL := serverURL(listener.Addr())
+	log.Printf("zer %s listening at %s", version, baseURL)
+	log.Printf("web UI: %s", baseURL)
+	log.Printf("health check: %s/healthz", baseURL)
+	log.Print("press Ctrl+C to stop")
+
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- srv.ListenAndServe()
+		errCh <- srv.Serve(listener)
 	}()
 
 	sigCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -121,11 +135,11 @@ func run() error {
 	case err := <-errCh:
 		manager.Close()
 		if err != nil && err != http.ErrServerClosed {
-			return err
+			return fmt.Errorf("serve %s: %w", listener.Addr(), err)
 		}
 		return nil
 	case <-sigCtx.Done():
-		fmt.Fprintln(os.Stderr, "shutting down")
+		log.Print("shutting down")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 		if err := srv.Shutdown(shutdownCtx); err != nil {
@@ -134,6 +148,14 @@ func run() error {
 		}
 		return manager.Close()
 	}
+}
+
+func serverURL(addr net.Addr) string {
+	_, port, err := net.SplitHostPort(addr.String())
+	if err != nil {
+		return "http://localhost" + addr.String()
+	}
+	return "http://localhost:" + port
 }
 
 type serverConfig struct {
