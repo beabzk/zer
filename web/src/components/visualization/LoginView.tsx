@@ -3,6 +3,32 @@ import { api, type AuthConfig, type SignupMode } from "../../lib/api";
 import { auth } from "../../lib/auth";
 import { t, type Locale } from "../../lib/i18n";
 
+function authErrorText(error: unknown, locale: Locale): string {
+  const message = error instanceof Error ? error.message : "";
+  const passwordErrors: Record<string, string> = {
+    "password is too short": "auth.passwordTooShort",
+    "password requires uppercase letters": "auth.passwordRequiresUppercase",
+    "password requires numbers": "auth.passwordRequiresNumbers",
+  };
+  if (passwordErrors[message]) {
+    return t(locale, passwordErrors[message]);
+  }
+  return message || t(locale, "auth.failed");
+}
+
+function passwordRequirementError(password: string, locale: Locale): string {
+  if (password.length < 8) {
+    return t(locale, "auth.passwordTooShort");
+  }
+  if (!/[A-Z]/.test(password)) {
+    return t(locale, "auth.passwordRequiresUppercase");
+  }
+  if (!/[0-9]/.test(password)) {
+    return t(locale, "auth.passwordRequiresNumbers");
+  }
+  return "";
+}
+
 export function LoginView({ locale }: { locale: Locale }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -54,6 +80,13 @@ export function LoginView({ locale }: { locale: Locale }) {
     setError("");
     setBusy(true);
     try {
+      if (effectiveMode === "up") {
+        const passwordError = passwordRequirementError(password, locale);
+        if (passwordError) {
+          setError(passwordError);
+          return;
+        }
+      }
       if (effectiveMode === "in" && !setupRequired) {
         await auth.signIn.credential({ credential: email, password });
       } else if (setupRequired) {
@@ -75,8 +108,8 @@ export function LoginView({ locale }: { locale: Locale }) {
           },
         });
       }
-    } catch {
-      setError(t(locale, "auth.failed"));
+    } catch (cause) {
+      setError(authErrorText(cause, locale));
     } finally {
       setBusy(false);
     }
@@ -94,8 +127,8 @@ export function LoginView({ locale }: { locale: Locale }) {
         provider: "google",
         ...(redirectUri ? { redirectUri } : {}),
       });
-    } catch {
-      setError(t(locale, "auth.failed"));
+    } catch (cause) {
+      setError(authErrorText(cause, locale));
     }
   };
 
@@ -145,11 +178,14 @@ export function LoginView({ locale }: { locale: Locale }) {
               className={`${input} border-border bg-panel text-foreground`}
               type="password"
               placeholder={t(locale, "auth.password")}
-              aria-describedby={error ? "login-error" : undefined}
+              aria-describedby={error ? "login-error login-password-hint" : "login-password-hint"}
               aria-invalid={Boolean(error)}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+            <p id="login-password-hint" className="text-xs text-muted-foreground">
+              {t(locale, "auth.passwordHint")}
+            </p>
             <button
               type="submit"
               disabled={busy || !(invitedEmail || email) || !password}

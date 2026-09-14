@@ -171,4 +171,50 @@ describe("LoginView", () => {
       },
     });
   });
+
+  it("shows password requirements and specific password errors", async () => {
+    const callsBefore = vi.mocked(auth.signUp.credential).mock.calls.length;
+
+    await act(async () => {
+      root.render(<LoginView locale="en" />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(container.querySelector("#login-password-hint")?.textContent)
+      .toBe("Use at least 8 characters, including an uppercase letter and a number.");
+    const email = container.querySelector<HTMLInputElement>("#login-email")!;
+    const password = container.querySelector<HTMLInputElement>("#login-password")!;
+    await act(async () => {
+      setInputValue(email, "owner@example.com");
+      setInputValue(password, "password1");
+    });
+    await act(async () => {
+      container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(container.querySelector("#login-error")?.textContent)
+      .toBe("Password must include an uppercase letter.");
+
+    await act(async () => setInputValue(password, "Password"));
+    await act(async () => {
+      container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(container.querySelector("#login-error")?.textContent)
+      .toBe("Password must include a number.");
+
+    await act(async () => setInputValue(password, "short"));
+    await act(async () => {
+      container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(container.querySelector("#login-error")?.textContent)
+      .toBe("Password must be at least 8 characters.");
+    expect(vi.mocked(auth.signUp.credential).mock.calls.length).toBe(callsBefore);
+  });
 });
