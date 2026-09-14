@@ -13,12 +13,19 @@ vi.mock("../../lib/api", () => ({
         google_enabled: false,
       })),
     },
+    signup: {
+      validateInvite: vi.fn(async () => ({
+        email: "invited@example.com",
+        expires_at: "2030-01-01T00:00:00Z",
+      })),
+    },
   },
 }));
 
 vi.mock("../../lib/auth", () => ({
   auth: {
     signIn: {
+      credential: vi.fn(async () => undefined),
       social: vi.fn(async () => undefined),
     },
     signUp: {
@@ -54,6 +61,7 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
+  window.location.hash = "";
 });
 
 describe("LoginView", () => {
@@ -122,6 +130,45 @@ describe("LoginView", () => {
     expect(auth.signIn.social).toHaveBeenCalledWith({
       provider: "google",
       redirectUri: `${window.location.origin}/signup#setup=OPEN`,
+    });
+  });
+
+  it("signs up with the invited email and token", async () => {
+    vi.mocked(api.auth.config).mockResolvedValueOnce({
+      setup_required: false,
+      signup_mode: "INVITE",
+      password_enabled: true,
+      google_enabled: false,
+    });
+    window.location.hash = "#invite=invite-token";
+
+    await act(async () => {
+      root.render(<LoginView locale="en" />);
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const email = container.querySelector<HTMLInputElement>("#login-email")!;
+    expect(email.value).toBe("invited@example.com");
+    expect(email.disabled).toBe(true);
+    const password = container.querySelector<HTMLInputElement>("#login-password")!;
+    await act(async () => {
+      setInputValue(password, "Secret123");
+    });
+    await act(async () => {
+      container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true }));
+      await Promise.resolve();
+    });
+
+    expect(auth.signIn.credential).not.toHaveBeenCalled();
+    expect(auth.signUp.credential).toHaveBeenCalledWith({
+      email: "invited@example.com",
+      password: "Secret123",
+      additionalFields: {
+        purpose: "signup",
+        inviteToken: "invite-token",
+      },
     });
   });
 });

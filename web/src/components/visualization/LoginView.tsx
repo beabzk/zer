@@ -41,13 +41,22 @@ export function LoginView({ locale }: { locale: Locale }) {
     };
   }, [locale]);
 
+  const input = "w-full px-3 py-2 border rounded text-sm";
+  const setupRequired = config?.setup_required ?? false;
+  const signupMode = config?.signup_mode;
+  const passwordSignup = config?.password_enabled ?? true;
+  const googleSignup = config?.google_enabled ?? false;
+  const inviteClaim = signupMode === "INVITE" && Boolean(inviteToken && invitedEmail);
+  const canCreateAccount = setupRequired || signupMode === "OPEN" || inviteClaim;
+  const effectiveMode = setupRequired || inviteClaim ? "up" : mode;
+
   const submit = async () => {
     setError("");
     setBusy(true);
     try {
-      if (mode === "in" && !config?.setup_required) {
+      if (effectiveMode === "in" && !setupRequired) {
         await auth.signIn.credential({ credential: email, password });
-      } else if (config?.setup_required) {
+      } else if (setupRequired) {
         await auth.signUp.credential({
           email,
           password,
@@ -89,15 +98,6 @@ export function LoginView({ locale }: { locale: Locale }) {
       setError(t(locale, "auth.failed"));
     }
   };
-
-  const input = "w-full px-3 py-2 border rounded text-sm";
-  const setupRequired = config?.setup_required ?? false;
-  const signupMode = config?.signup_mode;
-  const passwordSignup = config?.password_enabled ?? true;
-  const googleSignup = config?.google_enabled ?? false;
-  const inviteClaim = signupMode === "INVITE" && Boolean(inviteToken && invitedEmail);
-  const canCreateAccount = setupRequired || signupMode === "OPEN" || inviteClaim;
-  const effectiveMode = setupRequired || inviteClaim ? "up" : mode;
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background p-4">
