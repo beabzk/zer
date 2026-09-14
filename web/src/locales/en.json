@@ -194,6 +194,7 @@
     "defaultExpiry": "Default invite expiry (hours)",
     "saveAccess": "Save access settings",
     "inviteEmail": "Invite email",
+    "invalidInviteEmail": "Enter a valid email address, like person@example.com.",
     "createInvite": "Create invitation",
     "inviteCreated": "Invitation created",
     "inviteLink": "Invitation link",

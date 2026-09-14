@@ -209,3 +209,34 @@ func TestInviteLifecycle(t *testing.T) {
 		t.Fatalf("revoked validate status = %d, want 403", rec.Code)
 	}
 }
+
+func TestCreateInviteRejectsEmailInvalidAtSignup(t *testing.T) {
+	_, manager, _ := adminSetup(t, 0, adminEmail)
+	ctx := context.Background()
+	adminID := seedLimenUser(t, ctx, manager, adminEmail)
+	router := chi.NewRouter()
+	mount(router, Deps{
+		Manager:     manager,
+		AdminEmails: map[string]bool{adminEmail: true},
+	}, stubSessionAs(adminID, adminEmail))
+
+	rec := doRequest(t, router, http.MethodPost, "/api/v1/admin/invites", map[string]any{
+		"email": "person@example",
+	})
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("create status = %d, want 400, body = %s", rec.Code, rec.Body.String())
+	}
+
+	master, err := manager.Master(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var invites int
+	if err := master.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM signup_invites WHERE email = 'person@example'`).Scan(&invites); err != nil {
+		t.Fatal(err)
+	}
+	if invites != 0 {
+		t.Fatalf("created %d invites for an invalid email", invites)
+	}
+}

@@ -8,7 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
-	"net/mail"
+	"regexp"
 	"strings"
 	"time"
 
@@ -17,6 +17,8 @@ import (
 
 	"github.com/beabzk/zer/internal/auth"
 )
+
+var signupEmailPattern = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 
 type authConfigResponse struct {
 	SetupRequired   bool    `json:"setup_required"`
@@ -185,7 +187,7 @@ func (d Deps) handleCreateInvite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	body.Email = strings.ToLower(strings.TrimSpace(body.Email))
-	if _, err := mail.ParseAddress(body.Email); err != nil {
+	if !signupEmailPattern.MatchString(body.Email) {
 		writeError(w, http.StatusBadRequest, "invalid email")
 		return
 	}

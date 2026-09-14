@@ -194,6 +194,7 @@
     "defaultExpiry": "የግብዣ ነባሪ ጊዜ (በሰዓት)",
     "saveAccess": "የመዳረሻ ቅንብሮችን አስቀምጥ",
     "inviteEmail": "የግብዣ ኢሜይል",
+    "invalidInviteEmail": "ትክክለኛ ኢሜይል አድራሻ ያስገቡ፣ ለምሳሌ person@example.com።",
     "createInvite": "ግብዣ ፍጠር",
     "inviteCreated": "ግብዣ ተፈጥሯል",
     "inviteLink": "የግብዣ አገናኝ",

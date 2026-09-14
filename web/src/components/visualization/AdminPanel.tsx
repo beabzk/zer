@@ -32,6 +32,7 @@ import {
 } from "../ui";
 
 const roles: TreeMember["role"][] = ["OWNER", "ADMIN", "EDITOR", "VIEWER"];
+const inviteEmailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
 type Confirmation =
   | { kind: "tree"; id: string; label: string }
@@ -73,6 +74,7 @@ export function AdminPanel({ locale, activeTreeId, onTreeDeleted }: Props) {
   });
   const [invites, setInvites] = useState<SignupInvite[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteEmailError, setInviteEmailError] = useState("");
   const [inviteExpiry, setInviteExpiry] = useState("168");
   const [createdInviteUrl, setCreatedInviteUrl] = useState("");
   const [members, setMembers] = useState<TreeMember[]>([]);
@@ -202,8 +204,13 @@ export function AdminPanel({ locale, activeTreeId, onTreeDeleted }: Props) {
   const createInvite = async () => {
     const email = inviteEmail.trim();
     if (!email) return;
+    if (!inviteEmailPattern.test(email)) {
+      setInviteEmailError(t(locale, "admin.invalidInviteEmail"));
+      return;
+    }
     setActing(true);
     setError("");
+    setInviteEmailError("");
     try {
       const created = await api.admin.createInvite({
         email,
@@ -344,10 +351,21 @@ export function AdminPanel({ locale, activeTreeId, onTreeDeleted }: Props) {
               <Input
                 id="invite-email"
                 type="email"
+                pattern={inviteEmailPattern.source}
+                aria-invalid={Boolean(inviteEmailError)}
+                aria-describedby={inviteEmailError ? "invite-email-error" : undefined}
                 value={inviteEmail}
-                onChange={(event) => setInviteEmail(event.target.value)}
+                onChange={(event) => {
+                  setInviteEmail(event.target.value);
+                  setInviteEmailError("");
+                }}
                 placeholder="person@example.com"
               />
+              {inviteEmailError && (
+                <p id="invite-email-error" role="alert" className="text-xs text-destructive">
+                  {inviteEmailError}
+                </p>
+              )}
             </div>
             <Button variant="outline" disabled={acting || !inviteEmail.trim()} onClick={() => void createInvite()}>
               {t(locale, "admin.createInvite")}

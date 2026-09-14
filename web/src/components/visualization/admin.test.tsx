@@ -170,4 +170,21 @@ describe("AdminPanel", () => {
       expiresInHours: 72,
     });
   });
+
+  it("rejects invitation emails that signup will reject", async () => {
+    await renderPanel();
+
+    const inviteEmail = container.querySelector<HTMLInputElement>("#invite-email")!;
+    const emailSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
+    emailSetter?.call(inviteEmail, "person@example");
+    inviteEmail.dispatchEvent(new Event("input", { bubbles: true }));
+    await act(async () => {
+      const create = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Create invitation");
+      create!.click();
+      await Promise.resolve();
+    });
+
+    expect(api.admin.createInvite).not.toHaveBeenCalled();
+    expect(container.querySelector("[role='alert']")?.textContent).toBe("Enter a valid email address, like person@example.com.");
+  });
 });
