@@ -103,8 +103,8 @@ func (d Deps) handleUpdateMember(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "unknown role")
 		return
 	}
-	if !m.Admin && body.Role == RoleOwner {
-		writeError(w, http.StatusForbidden, "only instance admins can grant the owner role")
+	if !m.Admin && m.Role != RoleOwner && body.Role == RoleOwner {
+		writeError(w, http.StatusForbidden, "only an owner can grant the owner role")
 		return
 	}
 	current, ok := d.memberWithUser(w, r, m, userID)

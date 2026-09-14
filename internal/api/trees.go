@@ -209,6 +209,10 @@ func (d Deps) handleAddMember(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "unknown role")
 		return
 	}
+	if body.Role == RoleOwner && !m.Admin {
+		writeError(w, http.StatusForbidden, "owner must be granted by promoting an existing member")
+		return
+	}
 	if m.Role != RoleOwner && rank >= roleRank[m.Role] {
 		writeError(w, http.StatusForbidden, "cannot grant a role at or above your own")
 		return

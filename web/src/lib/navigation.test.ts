@@ -14,6 +14,7 @@ describe("parseLocation", () => {
     expect(parseLocation("/tree/abc123/graph")).toEqual({ view: "canvas", treeId: "abc123" });
     expect(parseLocation("/tree/abc123/lineage")).toEqual({ view: "pedigree", treeId: "abc123" });
     expect(parseLocation("/tree/abc123/kinship")).toEqual({ view: "kinship", treeId: "abc123" });
+    expect(parseLocation("/tree/abc123/members")).toEqual({ view: "members", treeId: "abc123" });
   });
 
   it("parses global routes without a tree id", () => {
@@ -36,12 +37,13 @@ describe("pathForView", () => {
   it("mirrors the tree id in workspace routes and drops it for admin", () => {
     expect(pathForView("overview", "t1")).toBe("/tree/t1/overview");
     expect(pathForView("canvas", "t1")).toBe("/tree/t1/graph");
+    expect(pathForView("members", "t1")).toBe("/tree/t1/members");
     expect(pathForView("admin", "t1")).toBe("/admin");
     expect(pathForView("overview", "")).toBe("/overview");
   });
 
   it("round-trips through parseLocation", () => {
-    for (const view of ["overview", "people", "canvas", "pedigree", "cards", "kinship"] as const) {
+    for (const view of ["overview", "people", "canvas", "pedigree", "cards", "kinship", "members"] as const) {
       expect(parseLocation(pathForView(view, "tree-9"))).toEqual({ view, treeId: "tree-9" });
     }
   });
@@ -55,6 +57,7 @@ describe("view helpers", () => {
     expect(viewNeedsFocus("overview")).toBe(false);
     expect(viewNeedsFocus("people")).toBe(false);
     expect(viewNeedsFocus("kinship")).toBe(false);
+    expect(viewNeedsFocus("members")).toBe(false);
   });
 
   it("reads the current address bar by default", () => {

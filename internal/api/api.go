@@ -101,6 +101,8 @@ func mount(r chi.Router, d Deps, sessionMW func(http.Handler) http.Handler) {
 		r.Post("/signup/invites/validate", d.handleValidateInvite)
 		r.Group(func(r chi.Router) {
 			r.Use(sessionMW)
+			r.Post("/tree-invitations/validate", d.handleValidateTreeInvitation)
+			r.Post("/tree-invitations/accept", d.handleAcceptTreeInvitation)
 			r.Post("/trees", d.handleCreateTree)
 			r.Get("/trees", d.handleListTrees)
 			r.Route("/admin", func(r chi.Router) {
@@ -124,6 +126,9 @@ func mount(r chi.Router, d Deps, sessionMW func(http.Handler) http.Handler) {
 				r.With(d.requireMember(RoleAdmin)).Get("/members", d.handleListMembers)
 				r.With(d.requireMember(RoleAdmin)).Put("/members/{userID}", d.handleUpdateMember)
 				r.With(d.requireMember(RoleAdmin)).Delete("/members/{userID}", d.handleRemoveMember)
+				r.With(d.requireMember(RoleAdmin)).Post("/invitations", d.handleCreateTreeInvitation)
+				r.With(d.requireMember(RoleAdmin)).Get("/invitations", d.handleListTreeInvitations)
+				r.With(d.requireMember(RoleAdmin)).Delete("/invitations/{invitationID}", d.handleRevokeTreeInvitation)
 				r.With(d.requireMember(RoleEditor)).Post("/individuals", d.handleCreateIndividual)
 				r.Get("/individuals", d.handleListIndividuals)
 				r.Get("/individuals/{id}", d.handleGetIndividual)

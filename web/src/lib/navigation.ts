@@ -1,4 +1,4 @@
-export type WorkspaceView = "overview" | "people" | "canvas" | "pedigree" | "cards" | "kinship" | "admin";
+export type WorkspaceView = "overview" | "people" | "canvas" | "pedigree" | "cards" | "kinship" | "members" | "admin";
 
 const viewSlugs: Record<WorkspaceView, string> = {
   overview: "overview",
@@ -7,6 +7,7 @@ const viewSlugs: Record<WorkspaceView, string> = {
   pedigree: "lineage",
   cards: "lineage-cards",
   kinship: "kinship",
+  members: "members",
   admin: "admin",
 };
 

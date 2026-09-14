@@ -36,6 +36,7 @@ export function LoginView({ locale }: { locale: Locale }) {
   const [config, setConfig] = useState<AuthConfig | null>(null);
   const [setupMode, setSetupMode] = useState<SignupMode>("INVITE");
   const [inviteToken, setInviteToken] = useState("");
+  const [treeInviteToken, setTreeInviteToken] = useState("");
   const [invitedEmail, setInvitedEmail] = useState("");
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -51,6 +52,13 @@ export function LoginView({ locale }: { locale: Locale }) {
 
     const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
     const token = hash.get("invite") ?? "";
+    if (window.location.pathname === "/tree-invite") {
+      setTreeInviteToken(token);
+      return () => {
+        active = false;
+      };
+    }
+    setTreeInviteToken("");
     if (!token) {
       return () => {
         active = false;
@@ -118,8 +126,10 @@ export function LoginView({ locale }: { locale: Locale }) {
   const google = async () => {
     setError("");
     try {
-      const redirectUri = inviteToken
-        ? `${window.location.origin}/signup#invite=${inviteToken}`
+      const redirectUri = treeInviteToken
+        ? `${window.location.origin}/tree-invite#invite=${treeInviteToken}`
+        : inviteToken
+          ? `${window.location.origin}/signup#invite=${inviteToken}`
         : setupRequired
           ? `${window.location.origin}/signup#setup=${setupMode}`
           : undefined;

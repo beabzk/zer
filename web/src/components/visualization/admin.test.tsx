@@ -70,7 +70,7 @@ async function renderPanel() {
   await act(async () => {
     root.render(
       <ToastProvider>
-        <AdminPanel locale="en" activeTreeId="tree-1" />
+        <AdminPanel locale="en" />
       </ToastProvider>,
     );
     await Promise.resolve();
@@ -78,31 +78,11 @@ async function renderPanel() {
 }
 
 describe("AdminPanel", () => {
-  it("edits and removes tree members through the member API", async () => {
-    vi.mocked(api.trees.members).mockResolvedValue([member]);
+  it("keeps instance administration separate from tree membership", async () => {
     await renderPanel();
 
-    const role = container.querySelector("#member-role-3") as HTMLSelectElement | null;
-    expect(role).not.toBeNull();
-    await act(async () => {
-      role!.value = "VIEWER";
-      role!.dispatchEvent(new Event("change", { bubbles: true }));
-      await Promise.resolve();
-    });
-    expect(api.trees.updateMember).toHaveBeenCalledWith("tree-1", 3, "VIEWER");
-
-    const remove = container.querySelector('button[aria-label="Remove editor@example.com"]') as HTMLButtonElement | null;
-    expect(remove).not.toBeNull();
-    await act(async () => {
-      remove!.click();
-    });
-    const confirm = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Remove member");
-    expect(confirm).toBeDefined();
-    await act(async () => {
-      confirm!.click();
-      await Promise.resolve();
-    });
-    expect(api.trees.removeMember).toHaveBeenCalledWith("tree-1", 3);
+    expect(container.textContent).not.toContain("Tree members");
+    expect(api.trees.members).not.toHaveBeenCalled();
   });
 
   it("updates signup access and creates invitations", async () => {

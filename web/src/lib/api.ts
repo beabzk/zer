@@ -207,6 +207,29 @@ export interface TreeMember {
   created_at: string;
 }
 
+export type TreeMemberRole = TreeMember["role"];
+
+export interface TreeInvitation {
+  id: string;
+  tree_id: string;
+  email: string;
+  role: TreeMember["role"];
+  status: "PENDING" | "ACCEPTED" | "REVOKED" | "EXPIRED";
+  expires_at: string;
+  created_at: string;
+  accepted_at?: string;
+  revoked_at?: string;
+  invite_url?: string;
+}
+
+export interface TreeInvitationDetails {
+  email: string;
+  tree_id: string;
+  tree_name: string;
+  role: TreeMember["role"];
+  expires_at: string;
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -263,6 +286,19 @@ export const api = {
       put<TreeMember>(`/api/v1/trees/${treeId}/members/${userId}`, { role }),
     removeMember: (treeId: string, userId: number) =>
       del<void>(`/api/v1/trees/${treeId}/members/${userId}`),
+    invitations: (treeId: string) => get<TreeInvitation[]>(`/api/v1/trees/${treeId}/invitations`),
+    createInvitation: (
+      treeId: string,
+      body: { email: string; role: TreeMember["role"]; expiresInHours?: number },
+    ) => post<TreeInvitation>(`/api/v1/trees/${treeId}/invitations`, body),
+    revokeInvitation: (treeId: string, invitationId: string) =>
+      del<void>(`/api/v1/trees/${treeId}/invitations/${invitationId}`),
+  },
+  treeInvitations: {
+    validate: (token: string) =>
+      post<TreeInvitationDetails>("/api/v1/tree-invitations/validate", { token }),
+    accept: (token: string) =>
+      post<TreeMember>("/api/v1/tree-invitations/accept", { token }),
   },
   individuals: {
     list: (treeId: string, q?: string, opts?: DirectoryFilters) => {

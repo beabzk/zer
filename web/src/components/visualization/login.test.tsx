@@ -62,6 +62,7 @@ afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
   window.location.hash = "";
+  window.history.replaceState({}, "", "/");
 });
 
 describe("LoginView", () => {
@@ -130,6 +131,32 @@ describe("LoginView", () => {
     expect(auth.signIn.social).toHaveBeenCalledWith({
       provider: "google",
       redirectUri: `${window.location.origin}/signup#setup=OPEN`,
+    });
+  });
+
+  it("preserves a tree invitation through Google sign-in", async () => {
+    vi.mocked(api.auth.config).mockResolvedValueOnce({
+      setup_required: false,
+      signup_mode: "INVITE",
+      password_enabled: false,
+      google_enabled: true,
+    });
+    window.history.replaceState({}, "", "/tree-invite#invite=tree-token");
+
+    await act(async () => {
+      root.render(<LoginView locale="en" />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      container.querySelector("button")!.click();
+      await Promise.resolve();
+    });
+
+    expect(api.signup.validateInvite).not.toHaveBeenCalled();
+    expect(auth.signIn.social).toHaveBeenCalledWith({
+      provider: "google",
+      redirectUri: `${window.location.origin}/tree-invite#invite=tree-token`,
     });
   });
 

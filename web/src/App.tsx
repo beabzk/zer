@@ -20,6 +20,8 @@ import { GraphWorkspace } from "./components/visualization/GraphWorkspace";
 import { LineageWorkspace } from "./components/visualization/LineageWorkspace";
 import { KinshipWorkspace } from "./components/visualization/KinshipWorkspace";
 import { AdminPanel } from "./components/visualization/AdminPanel";
+import { TreeInvitationView } from "./components/visualization/TreeInvitationView";
+import { TreeMembersPanel } from "./components/visualization/TreeMembersPanel";
 import { IndividualForm } from "./components/forms/IndividualForm";
 import { RelationshipForm, type RelationshipMode } from "./components/forms/RelationshipForm";
 import { PersonWorkspace } from "./components/visualization/PersonWorkspace";
@@ -174,6 +176,18 @@ export function App() {
 
   const tree = useMemo(() => trees.find((candidate) => candidate.id === treeId), [treeId, trees]);
   const selectedTreeId = treeId && tree ? treeId : "";
+  const memberManagementRole = isAdmin
+    ? "OWNER"
+    : tree?.role === "ADMIN" || tree?.role === "OWNER"
+      ? tree.role
+      : undefined;
+  const canManageMembers = memberManagementRole !== undefined;
+  const workspaceViews = canManageMembers
+    ? [...primaryViews, { id: "members" as WorkspaceView, label: "views.members", eyebrow: "06" }]
+    : primaryViews;
+  const bottomItems: Array<{ id: WorkspaceView; label: string }> = isAdmin
+    ? [...workspaceViews, { id: "admin" as WorkspaceView, label: "admin.panel" }]
+    : workspaceViews;
 
   const startAddPerson = () => {
     setEditor({});
@@ -223,15 +237,14 @@ export function App() {
   if (!session.data) {
     return <LoginView locale={locale} />;
   }
+  if (window.location.pathname === "/tree-invite") {
+    return <TreeInvitationView locale={locale} />;
+  }
 
   const nav = (next: WorkspaceView) => setView(next);
   const focusId = focus?.id ?? "";
   // The stored id may reference a tree the user can no longer access.
   const treeInaccessible = Boolean(treeId && treesReady && trees.length > 0 && !tree);
-  const bottomItems: Array<{ id: WorkspaceView; label: string }> = isAdmin
-    ? [...primaryViews, { id: "admin" as WorkspaceView, label: "admin.panel" }]
-    : primaryViews;
-
   return (
     <ToastProvider dismissLabel={t(locale, "common.dismiss")}>
     <div className="min-h-screen bg-background">
@@ -271,7 +284,7 @@ export function App() {
               {selectedTreeId && !treeInaccessible && <Button size="sm" onClick={startAddPerson}>{t(locale, "person.add")}</Button>}
             </div>
             <nav className="mt-5 hidden gap-1 overflow-x-auto pb-1 md:flex" aria-label={t(locale, "dashboard.navigation")}>
-              {primaryViews.map((item) => (
+              {workspaceViews.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => nav(item.id)}
@@ -294,12 +307,18 @@ export function App() {
           </div>
 
           <div className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-            {view === "admin" && isAdmin ? <AdminPanel locale={locale} activeTreeId={selectedTreeId || undefined} onTreeDeleted={(deletedId) => { if (deletedId === treeId) clearTree(); else refresh(); }} /> : treeInaccessible ? (
+            {view === "admin" && isAdmin ? <AdminPanel locale={locale} onTreeDeleted={(deletedId) => { if (deletedId === treeId) clearTree(); else refresh(); }} /> : treeInaccessible ? (
               <Empty
                 title={t(locale, "shell.forbiddenTitle")}
                 description={t(locale, "shell.forbiddenDescription")}
                 action={<Button variant="outline" onClick={clearTree}>{t(locale, "shell.clearSelection")}</Button>}
               />
+            ) : view === "members" ? (
+              memberManagementRole && selectedTreeId && tree ? (
+                <TreeMembersPanel locale={locale} treeId={selectedTreeId} treeName={tree.name} callerRole={memberManagementRole} />
+              ) : (
+                <Empty title={t(locale, "members.title")} description={t(locale, "members.unavailable")} />
+              )
             ) : view === "overview" ? (
               <DashboardOverview
                 locale={locale}
@@ -316,7 +335,7 @@ export function App() {
       </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-panel/95 backdrop-blur md:hidden" aria-label={t(locale, "dashboard.navigation")}>
-        <div className={`grid ${isAdmin ? "grid-cols-6" : "grid-cols-5"}`}>
+        <div className="grid" style={{ gridTemplateColumns: `repeat(${bottomItems.length}, minmax(0, 1fr))` }}>
           {bottomItems.map((item) => (
             <button
               key={item.id}
