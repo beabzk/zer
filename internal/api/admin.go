@@ -54,6 +54,11 @@ func (d Deps) handleAdminListUsers(w http.ResponseWriter, r *http.Request) {
 		writeInternalError(w, r, err)
 		return
 	}
+	adminIDs, err := d.instanceAdminIDs(r)
+	if err != nil {
+		writeInternalError(w, r, err)
+		return
+	}
 	rows, err := master.QueryContext(r.Context(),
 		`SELECT id, email, email_verified_at, first_name, last_name, created_at
 		FROM users ORDER BY created_at`)
@@ -62,11 +67,6 @@ func (d Deps) handleAdminListUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
-	adminIDs, err := d.instanceAdminIDs(r)
-	if err != nil {
-		writeInternalError(w, r, err)
-		return
-	}
 	users := []map[string]any{}
 	for rows.Next() {
 		var id int64

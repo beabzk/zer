@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -84,6 +85,26 @@ func TestAdminStatus(t *testing.T) {
 	decodeBody(t, rec, &status)
 	if !status["is_admin"] {
 		t.Errorf("expected is_admin true: %+v", status)
+	}
+}
+
+func TestAdminListUsersCompletesWhileReadingUsers(t *testing.T) {
+	_, manager, adminRouter := adminSetup(t, 1, adminEmail)
+	seedLimenUser(t, context.Background(), manager, adminEmail)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/admin/users", nil)
+	ctx, cancel := context.WithTimeout(request.Context(), 200*time.Millisecond)
+	defer cancel()
+	request = request.WithContext(ctx)
+	recorder := httptest.NewRecorder()
+	adminRouter.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s, want 200", recorder.Code, recorder.Body.String())
+	}
+	var users []map[string]any
+	decodeBody(t, recorder, &users)
+	if len(users) != 1 || users[0]["email"] != adminEmail {
+		t.Fatalf("users = %+v", users)
 	}
 }
 
