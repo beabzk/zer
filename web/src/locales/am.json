@@ -13,6 +13,14 @@
     "signOut": "ውጣ",
     "needAccount": "አዲስ ነዎት? መለያ ይፍጠሩ",
     "haveAccount": "መለያ አለዎት? ይግቡ",
+    "setupTitle": "ዘርን ያዋቅሩ",
+    "setupDescription": "የመጀመሪያውን መለያ ይፍጠሩ እና ሌሎች እንዴት እንደሚቀላቀሉ ይምረጡ።",
+    "signupMode": "የመጀመሪያ የምዝገባ ሁነታ",
+    "modeInvite": "በግብዣ ብቻ",
+    "modeOpen": "ክፍት",
+    "modeClosed": "ዝግ",
+    "configFailed": "የመግቢያ ቅንብሮችን ማምጣት አልተቻለም።",
+    "invalidInvite": "ይህ ግብዣ ተቀባይነት የለውም ወይም አልፏል።",
     "failed": "ማረጋገጫ አልተሳካም"
   },
   "trees": {
@@ -176,7 +184,19 @@
     "treeDeleted": "ዛፍ ተሰርዟል",
     "userDeleted": "ተጠቃሚ ተሰርዟል",
     "confirmDeleteTree": "ይህን ዝር ከመረጃ ቋቱ ጋር ማጥፋት ይፈልጋሉ?",
-    "confirmDeleteUser": "ይህን ተጠቃሚ ከሁሉም ክፍለ-ጊዜያት እና አባልነቶች ጋር ማጥፋት ይፈልጋሉ?"
+    "confirmDeleteUser": "ይህን ተጠቃሚ ከሁሉም ክፍለ-ጊዜያት እና አባልነቶች ጋር ማጥፋት ይፈልጋሉ?",
+    "signupAccess": "የምዝገባ መዳረሻ",
+    "signupAccessDescription": "በዚህ ኢንስታንስ መለያ የሚፈጥሩ ሰዎችን ይቆጣጠሩ።",
+    "defaultExpiry": "የግብዣ ነባሪ ጊዜ (በሰዓት)",
+    "saveAccess": "የመዳረሻ ቅንብሮችን አስቀምጥ",
+    "inviteEmail": "የግብዣ ኢሜይል",
+    "createInvite": "ግብዣ ፍጠር",
+    "inviteCreated": "ግብዣ ተፈጥሯል",
+    "inviteLink": "የግብዣ አገናኝ",
+    "status": "ሁኔታ",
+    "expires": "ያበቃል",
+    "revoke": "ሰርዝ",
+    "accessSaved": "የመዳረሻ ቅንብሮች ተቀምጠዋል"
   },
   "dashboard": {
     "overview": "የዛፉ አጠቃላይ እይታ",

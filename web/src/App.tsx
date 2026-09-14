@@ -173,6 +173,7 @@ export function App() {
   }, []);
 
   const tree = useMemo(() => trees.find((candidate) => candidate.id === treeId), [treeId, trees]);
+  const selectedTreeId = treeId && tree ? treeId : "";
 
   const startAddPerson = () => {
     setEditor({});
@@ -181,6 +182,12 @@ export function App() {
   const openEditor = (person: Individual) => {
     setEditor({ initial: person });
   };
+
+  useEffect(() => {
+    if (treesReady && treeId && !tree) {
+      clearTree();
+    }
+  }, [clearTree, tree, treeId, treesReady]);
 
   // Directory selection opens the workspace drawer. The directory keeps
   // its search state because the view never changes.
@@ -232,7 +239,7 @@ export function App() {
       <div className="mx-auto grid max-w-[1600px] md:grid-cols-[260px_minmax(0,1fr)]">
         <aside className="hidden border-r border-border bg-panel/50 md:block">
           <div className="sticky top-0 flex h-[calc(100vh-4rem)] flex-col">
-            <TreeSwitcher locale={locale} activeId={treeId} onSelect={pickTree} refreshKey={refreshKey} isAdmin={isAdmin} onTreesLoaded={handleTreesLoaded} />
+            <TreeSwitcher locale={locale} activeId={selectedTreeId} onSelect={pickTree} refreshKey={refreshKey} isAdmin={isAdmin} onTreesLoaded={handleTreesLoaded} />
             <div className="mt-auto p-4">
               <Separator />
               <p className="pt-4 text-xs leading-5 text-muted-foreground">{t(locale, "app.shellHint")}</p>
@@ -250,7 +257,7 @@ export function App() {
                   </Button>
                   {treeMenuOpen && (
                     <div className="absolute left-0 top-11 z-20 w-[min(88vw,320px)] rounded-lg border border-border bg-panel p-2 shadow-panel">
-                      <TreeSwitcher locale={locale} activeId={treeId} onSelect={pickTree} refreshKey={refreshKey} isAdmin={isAdmin} onTreesLoaded={handleTreesLoaded} />
+                      <TreeSwitcher locale={locale} activeId={selectedTreeId} onSelect={pickTree} refreshKey={refreshKey} isAdmin={isAdmin} onTreesLoaded={handleTreesLoaded} />
                     </div>
                   )}
                 </div>
@@ -261,7 +268,7 @@ export function App() {
                   <p className="mt-1 text-sm text-muted-foreground">{tree ? t(locale, "dashboard.workspaceHint") : t(locale, "dashboard.chooseTree")}</p>
                 </div>
               </div>
-              {treeId && !treeInaccessible && <Button size="sm" onClick={startAddPerson}>{t(locale, "person.add")}</Button>}
+              {selectedTreeId && !treeInaccessible && <Button size="sm" onClick={startAddPerson}>{t(locale, "person.add")}</Button>}
             </div>
             <nav className="mt-5 hidden gap-1 overflow-x-auto pb-1 md:flex" aria-label={t(locale, "dashboard.navigation")}>
               {primaryViews.map((item) => (
@@ -287,7 +294,7 @@ export function App() {
           </div>
 
           <div className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-            {view === "admin" && isAdmin ? <AdminPanel locale={locale} activeTreeId={treeId || undefined} onTreeDeleted={(deletedId) => { if (deletedId === treeId) clearTree(); else refresh(); }} /> : treeInaccessible ? (
+            {view === "admin" && isAdmin ? <AdminPanel locale={locale} activeTreeId={selectedTreeId || undefined} onTreeDeleted={(deletedId) => { if (deletedId === treeId) clearTree(); else refresh(); }} /> : treeInaccessible ? (
               <Empty
                 title={t(locale, "shell.forbiddenTitle")}
                 description={t(locale, "shell.forbiddenDescription")}
@@ -297,13 +304,13 @@ export function App() {
               <DashboardOverview
                 locale={locale}
                 tree={tree}
-                treeId={treeInaccessible ? "" : treeId}
+                treeId={selectedTreeId}
                 onAddPerson={startAddPerson}
                 onExplore={() => nav(focusId ? "canvas" : "people")}
                 onSelectPerson={openPerson}
                 onTreeCreated={(id) => { pickTree(id); refresh(); }}
               />
-            ) : !treeId ? <Empty title={t(locale, "dashboard.chooseTree")} description={t(locale, "dashboard.chooseTreeDescription")} /> : view === "people" ? <PeopleDirectory locale={locale} treeId={treeId} onAdd={startAddPerson} onSelect={openWorkspace} /> : view === "kinship" ? <KinshipWorkspace locale={locale} treeId={treeId} onSelectPerson={openWorkspace} /> : !focusId || !focus ? <Card><CardContent className="p-6"><Empty title={t(locale, "canvas.empty")} description={t(locale, "dashboard.focusDescription")} /></CardContent></Card> : <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">{view === "canvas" && <GraphWorkspace locale={locale} treeId={treeId} focus={focus} selectedId={selectedId} onSelect={setSelectedId} refreshKey={refreshKey} />}{(view === "pedigree" || view === "cards") && <LineageWorkspace locale={locale} treeId={treeId} rootId={focusId} refreshKey={refreshKey} onSelect={setSelectedId} />}{selectedId && <PersonWorkspace locale={locale} treeId={treeId} personId={selectedId} refreshKey={refreshKey} onEdit={openEditor} onEdge={setEdgeMode} onFocus={() => nav("canvas")} onSelectPerson={(person) => { setFocus(person); setSelectedId(person.id); }} />}</div>}
+            ) : !selectedTreeId ? <Empty title={t(locale, "dashboard.chooseTree")} description={t(locale, "dashboard.chooseTreeDescription")} /> : view === "people" ? <PeopleDirectory locale={locale} treeId={selectedTreeId} onAdd={startAddPerson} onSelect={openWorkspace} /> : view === "kinship" ? <KinshipWorkspace locale={locale} treeId={selectedTreeId} onSelectPerson={openWorkspace} /> : !focusId || !focus ? <Card><CardContent className="p-6"><Empty title={t(locale, "canvas.empty")} description={t(locale, "dashboard.focusDescription")} /></CardContent></Card> : <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">{view === "canvas" && <GraphWorkspace locale={locale} treeId={selectedTreeId} focus={focus} selectedId={selectedId} onSelect={setSelectedId} refreshKey={refreshKey} />}{(view === "pedigree" || view === "cards") && <LineageWorkspace locale={locale} treeId={selectedTreeId} rootId={focusId} refreshKey={refreshKey} onSelect={setSelectedId} />}{selectedId && <PersonWorkspace locale={locale} treeId={selectedTreeId} personId={selectedId} refreshKey={refreshKey} onEdit={openEditor} onEdge={setEdgeMode} onFocus={() => nav("canvas")} onSelectPerson={(person) => { setFocus(person); setSelectedId(person.id); }} />}</div>}
           </div>
         </main>
       </div>
@@ -325,10 +332,10 @@ export function App() {
       </nav>
 
       <Sheet open={editor !== null} onClose={() => setEditor(null)} closeLabel={t(locale, "common.close")}>
-        {editor && treeId && (
+        {editor && selectedTreeId && (
           <IndividualForm
             locale={locale}
-            treeId={treeId}
+            treeId={selectedTreeId}
             initial={editor.initial}
             canDelete={isAdmin || tree?.role !== "VIEWER"}
             onClose={() => setEditor(null)}
@@ -341,7 +348,7 @@ export function App() {
         {workspaceId && (
           <PersonWorkspace
             locale={locale}
-            treeId={treeId}
+            treeId={selectedTreeId}
             personId={workspaceId}
             refreshKey={refreshKey}
             onEdit={openEditor}
@@ -355,7 +362,7 @@ export function App() {
         {edgeMode && (
           <RelationshipForm
             locale={locale}
-            treeId={treeId}
+            treeId={selectedTreeId}
             mode={edgeMode}
             onClose={() => setEdgeMode(null)}
             onSaved={refresh}

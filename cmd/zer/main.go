@@ -7,8 +7,10 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -51,13 +53,16 @@ func runSeed() error {
 	_ = godotenv.Load()
 
 	ctx := context.Background()
+	cfg := configFromEnv()
+	if !seedDemoAllowed(cfg.baseURL, os.Getenv("ZER_ALLOW_DEMO_SEED")) {
+		return fmt.Errorf("demo seed requires a local BASE_URL or ZER_ALLOW_DEMO_SEED=1")
+	}
 	manager := database.NewManager(envOr("DATA_DIR", "data"))
 	defer manager.Close()
 	master, err := manager.Master(ctx)
 	if err != nil {
 		return err
 	}
-	cfg := configFromEnv()
 	engine, err := auth.InitAuth(master, cfg.baseURL, false, true)
 	if err != nil {
 		return err
@@ -71,6 +76,18 @@ func runSeed() error {
 		fmt.Printf("seeded %s (%s): %d people\n", r.Slug, r.ID, r.People)
 	}
 	return nil
+}
+
+func seedDemoAllowed(baseURL, override string) bool {
+	if override == "1" || strings.EqualFold(override, "true") {
+		return true
+	}
+	parsed, err := url.Parse(baseURL)
+	if err != nil {
+		return false
+	}
+	host := parsed.Hostname()
+	return host == "" || host == "localhost" || host == "127.0.0.1" || host == "::1"
 }
 
 func run() error {
@@ -89,7 +106,11 @@ func run() error {
 		manager.Close()
 		return err
 	}
-	engine, err := auth.InitAuth(master, cfg.baseURL, cfg.googleEnabled, cfg.passwordEnabled)
+	adminEmails := api.ParseAdminEmails(os.Getenv("ADMIN_EMAILS"))
+	engine, err := auth.InitAuthWithOptions(
+		master, cfg.baseURL, cfg.googleEnabled, cfg.passwordEnabled,
+		auth.SignupPolicyOptions{AdminEmails: adminEmails},
+	)
 	if err != nil {
 		manager.Close()
 		return err
@@ -107,7 +128,14 @@ func run() error {
 	// Handle keeps the full path, which the Limen router matches verbatim.
 	r.Handle("/auth/*", engine.Handler())
 
-	api.Mount(r, api.Deps{Manager: manager, Engine: engine, AdminEmails: api.ParseAdminEmails(os.Getenv("ADMIN_EMAILS"))})
+	api.Mount(r, api.Deps{
+		Manager:         manager,
+		Engine:          engine,
+		AdminEmails:     adminEmails,
+		PasswordEnabled: cfg.passwordEnabled,
+		GoogleEnabled:   cfg.googleEnabled,
+		BaseURL:         cfg.baseURL,
+	})
 
 	r.Handle("/*", zerweb.Handler())
 

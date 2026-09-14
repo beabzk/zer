@@ -2,10 +2,16 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+
+	"github.com/beabzk/zer/internal/database"
 )
 
 func insertEvent(t *testing.T, d Deps, treeID, id, personID, eventType string) {
@@ -116,5 +122,32 @@ func TestTreeOverviewForbidden(t *testing.T) {
 	rec := doRequest(t, strangerRouter, http.MethodGet, "/api/v1/trees/"+treeID+"/overview", nil)
 	if rec.Code != http.StatusForbidden {
 		t.Errorf("outsider: status = %d, want 403", rec.Code)
+	}
+}
+
+func TestAdminUnknownTreeReturnsNotFoundWithoutCreatingDatabase(t *testing.T) {
+	dir := filepath.Join("..", "..", "data", "testscratch",
+		fmt.Sprintf("unknown-tree-%d", time.Now().UnixNano()))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+
+	manager := database.NewManager(dir)
+	t.Cleanup(func() { manager.Close() })
+	deps := Deps{
+		Manager:     manager,
+		AdminEmails: map[string]bool{"admin@example.com": true},
+	}
+	router := chi.NewRouter()
+	mount(router, deps, stubSessionAs(1, "admin@example.com"))
+
+	treeID := "11111111-1111-1111-1111-111111111111"
+	rec := doRequest(t, router, http.MethodGet, "/api/v1/trees/"+treeID+"/overview", nil)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, body = %s, want 404", rec.Code, rec.Body.String())
+	}
+	if _, err := os.Stat(filepath.Join(dir, "trees", treeID+".sqlite")); !os.IsNotExist(err) {
+		t.Fatalf("unknown tree database was created: %v", err)
 	}
 }

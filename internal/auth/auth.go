@@ -19,10 +19,20 @@ import (
 // The signing secret comes from Config Secret or LIMEN_SECRET and must hold
 // 32 bytes. At least one method stays enabled.
 func InitAuth(db *sql.DB, baseURL string, googleEnabled, passwordEnabled bool) (*limen.Limen, error) {
+	return InitAuthWithOptions(db, baseURL, googleEnabled, passwordEnabled, SignupPolicyOptions{})
+}
+
+// InitAuthWithOptions wires Limen and applies zer's instance signup policy.
+func InitAuthWithOptions(
+	db *sql.DB,
+	baseURL string,
+	googleEnabled, passwordEnabled bool,
+	options SignupPolicyOptions,
+) (*limen.Limen, error) {
 	if !googleEnabled && !passwordEnabled {
 		return nil, errors.New("auth: enable google, password, or both")
 	}
-	plugins := make([]limen.Plugin, 0, 2)
+	plugins := make([]limen.Plugin, 0, 3)
 	if passwordEnabled {
 		plugins = append(plugins, credentialpassword.New())
 	}
@@ -31,6 +41,7 @@ func InitAuth(db *sql.DB, baseURL string, googleEnabled, passwordEnabled bool) (
 		// GOOGLE_CLIENT_SECRET from the environment by default.
 		plugins = append(plugins, oauth.New(oauth.WithProviders(oauthgoogle.New())))
 	}
+	plugins = append(plugins, newSignupPolicy(db, baseURL, options))
 	return limen.New(&limen.Config{
 		BaseURL:  baseURL,
 		Database: timeFormatAdapter{sqladapter.NewSQLite(db)},

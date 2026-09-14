@@ -13,6 +13,14 @@
     "signOut": "Sign out",
     "needAccount": "New here? Create an account",
     "haveAccount": "Have an account? Sign in",
+    "setupTitle": "Set up zer",
+    "setupDescription": "Create the first account and choose how others can join.",
+    "signupMode": "Initial signup mode",
+    "modeInvite": "Invite only",
+    "modeOpen": "Open",
+    "modeClosed": "Closed",
+    "configFailed": "Could not load sign-in settings.",
+    "invalidInvite": "This invitation is invalid or expired.",
     "failed": "Authentication failed"
   },
   "trees": {
@@ -176,7 +184,19 @@
     "treeDeleted": "Tree deleted",
     "userDeleted": "User deleted",
     "confirmDeleteTree": "Delete this tree and its database file?",
-    "confirmDeleteUser": "Delete this user with all sessions and memberships?"
+    "confirmDeleteUser": "Delete this user with all sessions and memberships?",
+    "signupAccess": "Signup access",
+    "signupAccessDescription": "Control who can create accounts on this instance.",
+    "defaultExpiry": "Default invite expiry (hours)",
+    "saveAccess": "Save access settings",
+    "inviteEmail": "Invite email",
+    "createInvite": "Create invitation",
+    "inviteCreated": "Invitation created",
+    "inviteLink": "Invitation link",
+    "status": "Status",
+    "expires": "Expires",
+    "revoke": "Revoke",
+    "accessSaved": "Access settings saved"
   },
   "dashboard": {
     "overview": "Tree overview",

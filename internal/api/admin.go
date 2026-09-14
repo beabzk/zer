@@ -10,11 +10,21 @@ import (
 	"github.com/beabzk/zer/internal/auth"
 )
 
-// requireAdmin limits routes to instance admins listed in ADMIN_EMAILS.
+// requireAdmin limits routes to instance admins from ADMIN_EMAILS or the
+// instance_admins table.
 func (d Deps) requireAdmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		session, ok := auth.SessionFrom(r.Context())
-		if !ok || !d.isAdminEmail(session.User.Email) {
+		userID, err := sessionUserID(session)
+		admin := false
+		if ok && err == nil {
+			admin, err = d.isAdmin(r.Context(), userID, session.User.Email)
+		}
+		if err != nil {
+			writeInternalError(w, r, err)
+			return
+		}
+		if !ok || !admin {
 			writeError(w, http.StatusForbidden, "instance admin required")
 			return
 		}
@@ -24,7 +34,17 @@ func (d Deps) requireAdmin(next http.Handler) http.Handler {
 
 func (d Deps) handleAdminStatus(w http.ResponseWriter, r *http.Request) {
 	session, ok := auth.SessionFrom(r.Context())
-	isAdmin := ok && d.isAdminEmail(session.User.Email)
+	isAdmin := false
+	if ok {
+		userID, err := sessionUserID(session)
+		if err == nil {
+			isAdmin, err = d.isAdmin(r.Context(), userID, session.User.Email)
+		}
+		if err != nil {
+			writeInternalError(w, r, err)
+			return
+		}
+	}
 	writeJSON(w, http.StatusOK, map[string]bool{"is_admin": isAdmin})
 }
 
@@ -42,6 +62,11 @@ func (d Deps) handleAdminListUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
+	adminIDs, err := d.instanceAdminIDs(r)
+	if err != nil {
+		writeInternalError(w, r, err)
+		return
+	}
 	users := []map[string]any{}
 	for rows.Next() {
 		var id int64
@@ -56,7 +81,7 @@ func (d Deps) handleAdminListUsers(w http.ResponseWriter, r *http.Request) {
 			"email_verified_at": nullString(verified),
 			"first_name":        nullString(first),
 			"last_name":         nullString(last),
-			"created_at":        created, "is_admin": d.isAdminEmail(email),
+			"created_at":        created, "is_admin": d.isAdminEmail(email) || adminIDs[id],
 		})
 	}
 	if err := rows.Err(); err != nil {
@@ -64,6 +89,27 @@ func (d Deps) handleAdminListUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, users)
+}
+
+func (d Deps) instanceAdminIDs(r *http.Request) (map[int64]bool, error) {
+	master, err := d.Manager.Master(r.Context())
+	if err != nil {
+		return nil, err
+	}
+	rows, err := master.QueryContext(r.Context(), `SELECT user_id FROM instance_admins`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make(map[int64]bool)
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		out[id] = true
+	}
+	return out, rows.Err()
 }
 
 func nullString(v sql.NullString) any {

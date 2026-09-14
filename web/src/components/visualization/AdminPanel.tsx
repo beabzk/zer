@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ApiError, api, type AdminTree, type AdminUser, type TreeMember } from "../../lib/api";
+import {
+  ApiError,
+  api,
+  type AdminTree,
+  type AdminUser,
+  type SignupInvite,
+  type SignupMode,
+  type SignupSettings,
+  type TreeMember,
+} from "../../lib/api";
 import { t, type Locale } from "../../lib/i18n";
 import {
   Badge,
@@ -58,6 +67,14 @@ function renderTableMessage(message: string) {
 export function AdminPanel({ locale, activeTreeId, onTreeDeleted }: Props) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [trees, setTrees] = useState<AdminTree[]>([]);
+  const [settings, setSettings] = useState<SignupSettings>({
+    signup_mode: "INVITE",
+    default_invite_expiry_hours: 168,
+  });
+  const [invites, setInvites] = useState<SignupInvite[]>([]);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteExpiry, setInviteExpiry] = useState("168");
+  const [createdInviteUrl, setCreatedInviteUrl] = useState("");
   const [members, setMembers] = useState<TreeMember[]>([]);
   const [error, setError] = useState("");
   const [memberError, setMemberError] = useState("");
@@ -79,9 +96,17 @@ export function AdminPanel({ locale, activeTreeId, onTreeDeleted }: Props) {
     setLoading(true);
     setError("");
     try {
-      const [nextUsers, nextTrees] = await Promise.all([api.admin.users(), api.admin.trees()]);
+      const [nextUsers, nextTrees, nextSettings, nextInvites] = await Promise.all([
+        api.admin.users(),
+        api.admin.trees(),
+        api.admin.signupSettings(),
+        api.admin.invites(),
+      ]);
       setUsers(nextUsers);
       setTrees(nextTrees);
+      setSettings(nextSettings);
+      setInviteExpiry(String(nextSettings.default_invite_expiry_hours));
+      setInvites(nextInvites);
     } catch (cause) {
       setError(errorText(locale, cause));
     } finally {
@@ -159,6 +184,55 @@ export function AdminPanel({ locale, activeTreeId, onTreeDeleted }: Props) {
     }
   };
 
+  const saveSettings = async () => {
+    setActing(true);
+    setError("");
+    try {
+      const nextSettings = await api.admin.updateSignupSettings(settings);
+      setSettings(nextSettings);
+      setInviteExpiry(String(nextSettings.default_invite_expiry_hours));
+      toast.push({ title: t(locale, "admin.accessSaved"), variant: "success" });
+    } catch (cause) {
+      setError(errorText(locale, cause));
+    } finally {
+      setActing(false);
+    }
+  };
+
+  const createInvite = async () => {
+    const email = inviteEmail.trim();
+    if (!email) return;
+    setActing(true);
+    setError("");
+    try {
+      const created = await api.admin.createInvite({
+        email,
+        ...(inviteExpiry ? { expiresInHours: Number(inviteExpiry) } : {}),
+      });
+      setInviteEmail("");
+      setCreatedInviteUrl(created.invite_url ?? "");
+      setInvites(await api.admin.invites());
+      toast.push({ title: t(locale, "admin.inviteCreated"), variant: "success" });
+    } catch (cause) {
+      setError(errorText(locale, cause));
+    } finally {
+      setActing(false);
+    }
+  };
+
+  const revokeInvite = async (invite: SignupInvite) => {
+    setActing(true);
+    setError("");
+    try {
+      await api.admin.revokeInvite(invite.id);
+      setInvites(await api.admin.invites());
+    } catch (cause) {
+      setError(errorText(locale, cause));
+    } finally {
+      setActing(false);
+    }
+  };
+
   const addMember = async () => {
     if (!managedTreeId || !addUserId) return;
     setActing(true);
@@ -221,6 +295,102 @@ export function AdminPanel({ locale, activeTreeId, onTreeDeleted }: Props) {
       </section>
 
       {error && <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t(locale, "admin.signupAccess")}</CardTitle>
+          <CardDescription>{t(locale, "admin.signupAccessDescription")}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="signup-mode" className="mb-1 block text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">{t(locale, "auth.signupMode")}</label>
+              <Select
+                id="signup-mode"
+                value={settings.signup_mode}
+                onChange={(event) => setSettings({
+                  ...settings,
+                  signup_mode: event.target.value as SignupMode,
+                })}
+              >
+                <option value="INVITE">{t(locale, "auth.modeInvite")}</option>
+                <option value="OPEN">{t(locale, "auth.modeOpen")}</option>
+                <option value="CLOSED">{t(locale, "auth.modeClosed")}</option>
+              </Select>
+            </div>
+            <div>
+              <label htmlFor="invite-expiry" className="mb-1 block text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">{t(locale, "admin.defaultExpiry")}</label>
+              <Input
+                id="invite-expiry"
+                type="number"
+                min={1}
+                max={720}
+                value={inviteExpiry}
+                onChange={(event) => {
+                  const hours = Number(event.target.value);
+                  setInviteExpiry(event.target.value);
+                  setSettings({ ...settings, default_invite_expiry_hours: hours });
+                }}
+              />
+            </div>
+          </div>
+          <Button disabled={acting} onClick={() => void saveSettings()}>
+            {t(locale, "admin.saveAccess")}
+          </Button>
+
+          <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+            <div>
+              <label htmlFor="invite-email" className="mb-1 block text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">{t(locale, "admin.inviteEmail")}</label>
+              <Input
+                id="invite-email"
+                type="email"
+                value={inviteEmail}
+                onChange={(event) => setInviteEmail(event.target.value)}
+                placeholder="person@example.com"
+              />
+            </div>
+            <Button variant="outline" disabled={acting || !inviteEmail.trim()} onClick={() => void createInvite()}>
+              {t(locale, "admin.createInvite")}
+            </Button>
+          </div>
+          {createdInviteUrl && (
+            <p className="rounded-md border border-border bg-panel-muted px-3 py-2 text-xs">
+              <span className="font-semibold">{t(locale, "admin.inviteLink")}: </span>
+              <a className="text-accent-strong hover:underline" href={createdInviteUrl}>{createdInviteUrl}</a>
+            </p>
+          )}
+          {invites.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[520px] text-left text-sm">
+                <thead className="border-y border-border bg-panel-muted/60 text-xs uppercase tracking-[0.1em] text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-2">{t(locale, "auth.email")}</th>
+                    <th className="px-4 py-2">{t(locale, "admin.status")}</th>
+                    <th className="px-4 py-2">{t(locale, "admin.expires")}</th>
+                    <th className="px-4 py-2">{t(locale, "admin.actions")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {invites.map((invite) => (
+                    <tr key={invite.id} className="border-b border-border">
+                      <td className="px-4 py-2">{invite.email}</td>
+                      <td className="px-4 py-2"><Badge>{invite.status}</Badge></td>
+                      <td className="px-4 py-2">{new Date(invite.expires_at).toLocaleString()}</td>
+                      <td className="px-4 py-2">
+                        {invite.status === "PENDING" && (
+                          <Button variant="outline" size="sm" disabled={acting} onClick={() => void revokeInvite(invite)}>
+                            {t(locale, "admin.revoke")}
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

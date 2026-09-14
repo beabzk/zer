@@ -148,4 +148,20 @@ func TestSeedOwners(t *testing.T) {
 	if stored != "hash:"+DemoPassword {
 		t.Errorf("owner password not hashed: %q", stored)
 	}
+	var mode string
+	if err := master.QueryRowContext(ctx,
+		`SELECT signup_mode FROM instance_settings WHERE id = 1`).Scan(&mode); err != nil {
+		t.Fatalf("instance settings: %v", err)
+	}
+	if mode != "OPEN" {
+		t.Errorf("demo signup mode = %s, want OPEN", mode)
+	}
+	var adminEmail string
+	if err := master.QueryRowContext(ctx,
+		`SELECT u.email FROM instance_admins ia JOIN users u ON u.id = ia.user_id`).Scan(&adminEmail); err != nil {
+		t.Fatalf("demo instance admin: %v", err)
+	}
+	if adminEmail != "haile@demo.example.com" {
+		t.Errorf("demo instance admin = %s, want haile@demo.example.com", adminEmail)
+	}
 }

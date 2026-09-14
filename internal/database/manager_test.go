@@ -66,6 +66,7 @@ func TestMasterCreatesLimenAndRegistryTables(t *testing.T) {
 	for _, want := range []string{
 		"users", "sessions", "verifications", "rate_limits", "accounts",
 		"trees", "tree_members", "_migrations",
+		"instance_settings", "instance_admins", "signup_invites",
 	} {
 		if !tables[want] {
 			t.Errorf("master missing table %s", want)

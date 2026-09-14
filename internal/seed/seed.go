@@ -319,6 +319,22 @@ func SeedAll(ctx context.Context, manager *database.Manager, hash func(string) (
 			ID: id, People: len(fixtures[i].people),
 		})
 	}
+	if _, err := master.ExecContext(ctx,
+		`INSERT INTO instance_settings (
+			id, signup_mode, default_invite_expiry_hours, setup_completed_at, updated_at
+		) SELECT 1, 'OPEN', 168,
+			strftime('%Y-%m-%dT%H:%M:%SZ', 'now'),
+			strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+		WHERE NOT EXISTS (SELECT 1 FROM instance_settings WHERE id = 1)`); err != nil {
+		return report, fmt.Errorf("seed instance settings: %w", err)
+	}
+	if _, err := master.ExecContext(ctx,
+		`INSERT INTO instance_admins (user_id, granted_by, created_at)
+		SELECT id, id, strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
+		FROM users WHERE email = 'haile@demo.example.com'
+		AND NOT EXISTS (SELECT 1 FROM instance_admins)`); err != nil {
+		return report, fmt.Errorf("seed instance admin: %w", err)
+	}
 	return report, nil
 }
 

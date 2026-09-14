@@ -18,6 +18,20 @@ zer is a self-hostable family graph engine for patronymic and non-Western lineag
 
 Copy `.env.example` to `.env` and set values. The server reads `PORT`, `BASE_URL`, `DATA_DIR`, `LIMEN_SECRET`, Google OAuth credentials, auth method flags, and `ADMIN_EMAILS`.
 
+## Accounts and signup
+
+On a fresh instance, the sign-in screen becomes a first-run setup form. The first account becomes an instance admin and chooses the initial signup mode. The default is invite-only. On a non-local `BASE_URL`, the email returned by the selected auth provider must be listed in `ADMIN_EMAILS`; local instances allow direct setup for development.
+
+Instance admins can switch between three modes:
+
+- Open: anyone with the instance URL can create an account through any enabled provider.
+- Invite-only: a new account requires a valid, unexpired, unrevoked invite for the same email address.
+- Closed: new account creation is disabled, while existing users can still sign in.
+
+Invites are single-use and do not grant access to any family tree. The full invite link is shown only when it is created because the database stores only a token hash. Tree membership is assigned separately after the invited user creates an account.
+
+The demo seed runs only when `BASE_URL` is local. Set `ZER_ALLOW_DEMO_SEED=1` to override that guard for a non-local demonstration instance.
+
 ## Development
 
 - Go toolchain: see go.mod. pnpm 11 for the frontend.

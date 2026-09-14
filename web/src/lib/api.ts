@@ -7,6 +7,31 @@ export interface Tree {
   role?: string;
 }
 
+export type SignupMode = "OPEN" | "INVITE" | "CLOSED";
+
+export interface AuthConfig {
+  setup_required: boolean;
+  signup_mode: SignupMode | null;
+  password_enabled: boolean;
+  google_enabled: boolean;
+}
+
+export interface SignupSettings {
+  signup_mode: SignupMode;
+  default_invite_expiry_hours: number;
+}
+
+export interface SignupInvite {
+  id: string;
+  email: string;
+  status: "PENDING" | "ACCEPTED" | "REVOKED" | "EXPIRED";
+  expires_at: string;
+  created_at: string;
+  accepted_at?: string;
+  revoked_at?: string;
+  invite_url?: string;
+}
+
 export interface Individual {
   id: string;
   given_name_native: string;
@@ -218,6 +243,13 @@ const put = <T>(path: string, body: unknown) =>
 const del = <T>(path: string) => request<T>(path, { method: "DELETE" });
 
 export const api = {
+  auth: {
+    config: () => get<AuthConfig>("/api/v1/auth/config"),
+  },
+  signup: {
+    validateInvite: (token: string) =>
+      post<{ email: string; expires_at: string }>("/api/v1/signup/invites/validate", { token }),
+  },
   trees: {
     list: () => get<Tree[]>("/api/v1/trees"),
     create: (body: { name: string; slug?: string; description?: string; default_lang?: string }) =>
@@ -299,6 +331,16 @@ export const api = {
   },
   admin: {
     status: () => get<{ is_admin: boolean }>("/api/v1/admin/status"),
+    signupSettings: () => get<SignupSettings>("/api/v1/admin/signup-settings"),
+    updateSignupSettings: (body: SignupSettings) =>
+      put<SignupSettings>("/api/v1/admin/signup-settings", {
+        signupMode: body.signup_mode,
+        defaultInviteExpiryHours: body.default_invite_expiry_hours,
+      }),
+    invites: () => get<SignupInvite[]>("/api/v1/admin/invites"),
+    createInvite: (body: { email: string; expiresInHours?: number }) =>
+      post<SignupInvite>("/api/v1/admin/invites", body),
+    revokeInvite: (inviteId: string) => del<void>(`/api/v1/admin/invites/${inviteId}`),
     users: () => get<AdminUser[]>("/api/v1/admin/users"),
     trees: () => get<AdminTree[]>("/api/v1/admin/trees"),
     deleteTree: (treeId: string) => del<void>(`/api/v1/admin/trees/${treeId}`),

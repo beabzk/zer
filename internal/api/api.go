@@ -41,6 +41,11 @@ type Deps struct {
 	Engine  *limen.Limen
 	// AdminEmails holds lowercased instance admin emails from ADMIN_EMAILS.
 	AdminEmails map[string]bool
+	// PasswordEnabled and GoogleEnabled describe the configured auth providers.
+	PasswordEnabled bool
+	GoogleEnabled   bool
+	// BaseURL builds invite links that work behind the configured origin.
+	BaseURL string
 }
 
 // ParseAdminEmails splits a comma-separated env value into a lookup set.
@@ -56,6 +61,20 @@ func ParseAdminEmails(raw string) map[string]bool {
 
 func (d Deps) isAdminEmail(email string) bool {
 	return d.AdminEmails[strings.ToLower(strings.TrimSpace(email))]
+}
+
+func (d Deps) isAdmin(ctx context.Context, userID int64, email string) (bool, error) {
+	if d.isAdminEmail(email) {
+		return true, nil
+	}
+	master, err := d.Manager.Master(ctx)
+	if err != nil {
+		return false, err
+	}
+	var count int
+	err = master.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM instance_admins WHERE user_id = ?`, userID).Scan(&count)
+	return count == 1, err
 }
 
 type memberKey struct{}
@@ -78,6 +97,8 @@ func Mount(r chi.Router, d Deps) {
 func mount(r chi.Router, d Deps, sessionMW func(http.Handler) http.Handler) {
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/health", handleHealth)
+		r.Get("/auth/config", d.handleAuthConfig)
+		r.Post("/signup/invites/validate", d.handleValidateInvite)
 		r.Group(func(r chi.Router) {
 			r.Use(sessionMW)
 			r.Post("/trees", d.handleCreateTree)
@@ -85,6 +106,11 @@ func mount(r chi.Router, d Deps, sessionMW func(http.Handler) http.Handler) {
 			r.Route("/admin", func(r chi.Router) {
 				r.Use(d.requireAdmin)
 				r.Get("/status", d.handleAdminStatus)
+				r.Get("/signup-settings", d.handleGetSignupSettings)
+				r.Put("/signup-settings", d.handleUpdateSignupSettings)
+				r.Get("/invites", d.handleListInvites)
+				r.Post("/invites", d.handleCreateInvite)
+				r.Delete("/invites/{inviteID}", d.handleRevokeInvite)
 				r.Get("/users", d.handleAdminListUsers)
 				r.Get("/trees", d.handleAdminListTrees)
 				r.Delete("/trees/{treeID}", d.handleAdminDeleteTree)
@@ -145,6 +171,16 @@ func (d Deps) requireMember(minRole string) func(http.Handler) http.Handler {
 				writeInternalError(w, r, err)
 				return
 			}
+			var registered int
+			if err := master.QueryRowContext(r.Context(),
+				`SELECT COUNT(*) FROM trees WHERE id = ?`, treeID).Scan(&registered); err != nil {
+				writeInternalError(w, r, err)
+				return
+			}
+			if registered == 0 {
+				writeError(w, http.StatusNotFound, "tree not found")
+				return
+			}
 			var role string
 			member := Member{TreeID: treeID, UserID: userID}
 			err = master.QueryRowContext(r.Context(),
@@ -153,12 +189,18 @@ func (d Deps) requireMember(minRole string) func(http.Handler) http.Handler {
 			switch {
 			case err == nil:
 				member.Role = role
-			case err == sql.ErrNoRows && d.isAdminEmail(session.User.Email):
+			case err == sql.ErrNoRows:
+				admin, adminErr := d.isAdmin(r.Context(), userID, session.User.Email)
+				if adminErr != nil {
+					writeInternalError(w, r, adminErr)
+					return
+				}
+				if !admin {
+					writeError(w, http.StatusForbidden, "not a member of this tree")
+					return
+				}
 				member.Admin = true
 				member.Role = RoleOwner
-			case err == sql.ErrNoRows:
-				writeError(w, http.StatusForbidden, "not a member of this tree")
-				return
 			default:
 				writeInternalError(w, r, err)
 				return
