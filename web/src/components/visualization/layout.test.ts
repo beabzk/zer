@@ -4,6 +4,36 @@ import { layoutGraph } from "./layout";
 const ids = (placed: { id: string }[]) => placed.map((p) => p.id);
 
 describe("layoutGraph", () => {
+  it("keeps coordinates stable when API nodes and edges arrive in a different order", () => {
+    const nodes = ["haile", "mulu", "belete", "girma", "tadelech", "abebe", "desta", "genet", "worku"].map((id) => ({ id }));
+    const parents = [
+      { source: "haile", target: "girma" },
+      { source: "mulu", target: "girma" },
+      { source: "girma", target: "abebe" },
+      { source: "tadelech", target: "abebe" },
+      { source: "belete", target: "desta" },
+      { source: "girma", target: "genet" },
+      { source: "belete", target: "worku" },
+    ];
+    const unions = [
+      { source: "haile", target: "mulu" },
+      { source: "girma", target: "tadelech" },
+      { source: "abebe", target: "desta" },
+    ];
+    const expected = layoutGraph(nodes, parents, unions);
+    for (let offset = 0; offset < nodes.length; offset++) {
+      const reordered = [...nodes.slice(offset), ...nodes.slice(0, offset)].toReversed();
+      expect(layoutGraph(reordered, parents.toReversed(), unions.toReversed())).toEqual(expected);
+      expect(layoutGraph(reordered, parents, unions.map(({ source, target }) => ({ source: target, target: source })))).toEqual(expected);
+    }
+  });
+
+  it("keeps multiple partnerships stable regardless of union order", () => {
+    const nodes = ["a", "b", "c", "d"].map((id) => ({ id }));
+    const unions = [{ source: "a", target: "b" }, { source: "a", target: "c" }];
+    expect(layoutGraph(nodes, [], unions.toReversed())).toEqual(layoutGraph(nodes, [], unions));
+  });
+
   it("ranks generations and pairs spouses", () => {
     const placed = layoutGraph(
       [{ id: "gp" }, { id: "f" }, { id: "m" }, { id: "c" }],

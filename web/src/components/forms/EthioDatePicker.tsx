@@ -19,6 +19,19 @@ export function maxDay(month?: number): number {
 
 export function EthioDatePicker({ locale, value, onChange }: Props) {
   const labels = months(locale);
+  const monthLabel = t(locale, "common.month");
+  const changeMonth = (raw: string) => {
+    if (raw === "") {
+      onChange({ ...value, month: undefined, day: undefined });
+      return;
+    }
+    const month = parseInt(raw, 10);
+    onChange({
+      ...value,
+      month,
+      day: value.day !== undefined && value.day > maxDay(month) ? undefined : value.day,
+    });
+  };
   return (
     <div className="grid grid-cols-3 gap-2">
       <input
@@ -36,10 +49,13 @@ export function EthioDatePicker({ locale, value, onChange }: Props) {
       />
       <select
         aria-label={t(locale, "common.month")}
-        value={value.month ?? 1}
-        onChange={(e) => onChange({ ...value, month: parseInt(e.target.value, 10) })}
+        value={value.month ?? ""}
+        onChange={(e) => changeMonth(e.target.value)}
         className="px-3 py-2 border rounded text-sm"
       >
+        <option value="" disabled hidden>
+          {monthLabel}
+        </option>
         {labels.map((label, i) => (
           <option key={i + 1} value={i + 1}>
             {label}

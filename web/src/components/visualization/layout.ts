@@ -28,7 +28,7 @@ export function layoutGraph(
   parents: LayoutEdge[],
   unions: LayoutEdge[],
 ): PlacedNode[] {
-  const ids = nodes.map((n) => n.id);
+  const ids = nodes.map((n) => n.id).toSorted((a, b) => a.localeCompare(b));
   const childrenOf = new Map<string, string[]>();
   const parentsOf = new Map<string, string[]>();
   for (const id of ids) {
@@ -42,10 +42,13 @@ export function layoutGraph(
     }
   }
   const partnerOf = new Map<string, string>();
-  for (const e of unions) {
-    if (ids.includes(e.source) && ids.includes(e.target)) {
-      partnerOf.set(e.source, e.target);
-      partnerOf.set(e.target, e.source);
+  const normalizedUnions = unions
+    .map((e) => [e.source, e.target].toSorted((a, b) => a.localeCompare(b)))
+    .toSorted((a, b) => a[0].localeCompare(b[0]) || a[1].localeCompare(b[1]));
+  for (const [source, target] of normalizedUnions) {
+    if (ids.includes(source) && ids.includes(target)) {
+      partnerOf.set(source, target);
+      partnerOf.set(target, source);
     }
   }
 
