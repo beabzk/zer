@@ -152,6 +152,9 @@ export interface KinshipTermParameters {
   known_parents_a?: number;
   known_parents_b?: number;
   union_status?: string;
+  degree?: number;
+  removed?: number;
+  great_count?: number;
 }
 
 export interface KinshipTerm {

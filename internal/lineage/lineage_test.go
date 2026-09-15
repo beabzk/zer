@@ -47,6 +47,14 @@ func addEdge(t *testing.T, db *sql.DB, parent, child, rel string, nameSource int
 	}
 }
 
+func addUnion(t *testing.T, db *sql.DB, id, partnerA, partnerB, status string) {
+	t.Helper()
+	if _, err := db.Exec(`INSERT INTO unions (id, partner_a_id, partner_b_id, union_type, status)
+		VALUES (?, ?, ?, 'CIVIL', ?)`, id, partnerA, partnerB, status); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func seedFamily(t *testing.T, db *sql.DB) {
 	t.Helper()
 	addPerson(t, db, "gp", "GPn", "GP", "MALE", "")
@@ -528,6 +536,245 @@ func TestKinshipSiblingPrecision(t *testing.T) {
 				}
 			} else if parameters["union_status"] != tc.wantStatus {
 				t.Fatalf("union status = %#v, want %q", parameters["union_status"], tc.wantStatus)
+			}
+		})
+	}
+}
+
+func TestKinshipCollateralTerms(t *testing.T) {
+	ctx := context.Background()
+
+	fullAuntSetup := func(t *testing.T, db *sql.DB) {
+		t.Helper()
+		addPerson(t, db, "grandmother", "GMn", "Grandmother", "FEMALE", "")
+		addPerson(t, db, "aunt", "AUn", "Aunt", "FEMALE", "")
+		addEdge(t, db, "grandmother", "father", "BIOLOGICAL", 0)
+		addEdge(t, db, "gp", "aunt", "BIOLOGICAL", 0)
+		addEdge(t, db, "grandmother", "aunt", "BIOLOGICAL", 0)
+	}
+
+	cases := []struct {
+		name           string
+		setup          func(t *testing.T, db *sql.DB)
+		start          string
+		target         string
+		wantKey        string
+		wantModifiers  []any
+		wantConfidence string
+		wantParameters map[string]any
+	}{
+		{
+			name:           "aunt",
+			setup:          fullAuntSetup,
+			start:          "child",
+			target:         "aunt",
+			wantKey:        "aunt_uncle",
+			wantConfidence: "exact",
+		},
+		{
+			name: "half aunt",
+			setup: func(t *testing.T, db *sql.DB) {
+				addPerson(t, db, "aunt", "AUn", "Aunt", "FEMALE", "")
+				addPerson(t, db, "father-other", "FOn", "Father Other", "FEMALE", "")
+				addPerson(t, db, "aunt-other", "AOn", "Aunt Other", "MALE", "")
+				addEdge(t, db, "gp", "aunt", "BIOLOGICAL", 0)
+				addEdge(t, db, "father-other", "father", "BIOLOGICAL", 0)
+				addEdge(t, db, "aunt-other", "aunt", "BIOLOGICAL", 0)
+			},
+			start:          "child",
+			target:         "aunt",
+			wantKey:        "aunt_uncle",
+			wantModifiers:  []any{"half"},
+			wantConfidence: "exact",
+		},
+		{
+			name: "great aunt",
+			setup: func(t *testing.T, db *sql.DB) {
+				addPerson(t, db, "great-grandparent", "GGPn", "Great Grandparent", "MALE", "")
+				addPerson(t, db, "great-grandmother", "GGMn", "Great Grandmother", "FEMALE", "")
+				addPerson(t, db, "great-aunt", "GAn", "Great Aunt", "FEMALE", "")
+				addEdge(t, db, "great-grandparent", "gp", "BIOLOGICAL", 0)
+				addEdge(t, db, "great-grandparent", "great-aunt", "BIOLOGICAL", 0)
+				addEdge(t, db, "great-grandmother", "gp", "BIOLOGICAL", 0)
+				addEdge(t, db, "great-grandmother", "great-aunt", "BIOLOGICAL", 0)
+			},
+			start:          "child",
+			target:         "great-aunt",
+			wantKey:        "aunt_uncle",
+			wantModifiers:  []any{"great"},
+			wantConfidence: "exact",
+			wantParameters: map[string]any{"great_count": float64(1)},
+		},
+		{
+			name: "aunt by marriage",
+			setup: func(t *testing.T, db *sql.DB) {
+				fullAuntSetup(t, db)
+				addPerson(t, db, "aunt-spouse", "ASn", "Aunt Spouse", "MALE", "")
+				addUnion(t, db, "aunt-union", "aunt", "aunt-spouse", "ACTIVE")
+			},
+			start:          "child",
+			target:         "aunt-spouse",
+			wantKey:        "aunt_uncle",
+			wantModifiers:  []any{"by_marriage"},
+			wantConfidence: "exact",
+		},
+		{
+			name: "step aunt through parent spouse",
+			setup: func(t *testing.T, db *sql.DB) {
+				addPerson(t, db, "step-parent", "SPn", "Step Parent", "MALE", "")
+				addPerson(t, db, "step-grandparent", "SGPn", "Step Grandparent", "FEMALE", "")
+				addPerson(t, db, "step-aunt", "SAun", "Step Aunt", "FEMALE", "")
+				addUnion(t, db, "step-parent-union", "mother", "step-parent", "ACTIVE")
+				addEdge(t, db, "step-grandparent", "step-parent", "BIOLOGICAL", 1)
+				addEdge(t, db, "step-grandparent", "step-aunt", "BIOLOGICAL", 0)
+			},
+			start:          "child",
+			target:         "step-aunt",
+			wantKey:        "aunt_uncle",
+			wantModifiers:  []any{"step"},
+			wantConfidence: "exact",
+			wantParameters: map[string]any{"union_status": "ACTIVE"},
+		},
+		{
+			name: "niece",
+			setup: func(t *testing.T, db *sql.DB) {
+				addPerson(t, db, "niece", "Nn", "Niece", "FEMALE", "")
+				addEdge(t, db, "mother", "sib", "BIOLOGICAL", 0)
+				addEdge(t, db, "sib", "niece", "BIOLOGICAL", 1)
+			},
+			start:          "child",
+			target:         "niece",
+			wantKey:        "niece_nephew",
+			wantConfidence: "exact",
+		},
+		{
+			name: "first cousin",
+			setup: func(t *testing.T, db *sql.DB) {
+				fullAuntSetup(t, db)
+				addPerson(t, db, "cousin", "Cn2", "Cousin", "MALE", "")
+				addEdge(t, db, "aunt", "cousin", "BIOLOGICAL", 1)
+			},
+			start:          "child",
+			target:         "cousin",
+			wantKey:        "cousin",
+			wantModifiers:  []any{"full"},
+			wantConfidence: "exact",
+			wantParameters: map[string]any{"degree": float64(1), "removed": float64(0)},
+		},
+		{
+			name: "second cousin",
+			setup: func(t *testing.T, db *sql.DB) {
+				addPerson(t, db, "great-grandparent", "GGPn", "Great Grandparent", "MALE", "")
+				addPerson(t, db, "great-grandmother", "GGMn", "Great Grandmother", "FEMALE", "")
+				addPerson(t, db, "granduncle", "GUn", "Granduncle", "MALE", "")
+				addPerson(t, db, "cousin-parent", "CPn", "Cousin Parent", "FEMALE", "")
+				addPerson(t, db, "second-cousin", "SCn", "Second Cousin", "MALE", "")
+				addEdge(t, db, "great-grandparent", "gp", "BIOLOGICAL", 0)
+				addEdge(t, db, "great-grandparent", "granduncle", "BIOLOGICAL", 0)
+				addEdge(t, db, "great-grandmother", "gp", "BIOLOGICAL", 0)
+				addEdge(t, db, "great-grandmother", "granduncle", "BIOLOGICAL", 0)
+				addEdge(t, db, "granduncle", "cousin-parent", "BIOLOGICAL", 1)
+				addEdge(t, db, "cousin-parent", "second-cousin", "BIOLOGICAL", 1)
+			},
+			start:          "child",
+			target:         "second-cousin",
+			wantKey:        "cousin",
+			wantModifiers:  []any{"full"},
+			wantConfidence: "exact",
+			wantParameters: map[string]any{"degree": float64(2), "removed": float64(0)},
+		},
+		{
+			name: "first cousin once removed",
+			setup: func(t *testing.T, db *sql.DB) {
+				fullAuntSetup(t, db)
+				addPerson(t, db, "cousin", "Cn2", "Cousin", "MALE", "")
+				addPerson(t, db, "cousin-child", "CCn", "Cousin Child", "FEMALE", "")
+				addEdge(t, db, "aunt", "cousin", "BIOLOGICAL", 1)
+				addEdge(t, db, "cousin", "cousin-child", "BIOLOGICAL", 1)
+			},
+			start:          "child",
+			target:         "cousin-child",
+			wantKey:        "cousin",
+			wantModifiers:  []any{"full"},
+			wantConfidence: "exact",
+			wantParameters: map[string]any{"degree": float64(1), "removed": float64(1)},
+		},
+		{
+			name: "half cousin",
+			setup: func(t *testing.T, db *sql.DB) {
+				addPerson(t, db, "shared-grandparent", "SHGPn", "Shared Grandparent", "MALE", "")
+				addPerson(t, db, "cousin-parent-a", "CPAn", "Cousin Parent A", "MALE", "")
+				addPerson(t, db, "cousin-parent-b", "CPBn", "Cousin Parent B", "FEMALE", "")
+				addPerson(t, db, "parent-a-other", "PAOn", "Parent A Other", "FEMALE", "")
+				addPerson(t, db, "parent-b-other", "PBOn", "Parent B Other", "MALE", "")
+				addPerson(t, db, "cousin-a", "CAn", "Cousin A", "MALE", "")
+				addPerson(t, db, "cousin-b", "CBn", "Cousin B", "FEMALE", "")
+				addEdge(t, db, "shared-grandparent", "cousin-parent-a", "BIOLOGICAL", 1)
+				addEdge(t, db, "shared-grandparent", "cousin-parent-b", "BIOLOGICAL", 1)
+				addEdge(t, db, "parent-a-other", "cousin-parent-a", "BIOLOGICAL", 0)
+				addEdge(t, db, "parent-b-other", "cousin-parent-b", "BIOLOGICAL", 0)
+				addEdge(t, db, "cousin-parent-a", "cousin-a", "BIOLOGICAL", 1)
+				addEdge(t, db, "cousin-parent-b", "cousin-b", "BIOLOGICAL", 1)
+			},
+			start:          "cousin-a",
+			target:         "cousin-b",
+			wantKey:        "cousin",
+			wantModifiers:  []any{"half"},
+			wantConfidence: "exact",
+			wantParameters: map[string]any{"degree": float64(1), "removed": float64(0)},
+		},
+		{
+			name: "cousin with incomplete ancestor records",
+			setup: func(t *testing.T, db *sql.DB) {
+				addPerson(t, db, "shared-grandparent", "SHGPn", "Shared Grandparent", "MALE", "")
+				addPerson(t, db, "cousin-parent-a", "CPAn", "Cousin Parent A", "MALE", "")
+				addPerson(t, db, "cousin-parent-b", "CPBn", "Cousin Parent B", "FEMALE", "")
+				addPerson(t, db, "cousin-a", "CAn", "Cousin A", "MALE", "")
+				addPerson(t, db, "cousin-b", "CBn", "Cousin B", "FEMALE", "")
+				addEdge(t, db, "shared-grandparent", "cousin-parent-a", "BIOLOGICAL", 1)
+				addEdge(t, db, "shared-grandparent", "cousin-parent-b", "BIOLOGICAL", 1)
+				addEdge(t, db, "cousin-parent-a", "cousin-a", "BIOLOGICAL", 1)
+				addEdge(t, db, "cousin-parent-b", "cousin-b", "BIOLOGICAL", 1)
+			},
+			start:          "cousin-a",
+			target:         "cousin-b",
+			wantKey:        "cousin",
+			wantConfidence: "incomplete_parent_records",
+			wantParameters: map[string]any{"degree": float64(1), "removed": float64(0)},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			db := fixtureDB(t)
+			seedFamily(t, db)
+			tc.setup(t, db)
+
+			result, err := FindKinship(ctx, db, tc.start, tc.target)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if result.Term.Key != tc.wantKey || result.Term.Confidence != tc.wantConfidence {
+				t.Fatalf("term = %+v", result.Term)
+			}
+			if len(result.Term.Modifiers) != len(tc.wantModifiers) {
+				t.Fatalf("modifiers = %#v, want %#v", result.Term.Modifiers, tc.wantModifiers)
+			}
+			for index, modifier := range tc.wantModifiers {
+				if result.Term.Modifiers[index] != modifier {
+					t.Fatalf("modifiers = %#v, want %#v", result.Term.Modifiers, tc.wantModifiers)
+				}
+			}
+
+			var decoded map[string]any
+			if err := json.Unmarshal(mustJSON(t, result), &decoded); err != nil {
+				t.Fatal(err)
+			}
+			parameters := decoded["term"].(map[string]any)["parameters"].(map[string]any)
+			for key, want := range tc.wantParameters {
+				if parameters[key] != want {
+					t.Fatalf("parameter %s = %#v, want %#v", key, parameters[key], want)
+				}
 			}
 		})
 	}

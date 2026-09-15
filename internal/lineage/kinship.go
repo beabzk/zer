@@ -57,7 +57,7 @@ func FindKinship(ctx context.Context, db *sql.DB, startID, targetID string) (*Ki
 			PathKey:      "self",
 			DegreesOfSep: 0,
 			Individuals:  map[string]KinshipPerson{startID: person},
-			Term:         classifyKinshipTerm(nil, person.Gender, nil, nil, nil),
+			Term:         classifyKinshipTerm(nil, person.Gender, nil, nil, nil, nil),
 		}, nil
 	}
 
@@ -80,14 +80,12 @@ func FindKinship(ctx context.Context, db *sql.DB, startID, targetID string) (*Ki
 			if err != nil {
 				return nil, err
 			}
-			parentsA, err := kinshipParents(ctx, db, startID)
+			parentsByPerson, err := kinshipParentsForPath(ctx, db, curr.path)
 			if err != nil {
 				return nil, err
 			}
-			parentsB, err := kinshipParents(ctx, db, targetID)
-			if err != nil {
-				return nil, err
-			}
+			parentsA := parentsByPerson[startID]
+			parentsB := parentsByPerson[targetID]
 			parentUnion, err := kinshipParentUnion(ctx, db, parentsA, parentsB)
 			if err != nil {
 				return nil, err
@@ -98,7 +96,8 @@ func FindKinship(ctx context.Context, db *sql.DB, startID, targetID string) (*Ki
 				DegreesOfSep: len(curr.path),
 				Individuals:  people,
 				Term: classifyKinshipTerm(
-					curr.path, people[targetID].Gender, parentsA, parentsB, parentUnion,
+					curr.path, people[targetID].Gender, parentsA, parentsB,
+					parentsByPerson, parentUnion,
 				),
 			}, nil
 		}
@@ -213,20 +212,40 @@ func kinshipPeople(ctx context.Context, db *sql.DB, path []KinshipSegment) (map[
 	return people, nil
 }
 
-func kinshipParents(ctx context.Context, db *sql.DB, id string) ([]kinshipParent, error) {
+func kinshipParentsForPath(
+	ctx context.Context,
+	db *sql.DB,
+	path []KinshipSegment,
+) (map[string][]kinshipParent, error) {
+	ids := make(map[string]bool)
+	for _, segment := range path {
+		ids[segment.FromID] = true
+		ids[segment.ToID] = true
+	}
+	parents := make(map[string][]kinshipParent, len(ids))
+	if len(ids) == 0 {
+		return parents, nil
+	}
+
+	args := make([]any, 0, len(ids))
+	for id := range ids {
+		args = append(args, id)
+	}
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(ids)), ",")
 	rows, err := db.QueryContext(ctx,
-		`SELECT parent_id, relationship_type FROM parent_child WHERE child_id = ?`, id)
+		`SELECT child_id, parent_id, relationship_type
+		FROM parent_child WHERE child_id IN (`+placeholders+`)`, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var parents []kinshipParent
 	for rows.Next() {
+		var childID string
 		var parent kinshipParent
-		if err := rows.Scan(&parent.ID, &parent.RelationshipType); err != nil {
+		if err := rows.Scan(&childID, &parent.ID, &parent.RelationshipType); err != nil {
 			return nil, err
 		}
-		parents = append(parents, parent)
+		parents[childID] = append(parents[childID], parent)
 	}
 	return parents, rows.Err()
 }
