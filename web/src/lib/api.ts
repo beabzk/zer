@@ -145,11 +145,29 @@ export interface KinshipSegment {
   union_status?: string;
 }
 
+export interface KinshipTermParameters {
+  generations_up?: number;
+  generations_down?: number;
+  shared_parents?: number;
+  known_parents_a?: number;
+  known_parents_b?: number;
+}
+
+export interface KinshipTerm {
+  perspective: string;
+  key: string;
+  gender: string;
+  modifiers?: string[];
+  parameters: KinshipTermParameters;
+  confidence: string;
+}
+
 export interface KinshipResult {
   path_key: string;
   segments: KinshipSegment[];
   degrees_of_sep: number;
   individuals: Record<string, PersonHit>;
+  term: KinshipTerm;
 }
 
 export interface LineageNode {

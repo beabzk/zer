@@ -42,6 +42,7 @@ type KinshipResult struct {
 	Segments     []KinshipSegment         `json:"segments"`
 	DegreesOfSep int                      `json:"degrees_of_sep"`
 	Individuals  map[string]KinshipPerson `json:"individuals"`
+	Term         KinshipTerm              `json:"term"`
 }
 
 // FindKinship returns the shortest undirected path between two people using
@@ -56,6 +57,7 @@ func FindKinship(ctx context.Context, db *sql.DB, startID, targetID string) (*Ki
 			PathKey:      "self",
 			DegreesOfSep: 0,
 			Individuals:  map[string]KinshipPerson{startID: person},
+			Term:         classifyKinshipTerm(nil, person.Gender, nil, nil),
 		}, nil
 	}
 
@@ -78,11 +80,24 @@ func FindKinship(ctx context.Context, db *sql.DB, startID, targetID string) (*Ki
 			if err != nil {
 				return nil, err
 			}
+			parentsA, err := queryIDs(ctx, db,
+				`SELECT parent_id FROM parent_child WHERE child_id = ?`, startID)
+			if err != nil {
+				return nil, err
+			}
+			parentsB, err := queryIDs(ctx, db,
+				`SELECT parent_id FROM parent_child WHERE child_id = ?`, targetID)
+			if err != nil {
+				return nil, err
+			}
 			return &KinshipResult{
 				PathKey:      strings.Join(keys, "."),
 				Segments:     curr.path,
 				DegreesOfSep: len(curr.path),
 				Individuals:  people,
+				Term: classifyKinshipTerm(
+					curr.path, people[targetID].Gender, parentsA, parentsB,
+				),
 			}, nil
 		}
 		neighbors, err := graphNeighbors(ctx, db, curr.id)

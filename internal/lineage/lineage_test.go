@@ -269,6 +269,131 @@ func TestKinshipContractIncludesEdgeMetadataAndPeople(t *testing.T) {
 	}
 }
 
+func TestKinshipCoreTermDescriptors(t *testing.T) {
+	ctx := context.Background()
+	db := fixtureDB(t)
+	seedFamily(t, db)
+	addEdge(t, db, "mother", "sib", "BIOLOGICAL", 0)
+	addPerson(t, db, "great", "GREATn", "GREAT", "MALE", "")
+	addEdge(t, db, "great", "gp", "BIOLOGICAL", 1)
+
+	cases := []struct {
+		name     string
+		start    string
+		target   string
+		wantKey  string
+		wantMods []any
+		check    func(t *testing.T, term map[string]any)
+	}{
+		{
+			name: "self", start: "child", target: "child", wantKey: "self",
+		},
+		{
+			name: "parent", start: "child", target: "father", wantKey: "parent",
+			check: func(t *testing.T, term map[string]any) {
+				if term["gender"] != "MALE" {
+					t.Errorf("parent gender = %#v", term["gender"])
+				}
+			},
+		},
+		{
+			name: "child", start: "father", target: "child", wantKey: "child",
+			check: func(t *testing.T, term map[string]any) {
+				if term["gender"] != "MALE" {
+					t.Errorf("child gender = %#v", term["gender"])
+				}
+			},
+		},
+		{
+			name: "grandparent through ancestor depth", start: "child", target: "gp", wantKey: "ancestor",
+			check: func(t *testing.T, term map[string]any) {
+				parameters := term["parameters"].(map[string]any)
+				if parameters["generations_up"] != float64(2) {
+					t.Errorf("ancestor parameters = %#v", parameters)
+				}
+			},
+		},
+		{
+			name: "arbitrary ancestor depth", start: "child", target: "great", wantKey: "ancestor",
+			check: func(t *testing.T, term map[string]any) {
+				parameters := term["parameters"].(map[string]any)
+				if parameters["generations_up"] != float64(3) {
+					t.Errorf("ancestor parameters = %#v", parameters)
+				}
+			},
+		},
+		{
+			name: "grandchild through descendant depth", start: "gp", target: "child", wantKey: "descendant",
+			check: func(t *testing.T, term map[string]any) {
+				parameters := term["parameters"].(map[string]any)
+				if parameters["generations_down"] != float64(2) {
+					t.Errorf("descendant parameters = %#v", parameters)
+				}
+			},
+		},
+		{
+			name: "arbitrary descendant depth", start: "great", target: "child", wantKey: "descendant",
+			check: func(t *testing.T, term map[string]any) {
+				parameters := term["parameters"].(map[string]any)
+				if parameters["generations_down"] != float64(3) {
+					t.Errorf("descendant parameters = %#v", parameters)
+				}
+			},
+		},
+		{
+			name: "full sibling", start: "child", target: "sib", wantKey: "sibling", wantMods: []any{"full"},
+			check: func(t *testing.T, term map[string]any) {
+				parameters := term["parameters"].(map[string]any)
+				if parameters["shared_parents"] != float64(2) {
+					t.Errorf("sibling parameters = %#v", parameters)
+				}
+			},
+		},
+		{
+			name: "spouse", start: "father", target: "mother", wantKey: "spouse",
+			check: func(t *testing.T, term map[string]any) {
+				if term["gender"] != "FEMALE" {
+					t.Errorf("spouse gender = %#v", term["gender"])
+				}
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := FindKinship(ctx, db, tc.start, tc.target)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var decoded map[string]any
+			if err := json.Unmarshal(mustJSON(t, result), &decoded); err != nil {
+				t.Fatal(err)
+			}
+			term, ok := decoded["term"].(map[string]any)
+			if !ok {
+				t.Fatalf("term = %#v", decoded["term"])
+			}
+			if term["perspective"] != "a_to_b" || term["key"] != tc.wantKey || term["confidence"] != "exact" {
+				t.Errorf("term = %#v", term)
+			}
+			if tc.wantMods != nil {
+				if modifiers, ok := term["modifiers"].([]any); !ok || len(modifiers) != len(tc.wantMods) {
+					t.Errorf("modifiers = %#v, want %#v", term["modifiers"], tc.wantMods)
+				} else {
+					for index, modifier := range tc.wantMods {
+						if modifiers[index] != modifier {
+							t.Errorf("modifiers = %#v, want %#v", modifiers, tc.wantMods)
+						}
+					}
+				}
+			}
+			if tc.check != nil {
+				tc.check(t, term)
+			}
+		})
+	}
+}
+
 func mustJSON(t *testing.T, value any) []byte {
 	t.Helper()
 	data, err := json.Marshal(value)

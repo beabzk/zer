@@ -3,6 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { KinshipWorkspace } from "./KinshipWorkspace";
+import type { KinshipResult } from "../../lib/api";
 
 const personA = { id: "a", full_native: "An", full_latin: "Abebe", gender: "MALE" };
 const personB = { id: "b", full_native: "Bn", full_latin: "Bontu", gender: "FEMALE" };
@@ -16,7 +17,7 @@ vi.mock("../../lib/api", async (importOriginal) => ({
       get: vi.fn(),
     },
     analysis: {
-      kinship: vi.fn(async () => ({
+      kinship: vi.fn(async (): Promise<KinshipResult> => ({
         path_key: "parent.child",
         degrees_of_sep: 2,
         segments: [
@@ -27,6 +28,18 @@ vi.mock("../../lib/api", async (importOriginal) => ({
           a: personA,
           parent: intermediate,
           b: personB,
+        },
+        term: {
+          perspective: "a_to_b",
+          key: "sibling",
+          gender: "FEMALE",
+          modifiers: ["full"],
+          parameters: {
+            shared_parents: 2,
+            known_parents_a: 2,
+            known_parents_b: 2,
+          },
+          confidence: "exact",
         },
       })),
     },

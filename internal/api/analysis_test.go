@@ -72,6 +72,10 @@ func TestKinshipEndpoint(t *testing.T) {
 	if !ok || len(people) != 3 {
 		t.Fatalf("kinship individuals = %#v", result["individuals"])
 	}
+	term, ok := result["term"].(map[string]any)
+	if !ok || term["key"] != "sibling" || term["perspective"] != "a_to_b" {
+		t.Fatalf("kinship term = %#v", result["term"])
+	}
 
 	rec = doRequest(t, r, http.MethodGet,
 		"/api/v1/trees/"+treeID+"/analysis/kinship?person_a="+ids["child"], nil)
