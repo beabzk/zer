@@ -66,4 +66,16 @@ describe("App", () => {
     expect(localStorage.getItem("zer-tree")).toBeNull();
     expect(window.location.pathname).toBe("/overview");
   });
+
+  it("does not number independent workspace views", async () => {
+    await act(async () => {
+      root.render(<App />);
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const navLabels = Array.from(document.querySelectorAll("nav button")).map((button) => button.textContent ?? "");
+    expect(navLabels.some((label) => /^\d{2}/.test(label))).toBe(false);
+  });
 });

@@ -103,11 +103,6 @@ export function LineageWorkspace({ locale, treeId, rootId, refreshKey, onSelect 
       >
         <span className="block truncate text-sm font-semibold">{named ? named.full_latin : id}</span>
         {named && <span className="mt-1 block truncate text-xs text-muted-foreground">{named.full_native}</span>}
-        {root && (
-          <span className="mt-2 block text-[11px] font-semibold uppercase tracking-[0.1em] text-accent-strong">
-            {t(locale, "lineage.root")}
-          </span>
-        )}
       </button>
     );
   };
@@ -136,9 +131,7 @@ export function LineageWorkspace({ locale, treeId, rootId, refreshKey, onSelect 
           <CardTitle>
             {direction === "ancestors" ? t(locale, "workspace.ancestors") : t(locale, "workspace.descendants")}
           </CardTitle>
-          <CardDescription>
-            {truncated ? t(locale, "lineage.truncated") : t(locale, "lineage.description")}
-          </CardDescription>
+          {truncated && <CardDescription>{t(locale, "lineage.truncated")}</CardDescription>}
         </CardHeader>
         <CardContent>
           {error && (

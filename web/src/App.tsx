@@ -36,12 +36,12 @@ function initialTreeId(): string {
   return treeIdFromPath() || localStorage.getItem("zer-tree") || "";
 }
 
-const primaryViews: Array<{ id: WorkspaceView; label: string; eyebrow: string }> = [
-  { id: "overview", label: "views.overview", eyebrow: "01" },
-  { id: "people", label: "views.people", eyebrow: "02" },
-  { id: "canvas", label: "views.canvas", eyebrow: "03" },
-  { id: "pedigree", label: "views.pedigree", eyebrow: "04" },
-  { id: "kinship", label: "views.kinship", eyebrow: "05" },
+const primaryViews: Array<{ id: WorkspaceView; label: string }> = [
+  { id: "overview", label: "views.overview" },
+  { id: "people", label: "views.people" },
+  { id: "canvas", label: "views.canvas" },
+  { id: "pedigree", label: "views.pedigree" },
+  { id: "kinship", label: "views.kinship" },
 ];
 
 export function App() {
@@ -183,7 +183,7 @@ export function App() {
       : undefined;
   const canManageMembers = memberManagementRole !== undefined;
   const workspaceViews = canManageMembers
-    ? [...primaryViews, { id: "members" as WorkspaceView, label: "views.members", eyebrow: "06" }]
+    ? [...primaryViews, { id: "members" as WorkspaceView, label: "views.members" }]
     : primaryViews;
   const bottomItems: Array<{ id: WorkspaceView; label: string }> = isAdmin
     ? [...workspaceViews, { id: "admin" as WorkspaceView, label: "admin.panel" }]
@@ -291,7 +291,7 @@ export function App() {
                   aria-current={view === item.id ? "page" : undefined}
                   className={`flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${view === item.id ? "bg-foreground text-background" : "text-muted-foreground hover:bg-panel-muted hover:text-foreground"}`}
                 >
-                  <span className="font-mono text-[10px] opacity-60">{item.eyebrow}</span>{t(locale, item.label)}
+                  {t(locale, item.label)}
                 </button>
               ))}
               {isAdmin && (

@@ -46,11 +46,11 @@ function roleLabel(locale: Locale, role: TreeMemberRole): string {
   return t(locale, `admin.role${role[0]}${role.slice(1).toLowerCase()}`);
 }
 
-function roleVariant(role: TreeMemberRole): "neutral" | "accent" | "success" | "warning" {
-  if (role === "OWNER") return "warning";
-  if (role === "ADMIN") return "accent";
-  if (role === "EDITOR") return "success";
-  return "neutral";
+function formatDate(locale: Locale, value: string): string {
+  const normalized = value.includes(" ") ? `${value.replace(" ", "T")}Z` : value;
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(date);
 }
 
 export function TreeMembersPanel({ locale, treeId, treeName, callerRole }: Props) {
@@ -70,6 +70,8 @@ export function TreeMembersPanel({ locale, treeId, treeName, callerRole }: Props
   const isOwner = callerRole === "OWNER";
   const assignableRoles: TreeMemberRole[] = isOwner ? ["ADMIN", "EDITOR", "VIEWER"] : ["EDITOR", "VIEWER"];
   const memberRoleOptions: TreeMemberRole[] = isOwner ? memberRoles : ["EDITOR", "VIEWER"];
+  const activeInvitations = invitations.filter((invitation) => invitation.status === "PENDING");
+  const ownerCount = members.filter((member) => member.role === "OWNER").length;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -204,7 +206,11 @@ export function TreeMembersPanel({ locale, treeId, treeName, callerRole }: Props
             </div>
             <div>
               <label htmlFor="invite-expiry" className="mb-1 block text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">{t(locale, "members.expiresIn")}</label>
-              <Input id="invite-expiry" type="number" min={1} max={720} value={inviteExpiry} onChange={(event) => setInviteExpiry(event.target.value)} />
+              <Select id="invite-expiry" value={inviteExpiry} onChange={(event) => setInviteExpiry(event.target.value)}>
+                <option value="24">{t(locale, "members.expiry24Hours")}</option>
+                <option value="168">{t(locale, "members.expiry7Days")}</option>
+                <option value="720">{t(locale, "members.expiry30Days")}</option>
+              </Select>
             </div>
             <Button disabled={acting || !inviteEmail.trim()} onClick={() => void createInvitation()}>
               {t(locale, "members.send")}
@@ -216,7 +222,7 @@ export function TreeMembersPanel({ locale, treeId, treeName, callerRole }: Props
               <a className="text-accent-strong hover:underline" href={createdInviteUrl}>{createdInviteUrl}</a>
             </p>
           )}
-          {invitations.length > 0 && (
+          {activeInvitations.length > 0 && (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[560px] text-left text-sm">
                 <thead className="border-y border-border bg-panel-muted/60 text-xs uppercase tracking-[0.1em] text-muted-foreground">
@@ -229,12 +235,12 @@ export function TreeMembersPanel({ locale, treeId, treeName, callerRole }: Props
                   </tr>
                 </thead>
                 <tbody>
-                  {invitations.map((invitation) => (
+                  {activeInvitations.map((invitation) => (
                     <tr key={invitation.id} className="border-b border-border">
                       <td className="px-4 py-2">{invitation.email}</td>
                       <td className="px-4 py-2">{roleLabel(locale, invitation.role)}</td>
                       <td className="px-4 py-2"><Badge>{invitation.status}</Badge></td>
-                      <td className="px-4 py-2">{new Date(invitation.expires_at).toLocaleString()}</td>
+                      <td className="px-4 py-2">{formatDate(locale, invitation.expires_at)}</td>
                       <td className="px-4 py-2 text-right">
                         {invitation.status === "PENDING" && (
                           <Button variant="outline" size="sm" disabled={acting} onClick={() => void revokeInvitation(invitation)}>
@@ -275,6 +281,7 @@ export function TreeMembersPanel({ locale, treeId, treeName, callerRole }: Props
                 <tbody className="divide-y divide-border">
                   {members.map((member) => {
                     const canManageMember = isOwner || member.role === "EDITOR" || member.role === "VIEWER";
+                    const soleOwner = member.role === "OWNER" && ownerCount === 1;
                     const roleOptions = memberRoleOptions.includes(member.role)
                       ? memberRoleOptions
                       : [member.role, ...memberRoleOptions];
@@ -293,14 +300,17 @@ export function TreeMembersPanel({ locale, treeId, treeName, callerRole }: Props
                           >
                             {roleOptions.map((role) => <option key={role} value={role}>{roleLabel(locale, role)}</option>)}
                           </Select>
-                          <Badge variant={roleVariant(member.role)}>{roleLabel(locale, member.role)}</Badge>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-muted-foreground">{member.created_at}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{formatDate(locale, member.created_at)}</td>
                       <td className="px-4 py-3 text-right">
-                        <Button variant="danger" size="sm" aria-label={`${t(locale, "members.remove")} ${member.email}`} onClick={() => setRemoving(member)} disabled={acting || !canManageMember}>
-                          {t(locale, "members.remove")}
-                        </Button>
+                        {soleOwner ? (
+                          <Badge variant="warning">{t(locale, "members.protected")}</Badge>
+                        ) : (
+                          <Button variant="danger" size="sm" aria-label={`${t(locale, "members.remove")} ${member.email}`} onClick={() => setRemoving(member)} disabled={acting || !canManageMember}>
+                            {t(locale, "members.remove")}
+                          </Button>
+                        )}
                       </td>
                     </tr>
                     );
@@ -315,7 +325,11 @@ export function TreeMembersPanel({ locale, treeId, treeName, callerRole }: Props
       <Dialog open={removing !== null} onClose={() => !acting && setRemoving(null)} closeLabel={t(locale, "common.close")}>
         <DialogHeader>
           <DialogTitle>{t(locale, "members.removeMember")}</DialogTitle>
-          <DialogDescription>{t(locale, "members.confirmRemove")}</DialogDescription>
+          <DialogDescription>
+            {removing?.role === "OWNER"
+              ? t(locale, "members.confirmRemoveOwner")
+              : t(locale, "members.confirmRemove")}
+          </DialogDescription>
         </DialogHeader>
         <DialogContent>
           <p className="break-words text-sm font-medium">{removing?.email}</p>

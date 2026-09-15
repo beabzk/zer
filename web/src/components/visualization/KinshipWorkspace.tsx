@@ -79,7 +79,6 @@ export function KinshipWorkspace({ locale, treeId, onSelectPerson }: Props) {
       <Card>
         <CardHeader>
           <CardTitle>{t(locale, "kinship.find")}</CardTitle>
-          <CardDescription>{t(locale, "kinship.description")}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-end">

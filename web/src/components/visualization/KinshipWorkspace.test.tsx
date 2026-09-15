@@ -94,6 +94,16 @@ afterEach(async () => {
 });
 
 describe("KinshipWorkspace", () => {
+  it("prints the kinship description once", async () => {
+    await act(async () => {
+      root.render(<KinshipWorkspace locale="en" treeId="tree-1" onSelectPerson={() => undefined} />);
+    });
+
+    const descriptionNodes = Array.from(container.querySelectorAll("p"))
+      .filter((node) => node.textContent === "Find the path between any two people.");
+    expect(descriptionNodes).toHaveLength(1);
+  });
+
   it("uses people returned by the kinship response instead of fetching each participant", async () => {
     await act(async () => {
       root.render(<KinshipWorkspace locale="en" treeId="tree-1" onSelectPerson={() => undefined} />);
