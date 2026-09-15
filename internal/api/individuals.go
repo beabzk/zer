@@ -115,21 +115,32 @@ func (d Deps) handleListIndividuals(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rows, err := db.QueryContext(r.Context(),
-		`SELECT id FROM individuals `+filter+` `+order+` LIMIT ? OFFSET ?`,
+		`SELECT id, gender, birth_year_ec, death_year_ec, is_deceased
+		FROM individuals `+filter+` `+order+` LIMIT ? OFFSET ?`,
 		append(args, limit, offset)...)
 	if err != nil {
 		writeInternalError(w, r, err)
 		return
 	}
-	var ids []string
+	type directoryPerson struct {
+		ID         string
+		Gender     string
+		BirthYear  *int
+		DeathYear  *int
+		IsDeceased bool
+	}
+	people := []directoryPerson{}
 	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
+		var person directoryPerson
+		var deceased int
+		if err := rows.Scan(&person.ID, &person.Gender, &person.BirthYear,
+			&person.DeathYear, &deceased); err != nil {
 			rows.Close()
 			writeInternalError(w, r, err)
 			return
 		}
-		ids = append(ids, id)
+		person.IsDeceased = deceased == 1
+		people = append(people, person)
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
@@ -139,14 +150,17 @@ func (d Deps) handleListIndividuals(w http.ResponseWriter, r *http.Request) {
 	// IDs resolve after the rows close because the pool holds a single
 	// connection and nested queries would deadlock.
 	out := []map[string]any{}
-	for _, id := range ids {
-		native, _ := lineage.SynthesizeFullName(r.Context(), db, id, 3, lineage.ScriptNative, false)
-		latin, _ := lineage.SynthesizeFullName(r.Context(), db, id, 3, lineage.ScriptLatin, false)
-		var gender string
-		_ = db.QueryRowContext(r.Context(),
-			`SELECT gender FROM individuals WHERE id = ?`, id).Scan(&gender)
+	for _, person := range people {
+		native, _ := lineage.SynthesizeFullName(r.Context(), db, person.ID, 3, lineage.ScriptNative, false)
+		latin, _ := lineage.SynthesizeFullName(r.Context(), db, person.ID, 3, lineage.ScriptLatin, false)
 		out = append(out, map[string]any{
-			"id": id, "full_native": native, "full_latin": latin, "gender": gender,
+			"id":            person.ID,
+			"full_native":   native,
+			"full_latin":    latin,
+			"gender":        person.Gender,
+			"birth_year_ec": person.BirthYear,
+			"death_year_ec": person.DeathYear,
+			"is_deceased":   person.IsDeceased,
 		})
 	}
 	writeJSON(w, http.StatusOK, map[string]any{

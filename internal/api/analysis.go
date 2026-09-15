@@ -186,9 +186,13 @@ func (d Deps) handleSubgraph(w http.ResponseWriter, r *http.Request) {
 	nodes := []flowNode{}
 	for id := range visited {
 		var native, latin, gender string
+		var birthYear, deathYear *int
+		var deceased int
 		if err := db.QueryRowContext(r.Context(),
-			`SELECT given_name_native, given_name_latin, gender FROM individuals WHERE id = ?`,
-			id).Scan(&native, &latin, &gender); err != nil {
+			`SELECT given_name_native, given_name_latin, gender,
+				birth_year_ec, death_year_ec, is_deceased
+			FROM individuals WHERE id = ?`,
+			id).Scan(&native, &latin, &gender, &birthYear, &deathYear, &deceased); err != nil {
 			continue
 		}
 		fullNative, _ := lineage.SynthesizeFullName(r.Context(), db, id, 3, lineage.ScriptNative, false)
@@ -196,6 +200,8 @@ func (d Deps) handleSubgraph(w http.ResponseWriter, r *http.Request) {
 		nodes = append(nodes, flowNode{ID: id, Data: map[string]any{
 			"given_name_native": native, "given_name_latin": latin, "gender": gender,
 			"full_native": fullNative, "full_latin": fullLatin,
+			"birth_year_ec": birthYear, "death_year_ec": deathYear,
+			"is_deceased": deceased == 1,
 		}})
 	}
 	edges := []flowEdge{}

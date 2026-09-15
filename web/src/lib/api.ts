@@ -63,6 +63,9 @@ export interface PersonHit {
   full_native: string;
   full_latin: string;
   gender: string;
+  birth_year_ec?: number;
+  death_year_ec?: number;
+  is_deceased?: boolean;
 }
 
 export interface DirectoryPage {
@@ -198,6 +201,9 @@ export interface FlowNode {
     gender: string;
     full_native: string;
     full_latin: string;
+    birth_year_ec?: number;
+    death_year_ec?: number;
+    is_deceased?: boolean;
   };
 }
 

@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiError, api, type DirectoryOrder, type PersonHit } from "../../lib/api";
+import { formatLifeYears } from "../../lib/personSummary";
 import { t, type Locale } from "../../lib/i18n";
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Empty, Input, Select, Skeleton } from "../ui";
 
-const pageSize = 12;
+const pageSize = 24;
 
 const orderOptions: DirectoryOrder[] = ["created", "recent", "name"];
 
@@ -174,8 +175,14 @@ export function PeopleDirectory({ locale, treeId, onAdd, onSelect }: { locale: L
                     className={`min-h-24 rounded-md border bg-panel px-4 py-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${index === activeIndex ? "border-accent bg-accent-soft" : "border-border hover:border-accent"}`}
                   >
                     <span className="block truncate text-sm font-semibold">{person.full_latin}</span>
-                    <span className="mt-1 block truncate text-sm text-muted-foreground">{person.full_native}</span>
-                    <span className="mt-3 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">{person.gender === "FEMALE" ? t(locale, "person.female") : t(locale, "person.male")}</span>
+                    <span className="mt-1 block truncate text-sm text-foreground/80">{person.full_native}</span>
+                    <span className="mt-3 block text-xs text-muted-foreground">
+                      {[
+                        formatLifeYears(person),
+                        person.is_deceased ? t(locale, "person.deceased") : t(locale, "person.living"),
+                        person.gender === "FEMALE" ? t(locale, "person.female") : t(locale, "person.male"),
+                      ].filter(Boolean).join(" · ")}
+                    </span>
                   </button>
                 ))}
               </div>

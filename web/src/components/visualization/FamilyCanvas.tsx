@@ -3,6 +3,7 @@ import { select } from "d3-selection";
 import { zoom, type ZoomTransform } from "d3-zoom";
 import { ApiError, api, type FlowEdge, type FlowNode } from "../../lib/api";
 import { t, type Locale } from "../../lib/i18n";
+import { formatLifeYears } from "../../lib/personSummary";
 import { CARD_H, CARD_W, GAP_X, GAP_Y, layoutGraph } from "./layout";
 import { Button, CardContent, Empty, Skeleton } from "../ui";
 
@@ -239,8 +240,14 @@ export function FamilyCanvas({
               }`}
               style={{ left: p.x, top: p.y, width: CARD_W, height: CARD_H }}
             >
-              <span className="block truncate text-xs font-medium">{node.data.full_latin}</span>
-              <span className="block truncate text-xs text-muted-foreground">{node.data.full_native}</span>
+              <span className="block truncate text-sm font-medium">{node.data.full_latin}</span>
+              <span className="block truncate text-sm font-medium">{node.data.full_native}</span>
+              <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+                {[
+                  formatLifeYears(node.data),
+                  node.data.is_deceased ? t(locale, "person.deceased") : t(locale, "person.living"),
+                ].filter(Boolean).join(" · ")}
+              </span>
             </button>
           );
         })}

@@ -27,19 +27,22 @@ type overviewPerson struct {
 	FullNative string `json:"full_native"`
 	FullLatin  string `json:"full_latin"`
 	Gender     string `json:"gender"`
+	BirthYear  *int   `json:"birth_year_ec,omitempty"`
+	DeathYear  *int   `json:"death_year_ec,omitempty"`
+	IsDeceased bool   `json:"is_deceased"`
 	UpdatedAt  string `json:"updated_at"`
 }
 
 type overviewEvent struct {
-	ID            string  `json:"id"`
-	IndividualID  string  `json:"individual_id"`
-	EventType     string  `json:"event_type"`
-	EventDateGC   *string `json:"event_date_gc,omitempty"`
-	EventYearEC   *int    `json:"event_year_ec,omitempty"`
-	EventPlace    *string `json:"event_place,omitempty"`
-	Description   *string `json:"description,omitempty"`
-	FullNative    string  `json:"full_native"`
-	FullLatin     string  `json:"full_latin"`
+	ID           string  `json:"id"`
+	IndividualID string  `json:"individual_id"`
+	EventType    string  `json:"event_type"`
+	EventDateGC  *string `json:"event_date_gc,omitempty"`
+	EventYearEC  *int    `json:"event_year_ec,omitempty"`
+	EventPlace   *string `json:"event_place,omitempty"`
+	Description  *string `json:"description,omitempty"`
+	FullNative   string  `json:"full_native"`
+	FullLatin    string  `json:"full_latin"`
 }
 
 type overviewResponse struct {
@@ -105,7 +108,7 @@ func (d Deps) handleTreeOverview(w http.ResponseWriter, r *http.Request) {
 
 func (d Deps) overviewRecentPeople(r *http.Request, db *sql.DB) ([]overviewPerson, error) {
 	rows, err := db.QueryContext(r.Context(),
-		`SELECT id, gender, updated_at FROM individuals
+		`SELECT id, gender, birth_year_ec, death_year_ec, is_deceased, updated_at FROM individuals
 		ORDER BY updated_at DESC, rowid DESC LIMIT ?`, overviewRecentPeople)
 	if err != nil {
 		return nil, err
@@ -113,10 +116,13 @@ func (d Deps) overviewRecentPeople(r *http.Request, db *sql.DB) ([]overviewPerso
 	var ids []overviewPerson
 	for rows.Next() {
 		var p overviewPerson
-		if err := rows.Scan(&p.ID, &p.Gender, &p.UpdatedAt); err != nil {
+		var deceased int
+		if err := rows.Scan(&p.ID, &p.Gender, &p.BirthYear, &p.DeathYear,
+			&deceased, &p.UpdatedAt); err != nil {
 			rows.Close()
 			return nil, err
 		}
+		p.IsDeceased = deceased == 1
 		ids = append(ids, p)
 	}
 	rows.Close()

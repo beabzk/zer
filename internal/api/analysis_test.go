@@ -175,3 +175,33 @@ func TestSubgraphEndpoint(t *testing.T) {
 		t.Errorf("missing root: status = %d, want 400", rec.Code)
 	}
 }
+
+func TestSubgraphPersonSummaries(t *testing.T) {
+	_, _, r := testSetup(t, 1)
+	treeID := createTree(t, r, "Summary")
+	id := createPerson(t, r, treeID, map[string]any{
+		"given_name_native": "N", "given_name_latin": "Abebe", "gender": "MALE",
+		"birth_year_ec": 1998, "death_year_ec": 2016, "is_deceased": true,
+	})
+
+	rec := doRequest(t, r, http.MethodGet,
+		"/api/v1/trees/"+treeID+"/graph/subgraph?root_id="+id+"&depth=1", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("subgraph: status = %d", rec.Code)
+	}
+	var result struct {
+		Nodes []struct {
+			Data map[string]any `json:"data"`
+		} `json:"nodes"`
+	}
+	decodeBody(t, rec, &result)
+	if len(result.Nodes) != 1 {
+		t.Fatalf("nodes = %+v", result.Nodes)
+	}
+	data := result.Nodes[0].Data
+	if data["birth_year_ec"] != float64(1998) ||
+		data["death_year_ec"] != float64(2016) ||
+		data["is_deceased"] != true {
+		t.Errorf("summary = %+v", data)
+	}
+}

@@ -14,7 +14,7 @@ export interface PlacedNode extends LayoutNode {
 }
 
 export const CARD_W = 176;
-export const CARD_H = 64;
+export const CARD_H = 80;
 export const GAP_X = 32;
 export const GAP_Y = 72;
 

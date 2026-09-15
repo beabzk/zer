@@ -41,7 +41,8 @@ func TestTreeOverview(t *testing.T) {
 	treeID := createTree(t, r, "Overview")
 
 	a := createPerson(t, r, treeID, map[string]any{
-		"given_name_native": "N-A", "given_name_latin": "Abebe", "gender": "MALE"})
+		"given_name_native": "N-A", "given_name_latin": "Abebe", "gender": "MALE",
+		"birth_year_ec": 1998, "death_year_ec": 2016, "is_deceased": true})
 	b := createPerson(t, r, treeID, map[string]any{
 		"given_name_native": "N-B", "given_name_latin": "Aster", "gender": "FEMALE"})
 	// Touch A after B so A is the most recently updated person.
@@ -71,6 +72,11 @@ func TestTreeOverview(t *testing.T) {
 	first, _ := recent[0].(map[string]any)
 	if first["id"] != a || first["full_latin"] != "Abebe" {
 		t.Errorf("recent order: first = %+v, want Abebe", first)
+	}
+	if first["birth_year_ec"] != float64(1998) ||
+		first["death_year_ec"] != float64(2016) ||
+		first["is_deceased"] != true {
+		t.Errorf("recent summary: %+v", first)
 	}
 	events, _ := body["recent_events"].([]any)
 	if len(events) != 1 {

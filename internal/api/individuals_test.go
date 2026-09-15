@@ -324,6 +324,36 @@ func TestDirectoryFilters(t *testing.T) {
 	}
 }
 
+func TestDirectoryPersonSummaries(t *testing.T) {
+	_, _, r := testSetup(t, 1)
+	treeID := createTree(t, r, "Summaries")
+
+	createPerson(t, r, treeID, map[string]any{
+		"given_name_native": "N-A", "given_name_latin": "Abebe", "gender": "MALE",
+		"birth_year_ec": 1998, "death_year_ec": 2016, "is_deceased": true,
+	})
+	createPerson(t, r, treeID, map[string]any{
+		"given_name_native": "N-B", "given_name_latin": "Aster", "gender": "FEMALE",
+	})
+
+	code, body := getDirectory(t, r, treeID, "?order=name")
+	if code != http.StatusOK {
+		t.Fatalf("directory: status = %d", code)
+	}
+	items, _ := body["individuals"].([]any)
+	if len(items) != 2 {
+		t.Fatalf("individuals = %+v", items)
+	}
+	first, _ := items[0].(map[string]any)
+	if first["birth_year_ec"] != float64(1998) || first["death_year_ec"] != float64(2016) || first["is_deceased"] != true {
+		t.Errorf("Abebe summary = %+v", first)
+	}
+	second, _ := items[1].(map[string]any)
+	if second["birth_year_ec"] != nil || second["death_year_ec"] != nil || second["is_deceased"] != false {
+		t.Errorf("Aster summary = %+v", second)
+	}
+}
+
 func TestPartialECBirth(t *testing.T) {
 	_, _, r := testSetup(t, 1)
 	treeID := createTree(t, r, "Partial")
