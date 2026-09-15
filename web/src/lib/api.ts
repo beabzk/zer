@@ -139,12 +139,17 @@ export interface KinshipSegment {
   from_id: string;
   to_id: string;
   relation: string;
+  relationship_type?: string;
+  is_name_source?: boolean;
+  union_type?: string;
+  union_status?: string;
 }
 
 export interface KinshipResult {
   path_key: string;
   segments: KinshipSegment[];
   degrees_of_sep: number;
+  individuals: Record<string, PersonHit>;
 }
 
 export interface LineageNode {

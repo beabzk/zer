@@ -57,6 +57,21 @@ func TestKinshipEndpoint(t *testing.T) {
 	if result["path_key"] != "parent.child" || result["degrees_of_sep"] != float64(2) {
 		t.Errorf("unexpected kinship: %+v", result)
 	}
+	segments, ok := result["segments"].([]any)
+	if !ok || len(segments) != 2 {
+		t.Fatalf("kinship segments = %#v", result["segments"])
+	}
+	first, ok := segments[0].(map[string]any)
+	if !ok {
+		t.Fatalf("first kinship segment = %#v", segments[0])
+	}
+	if first["relationship_type"] != "BIOLOGICAL" || first["is_name_source"] != true {
+		t.Errorf("first kinship segment = %#v", first)
+	}
+	people, ok := result["individuals"].(map[string]any)
+	if !ok || len(people) != 3 {
+		t.Fatalf("kinship individuals = %#v", result["individuals"])
+	}
 
 	rec = doRequest(t, r, http.MethodGet,
 		"/api/v1/trees/"+treeID+"/analysis/kinship?person_a="+ids["child"], nil)

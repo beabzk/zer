@@ -50,23 +50,7 @@ export function KinshipWorkspace({ locale, treeId, onSelectPerson }: Props) {
     setBusy(true);
     try {
       const res = await api.analysis.kinship(treeId, a.id, b.id);
-      const ids = new Set<string>([a.id, b.id]);
-      for (const s of res.segments ?? []) {
-        ids.add(s.from_id);
-        ids.add(s.to_id);
-      }
-      const entries = await Promise.all(
-        [...ids].map(async (id) => {
-          const p = await api.individuals.get(treeId, id);
-          return [id, {
-            id: p.id,
-            full_native: p.full_native,
-            full_latin: p.full_latin,
-            gender: p.gender,
-          } as PersonHit] as const;
-        }),
-      );
-      setNames(Object.fromEntries(entries));
+      setNames(res.individuals);
       setResult(res);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : t(locale, "kinship.none"));

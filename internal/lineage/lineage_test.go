@@ -3,6 +3,7 @@ package lineage
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -198,6 +199,83 @@ func TestKinshipPaths(t *testing.T) {
 	if _, err := FindKinship(ctx, db, "child", "stranger"); err == nil {
 		t.Error("expected error for unconnected individuals")
 	}
+}
+
+func TestKinshipContractIncludesEdgeMetadataAndPeople(t *testing.T) {
+	ctx := context.Background()
+	db := fixtureDB(t)
+	seedFamily(t, db)
+
+	siblings, err := FindKinship(ctx, db, "child", "sib")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var siblingResult map[string]any
+	if err := json.Unmarshal(mustJSON(t, siblings), &siblingResult); err != nil {
+		t.Fatal(err)
+	}
+	segments, ok := siblingResult["segments"].([]any)
+	if !ok || len(segments) != 2 {
+		t.Fatalf("sibling segments = %#v", siblingResult["segments"])
+	}
+	first, ok := segments[0].(map[string]any)
+	if !ok {
+		t.Fatalf("first segment = %#v", segments[0])
+	}
+	if first["relationship_type"] != "BIOLOGICAL" || first["is_name_source"] != true {
+		t.Errorf("first parent segment = %#v", first)
+	}
+	second, ok := segments[1].(map[string]any)
+	if !ok {
+		t.Fatalf("second segment = %#v", segments[1])
+	}
+	if second["relationship_type"] != "BIOLOGICAL" || second["is_name_source"] != true {
+		t.Errorf("second child segment = %#v", second)
+	}
+	people, ok := siblingResult["individuals"].(map[string]any)
+	if !ok || len(people) != 3 {
+		t.Fatalf("sibling individuals = %#v", siblingResult["individuals"])
+	}
+	child, ok := people["child"].(map[string]any)
+	if !ok {
+		t.Fatalf("child individual = %#v", people["child"])
+	}
+	if child["full_latin"] != "C F GP" || child["gender"] != "MALE" {
+		t.Errorf("child individual = %#v", child)
+	}
+
+	spouses, err := FindKinship(ctx, db, "father", "mother")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var spouseResult map[string]any
+	if err := json.Unmarshal(mustJSON(t, spouses), &spouseResult); err != nil {
+		t.Fatal(err)
+	}
+	spouseSegments, ok := spouseResult["segments"].([]any)
+	if !ok || len(spouseSegments) != 1 {
+		t.Fatalf("spouse segments = %#v", spouseResult["segments"])
+	}
+	spouse, ok := spouseSegments[0].(map[string]any)
+	if !ok {
+		t.Fatalf("spouse segment = %#v", spouseSegments[0])
+	}
+	if spouse["union_type"] != "TRADITIONAL" || spouse["union_status"] != "ACTIVE" {
+		t.Errorf("spouse segment = %#v", spouse)
+	}
+	spousePeople, ok := spouseResult["individuals"].(map[string]any)
+	if !ok || len(spousePeople) != 2 {
+		t.Fatalf("spouse individuals = %#v", spouseResult["individuals"])
+	}
+}
+
+func mustJSON(t *testing.T, value any) []byte {
+	t.Helper()
+	data, err := json.Marshal(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return data
 }
 
 func TestValidateParentLink(t *testing.T) {
