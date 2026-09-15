@@ -197,7 +197,7 @@ func graphNeighbors(ctx context.Context, db *sql.DB, id string) ([]KinshipSegmen
 
 	parentRows, err := db.QueryContext(ctx,
 		`SELECT parent_id, relationship_type, is_name_source
-		FROM parent_child WHERE child_id = ?`, id)
+		FROM parent_child WHERE child_id = ? ORDER BY parent_id`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +220,7 @@ func graphNeighbors(ctx context.Context, db *sql.DB, id string) ([]KinshipSegmen
 
 	childRows, err := db.QueryContext(ctx,
 		`SELECT child_id, relationship_type, is_name_source
-		FROM parent_child WHERE parent_id = ?`, id)
+		FROM parent_child WHERE parent_id = ? ORDER BY child_id`, id)
 	if err != nil {
 		return nil, err
 	}
@@ -243,7 +243,13 @@ func graphNeighbors(ctx context.Context, db *sql.DB, id string) ([]KinshipSegmen
 
 	unionRows, err := db.QueryContext(ctx,
 		`SELECT partner_a_id, partner_b_id, union_type, status
-		FROM unions WHERE partner_a_id = ? OR partner_b_id = ?`, id, id)
+		FROM unions WHERE partner_a_id = ? OR partner_b_id = ?
+		ORDER BY CASE status
+			WHEN 'ACTIVE' THEN 0
+			WHEN 'WIDOWED' THEN 1
+			WHEN 'DISSOLVED' THEN 2
+			ELSE 3
+		END, union_type`, id, id)
 	if err != nil {
 		return nil, fmt.Errorf("read unions: %w", err)
 	}

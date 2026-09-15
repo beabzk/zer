@@ -981,6 +981,89 @@ func TestKinshipSecondaryBloodTerm(t *testing.T) {
 	}
 }
 
+func TestKinshipTerminatesOnCyclicGraph(t *testing.T) {
+	ctx := context.Background()
+	db := fixtureDB(t)
+	seedFamily(t, db)
+	addEdge(t, db, "child", "gp", "BIOLOGICAL", 1)
+
+	result, err := FindKinship(ctx, db, "child", "father")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.PathKey != "parent" || result.Term.Key != "parent" {
+		t.Fatalf("cyclic graph result = %+v", result)
+	}
+}
+
+func TestKinshipRepeatedUnionsPreferActiveUnion(t *testing.T) {
+	ctx := context.Background()
+	db := fixtureDB(t)
+	addPerson(t, db, "partner-a", "PAn", "Partner A", "FEMALE", "")
+	addPerson(t, db, "partner-b", "PBn", "Partner B", "MALE", "")
+	addUnion(t, db, "a-former", "partner-a", "partner-b", "DISSOLVED")
+	addUnion(t, db, "z-active", "partner-a", "partner-b", "ACTIVE")
+
+	result, err := FindKinship(ctx, db, "partner-a", "partner-b")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Segments) != 1 || result.Term.Key != "spouse" {
+		t.Fatalf("repeated union result = %+v", result)
+	}
+	if result.Segments[0].UnionStatus != "ACTIVE" {
+		t.Fatalf("union status = %q, want ACTIVE", result.Segments[0].UnionStatus)
+	}
+}
+
+func TestKinshipAlternatePathSelectionIsStable(t *testing.T) {
+	ctx := context.Background()
+
+	createGraph := func(t *testing.T, reverseInsertion bool) *sql.DB {
+		t.Helper()
+		db := fixtureDB(t)
+		addPerson(t, db, "a", "An", "A", "FEMALE", "")
+		addPerson(t, db, "b", "Bn", "B", "MALE", "")
+		addPerson(t, db, "a-parent", "APn", "A Parent", "MALE", "")
+		addPerson(t, db, "z-parent", "ZPn", "Z Parent", "FEMALE", "")
+
+		edges := []struct {
+			parent string
+			child  string
+		}{
+			{parent: "a-parent", child: "a"},
+			{parent: "a-parent", child: "b"},
+			{parent: "z-parent", child: "a"},
+			{parent: "z-parent", child: "b"},
+		}
+		if reverseInsertion {
+			for left, right := 0, len(edges)-1; left < right; left, right = left+1, right-1 {
+				edges[left], edges[right] = edges[right], edges[left]
+			}
+		}
+		for _, edge := range edges {
+			addEdge(t, db, edge.parent, edge.child, "BIOLOGICAL", 1)
+		}
+		return db
+	}
+
+	for _, reverseInsertion := range []bool{false, true} {
+		t.Run(fmt.Sprintf("reverse_insertion_%t", reverseInsertion), func(t *testing.T) {
+			db := createGraph(t, reverseInsertion)
+			result, err := FindKinship(ctx, db, "a", "b")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if result.PathKey != "parent.child" || result.Term.Key != "sibling" {
+				t.Fatalf("term = %+v", result.Term)
+			}
+			if len(result.Segments) != 2 || result.Segments[0].ToID != "a-parent" {
+				t.Fatalf("segments = %#v", result.Segments)
+			}
+		})
+	}
+}
+
 func mustJSON(t *testing.T, value any) []byte {
 	t.Helper()
 	data, err := json.Marshal(value)
