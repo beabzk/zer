@@ -38,11 +38,12 @@ type KinshipPerson struct {
 // KinshipResult is the shortest path between two individuals across any
 // number of generations.
 type KinshipResult struct {
-	PathKey      string                   `json:"path_key"`
-	Segments     []KinshipSegment         `json:"segments"`
-	DegreesOfSep int                      `json:"degrees_of_sep"`
-	Individuals  map[string]KinshipPerson `json:"individuals"`
-	Term         KinshipTerm              `json:"term"`
+	PathKey        string                   `json:"path_key"`
+	Segments       []KinshipSegment         `json:"segments"`
+	DegreesOfSep   int                      `json:"degrees_of_sep"`
+	Individuals    map[string]KinshipPerson `json:"individuals"`
+	Term           KinshipTerm              `json:"term"`
+	SecondaryTerms []KinshipTerm            `json:"secondary_terms,omitempty"`
 }
 
 // FindKinship returns the shortest undirected path between two people using
@@ -64,6 +65,61 @@ func FindKinship(ctx context.Context, db *sql.DB, startID, targetID string) (*Ki
 		}, nil
 	}
 
+	path, found, err := findKinshipPath(ctx, db, startID, targetID, true)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, fmt.Errorf("no relationship path between %s and %s", startID, targetID)
+	}
+
+	keys := make([]string, 0, len(path))
+	for _, segment := range path {
+		keys = append(keys, strings.ToLower(segment.Relation))
+	}
+	people, err := kinshipPeople(ctx, db, path)
+	if err != nil {
+		return nil, err
+	}
+	parentsByPerson, err := kinshipParentsForPath(ctx, db, path)
+	if err != nil {
+		return nil, err
+	}
+	parentsA := parentsByPerson[startID]
+	parentsB := parentsByPerson[targetID]
+	parentUnion, err := kinshipParentUnion(ctx, db, parentsA, parentsB)
+	if err != nil {
+		return nil, err
+	}
+	secondaryTerms, err := secondaryKinshipTerms(ctx, db, startID, targetID, path)
+	if err != nil {
+		return nil, err
+	}
+
+	return &KinshipResult{
+		PathKey:      strings.Join(keys, "."),
+		Segments:     path,
+		DegreesOfSep: len(path),
+		Individuals:  people,
+		Term: classifyKinshipTerm(path, kinshipFacts{
+			targetGender:    people[targetID].Gender,
+			parentsA:        parentsA,
+			parentsB:        parentsB,
+			parentsByPerson: parentsByPerson,
+			people:          people,
+			parentUnion:     parentUnion,
+		}),
+		SecondaryTerms: secondaryTerms,
+	}, nil
+}
+
+func findKinshipPath(
+	ctx context.Context,
+	db *sql.DB,
+	startID string,
+	targetID string,
+	includeSpouses bool,
+) ([]KinshipSegment, bool, error) {
 	type queueNode struct {
 		id   string
 		path []KinshipSegment
@@ -75,44 +131,16 @@ func FindKinship(ctx context.Context, db *sql.DB, startID, targetID string) (*Ki
 	for queue.Len() > 0 {
 		curr := queue.Remove(queue.Front()).(queueNode)
 		if curr.id == targetID {
-			keys := make([]string, 0, len(curr.path))
-			for _, seg := range curr.path {
-				keys = append(keys, strings.ToLower(seg.Relation))
-			}
-			people, err := kinshipPeople(ctx, db, curr.path)
-			if err != nil {
-				return nil, err
-			}
-			parentsByPerson, err := kinshipParentsForPath(ctx, db, curr.path)
-			if err != nil {
-				return nil, err
-			}
-			parentsA := parentsByPerson[startID]
-			parentsB := parentsByPerson[targetID]
-			parentUnion, err := kinshipParentUnion(ctx, db, parentsA, parentsB)
-			if err != nil {
-				return nil, err
-			}
-			return &KinshipResult{
-				PathKey:      strings.Join(keys, "."),
-				Segments:     curr.path,
-				DegreesOfSep: len(curr.path),
-				Individuals:  people,
-				Term: classifyKinshipTerm(curr.path, kinshipFacts{
-					targetGender:    people[targetID].Gender,
-					parentsA:        parentsA,
-					parentsB:        parentsB,
-					parentsByPerson: parentsByPerson,
-					people:          people,
-					parentUnion:     parentUnion,
-				}),
-			}, nil
+			return curr.path, true, nil
 		}
 		neighbors, err := graphNeighbors(ctx, db, curr.id)
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		for _, n := range neighbors {
+			if !includeSpouses && n.Relation == RelationSpouse {
+				continue
+			}
 			if visited[n.ToID] {
 				continue
 			}
@@ -123,7 +151,45 @@ func FindKinship(ctx context.Context, db *sql.DB, startID, targetID string) (*Ki
 			queue.PushBack(queueNode{id: n.ToID, path: nextPath})
 		}
 	}
-	return nil, fmt.Errorf("no relationship path between %s and %s", startID, targetID)
+	return nil, false, nil
+}
+
+func secondaryKinshipTerms(
+	ctx context.Context,
+	db *sql.DB,
+	startID string,
+	targetID string,
+	primaryPath []KinshipSegment,
+) ([]KinshipTerm, error) {
+	if len(primaryPath) != 1 || primaryPath[0].Relation != RelationSpouse {
+		return nil, nil
+	}
+	bloodPath, found, err := findKinshipPath(ctx, db, startID, targetID, false)
+	if err != nil || !found {
+		return nil, err
+	}
+	people, err := kinshipPeople(ctx, db, bloodPath)
+	if err != nil {
+		return nil, err
+	}
+	parentsByPerson, err := kinshipParentsForPath(ctx, db, bloodPath)
+	if err != nil {
+		return nil, err
+	}
+	parentsA := parentsByPerson[startID]
+	parentsB := parentsByPerson[targetID]
+	parentUnion, err := kinshipParentUnion(ctx, db, parentsA, parentsB)
+	if err != nil {
+		return nil, err
+	}
+	return []KinshipTerm{classifyKinshipTerm(bloodPath, kinshipFacts{
+		targetGender:    people[targetID].Gender,
+		parentsA:        parentsA,
+		parentsB:        parentsB,
+		parentsByPerson: parentsByPerson,
+		people:          people,
+		parentUnion:     parentUnion,
+	})}, nil
 }
 
 func graphNeighbors(ctx context.Context, db *sql.DB, id string) ([]KinshipSegment, error) {

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ApiError, api, type KinshipResult, type PersonHit } from "../../lib/api";
 import { t, type Locale } from "../../lib/i18n";
+import { kinshipConfidenceLabel, kinshipTermLabel } from "../../lib/kinshipTerms";
 import { SearchSelect } from "../forms/SearchSelect";
 import { Badge, Button, Card, CardContent, CardDescription, CardHeader, CardTitle, Empty, Skeleton } from "../ui";
 
@@ -62,6 +63,8 @@ export function KinshipWorkspace({ locale, treeId, onSelectPerson }: Props) {
   const label = (id: string, fallback: string) => names[id]?.full_latin ?? fallback;
   const segments = result?.segments ?? [];
   const isSelf = result !== null && (result.degrees_of_sep === 0 || result.path_key === "self");
+  const primaryTerm = result === null ? "" : kinshipTermLabel(locale, result.term);
+  const confidenceLabel = result === null ? "" : kinshipConfidenceLabel(locale, result.term);
 
   return (
     <div className="flex flex-col gap-6">
@@ -117,13 +120,21 @@ export function KinshipWorkspace({ locale, treeId, onSelectPerson }: Props) {
             <CardTitle>
               {isSelf
                 ? t(locale, "kinship.self")
-                : `${label(a?.id ?? "", "")} · ${label(b?.id ?? "", "")}`}
+                : primaryTerm}
             </CardTitle>
             <CardDescription>
               {isSelf
                 ? t(locale, "kinship.selfHint")
-                : `${result.degrees_of_sep} ${t(locale, "kinship.degrees")} · ${result.path_key}`}
+                : `${label(a?.id ?? "", "")} · ${label(b?.id ?? "", "")} · ${result.degrees_of_sep} ${t(locale, "kinship.degrees")}`}
             </CardDescription>
+            {(result.secondary_terms?.length || confidenceLabel) && (
+              <div className="flex flex-wrap items-center gap-2">
+                {result.secondary_terms?.map((term, index) => (
+                  <Badge key={`${term.key}-${index}`}>{kinshipTermLabel(locale, term)}</Badge>
+                ))}
+                {confidenceLabel && <Badge variant="warning">{confidenceLabel}</Badge>}
+              </div>
+            )}
           </CardHeader>
           {!isSelf && (
             <CardContent>

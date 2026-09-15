@@ -953,6 +953,34 @@ func TestKinshipCompoundComposition(t *testing.T) {
 	}
 }
 
+func TestKinshipSecondaryBloodTerm(t *testing.T) {
+	ctx := context.Background()
+	db := fixtureDB(t)
+	seedFamily(t, db)
+	addPerson(t, db, "grandmother", "GMn", "Grandmother", "FEMALE", "")
+	addPerson(t, db, "aunt", "AUn", "Aunt", "FEMALE", "")
+	addPerson(t, db, "cousin", "Cn2", "Cousin", "FEMALE", "")
+	addEdge(t, db, "grandmother", "father", "BIOLOGICAL", 0)
+	addEdge(t, db, "gp", "aunt", "BIOLOGICAL", 0)
+	addEdge(t, db, "grandmother", "aunt", "BIOLOGICAL", 0)
+	addEdge(t, db, "aunt", "cousin", "BIOLOGICAL", 1)
+	addUnion(t, db, "cousin-marriage", "child", "cousin", "ACTIVE")
+
+	result, err := FindKinship(ctx, db, "child", "cousin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Term.Key != "spouse" {
+		t.Fatalf("primary term = %+v", result.Term)
+	}
+	if len(result.SecondaryTerms) != 1 || result.SecondaryTerms[0].Key != "cousin" {
+		t.Fatalf("secondary terms = %#v", result.SecondaryTerms)
+	}
+	if degree := result.SecondaryTerms[0].Parameters.Degree; degree == nil || *degree != 1 {
+		t.Fatalf("secondary degree = %#v", result.SecondaryTerms[0].Parameters.Degree)
+	}
+}
+
 func mustJSON(t *testing.T, value any) []byte {
 	t.Helper()
 	data, err := json.Marshal(value)

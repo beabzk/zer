@@ -157,7 +157,58 @@
     "selfHint": "This is the same person.",
     "parent": "Parent",
     "child": "Child",
-    "spouse": "Spouse"
+    "spouse": "Spouse",
+    "terms": {
+      "self": "Same person",
+      "parent": { "female": "Mother", "male": "Father", "default": "Parent" },
+      "child": { "female": "Daughter", "male": "Son", "default": "Child" },
+      "ancestor": "Ancestor",
+      "descendant": "Descendant",
+      "sibling": { "female": "Sister", "male": "Brother", "default": "Sibling" },
+      "aunt_uncle": { "female": "Aunt", "male": "Uncle", "default": "Aunt or uncle" },
+      "niece_nephew": { "female": "Niece", "male": "Nephew", "default": "Niece or nephew" },
+      "cousin": "cousin",
+      "spouse": { "female": "Wife", "male": "Husband", "default": "Spouse" },
+      "parent_in_law": { "female": "Mother-in-law", "male": "Father-in-law", "default": "Parent-in-law" },
+      "child_in_law": { "female": "Daughter-in-law", "male": "Son-in-law", "default": "Child-in-law" },
+      "sibling_in_law": { "female": "Sister-in-law", "male": "Brother-in-law", "default": "Sibling-in-law" },
+      "cousin_in_law": "cousin-in-law",
+      "related": "Related"
+    },
+    "modifiers": {
+      "full": "Full",
+      "half": "Half",
+      "step": "Step",
+      "adoptive": "Adoptive",
+      "foster": "Foster",
+      "by_marriage": "by marriage",
+      "former": "Former",
+      "great": "Great"
+    },
+    "parameters": {
+      "generationsUp": "{count} generations up",
+      "generationsDown": "{count} generations down"
+    },
+    "degreeLabels": {
+      "first": "first",
+      "second": "second",
+      "third": "third",
+      "fourth": "fourth",
+      "fifth": "fifth",
+      "sixth": "sixth",
+      "seventh": "seventh",
+      "eighth": "eighth",
+      "ninth": "ninth",
+      "tenth": "tenth"
+    },
+    "removed": {
+      "once": "once removed",
+      "twice": "twice removed",
+      "multiple": "{count} times removed"
+    },
+    "confidence": {
+      "incomplete_parent_records": "Incomplete parent records"
+    }
   },
   "canvas": {
     "fit": "Fit view",

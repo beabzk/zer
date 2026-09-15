@@ -181,6 +181,7 @@ export interface KinshipResult {
   degrees_of_sep: number;
   individuals: Record<string, PersonHit>;
   term: KinshipTerm;
+  secondary_terms?: KinshipTerm[];
 }
 
 export interface LineageNode {

@@ -49,6 +49,15 @@ vi.mock("../../lib/api", async (importOriginal) => ({
             { role: "relative", key: "child", gender: "FEMALE" },
           ],
         },
+        secondary_terms: [
+          {
+            perspective: "a_to_b",
+            key: "cousin",
+            gender: "FEMALE",
+            parameters: { degree: 1, removed: 0 },
+            confidence: "exact",
+          },
+        ],
       })),
     },
   },
@@ -109,5 +118,8 @@ describe("KinshipWorkspace", () => {
     expect(container.textContent).toContain("Parent");
     expect(container.textContent).toContain("Step Parent");
     expect(container.textContent).toContain("Bontu");
+    expect(container.textContent).toContain("Step sister");
+    expect(container.textContent?.toLowerCase()).toContain("first cousin");
+    expect(container.textContent).not.toContain("parent.spouse.child");
   });
 });
