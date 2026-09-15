@@ -57,7 +57,10 @@ func FindKinship(ctx context.Context, db *sql.DB, startID, targetID string) (*Ki
 			PathKey:      "self",
 			DegreesOfSep: 0,
 			Individuals:  map[string]KinshipPerson{startID: person},
-			Term:         classifyKinshipTerm(nil, person.Gender, nil, nil, nil, nil),
+			Term: classifyKinshipTerm(nil, kinshipFacts{
+				targetGender: person.Gender,
+				people:       map[string]KinshipPerson{startID: person},
+			}),
 		}, nil
 	}
 
@@ -95,10 +98,14 @@ func FindKinship(ctx context.Context, db *sql.DB, startID, targetID string) (*Ki
 				Segments:     curr.path,
 				DegreesOfSep: len(curr.path),
 				Individuals:  people,
-				Term: classifyKinshipTerm(
-					curr.path, people[targetID].Gender, parentsA, parentsB,
-					parentsByPerson, parentUnion,
-				),
+				Term: classifyKinshipTerm(curr.path, kinshipFacts{
+					targetGender:    people[targetID].Gender,
+					parentsA:        parentsA,
+					parentsB:        parentsB,
+					parentsByPerson: parentsByPerson,
+					people:          people,
+					parentUnion:     parentUnion,
+				}),
 			}, nil
 		}
 		neighbors, err := graphNeighbors(ctx, db, curr.id)

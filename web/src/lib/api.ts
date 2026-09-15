@@ -157,6 +157,14 @@ export interface KinshipTermParameters {
   great_count?: number;
 }
 
+export interface KinshipTermComposition {
+  role: string;
+  key: string;
+  gender: string;
+  modifiers?: string[];
+  union_status?: string;
+}
+
 export interface KinshipTerm {
   perspective: string;
   key: string;
@@ -164,6 +172,7 @@ export interface KinshipTerm {
   modifiers?: string[];
   parameters: KinshipTermParameters;
   confidence: string;
+  composition?: KinshipTermComposition[];
 }
 
 export interface KinshipResult {

@@ -43,6 +43,11 @@ vi.mock("../../lib/api", async (importOriginal) => ({
             union_status: "ACTIVE",
           },
           confidence: "exact",
+          composition: [
+            { role: "anchor", key: "parent", gender: "MALE" },
+            { role: "spouse", key: "spouse", gender: "FEMALE", union_status: "ACTIVE" },
+            { role: "relative", key: "child", gender: "FEMALE" },
+          ],
         },
       })),
     },

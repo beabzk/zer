@@ -780,6 +780,179 @@ func TestKinshipCollateralTerms(t *testing.T) {
 	}
 }
 
+func TestKinshipAffinalAndCompoundTerms(t *testing.T) {
+	ctx := context.Background()
+
+	cases := []struct {
+		name           string
+		setup          func(t *testing.T, db *sql.DB)
+		start          string
+		target         string
+		wantKey        string
+		wantConfidence string
+		wantStatus     string
+	}{
+		{
+			name: "parent in law",
+			setup: func(t *testing.T, db *sql.DB) {
+				addPerson(t, db, "spouse", "SPn", "Spouse", "FEMALE", "")
+				addPerson(t, db, "spouse-parent", "SPPn", "Spouse Parent", "MALE", "")
+				addUnion(t, db, "marriage", "child", "spouse", "ACTIVE")
+				addEdge(t, db, "spouse-parent", "spouse", "BIOLOGICAL", 1)
+			},
+			start:          "child",
+			target:         "spouse-parent",
+			wantKey:        "parent_in_law",
+			wantConfidence: "exact",
+			wantStatus:     "ACTIVE",
+		},
+		{
+			name: "child in law",
+			setup: func(t *testing.T, db *sql.DB) {
+				addPerson(t, db, "child-spouse", "CSPn", "Child Spouse", "FEMALE", "")
+				addUnion(t, db, "child-marriage", "sib", "child-spouse", "ACTIVE")
+			},
+			start:          "father",
+			target:         "child-spouse",
+			wantKey:        "child_in_law",
+			wantConfidence: "exact",
+			wantStatus:     "ACTIVE",
+		},
+		{
+			name: "sibling in law through sibling spouse",
+			setup: func(t *testing.T, db *sql.DB) {
+				addPerson(t, db, "sib-spouse", "SSPn", "Sibling Spouse", "MALE", "")
+				addUnion(t, db, "sibling-marriage", "sib", "sib-spouse", "ACTIVE")
+			},
+			start:          "child",
+			target:         "sib-spouse",
+			wantKey:        "sibling_in_law",
+			wantConfidence: "exact",
+			wantStatus:     "ACTIVE",
+		},
+		{
+			name: "sibling in law through spouse sibling",
+			setup: func(t *testing.T, db *sql.DB) {
+				addPerson(t, db, "spouse", "SPn", "Spouse", "FEMALE", "")
+				addPerson(t, db, "spouse-parent", "SPPn", "Spouse Parent", "MALE", "")
+				addPerson(t, db, "spouse-sibling", "SPSn", "Spouse Sibling", "MALE", "")
+				addUnion(t, db, "marriage", "child", "spouse", "ACTIVE")
+				addEdge(t, db, "spouse-parent", "spouse", "BIOLOGICAL", 1)
+				addEdge(t, db, "spouse-parent", "spouse-sibling", "BIOLOGICAL", 0)
+			},
+			start:          "child",
+			target:         "spouse-sibling",
+			wantKey:        "sibling_in_law",
+			wantConfidence: "exact",
+			wantStatus:     "ACTIVE",
+		},
+		{
+			name: "cousin in law",
+			setup: func(t *testing.T, db *sql.DB) {
+				addPerson(t, db, "grandmother", "GMn", "Grandmother", "FEMALE", "")
+				addPerson(t, db, "aunt", "AUn", "Aunt", "FEMALE", "")
+				addEdge(t, db, "grandmother", "father", "BIOLOGICAL", 0)
+				addEdge(t, db, "gp", "aunt", "BIOLOGICAL", 0)
+				addEdge(t, db, "grandmother", "aunt", "BIOLOGICAL", 0)
+				addPerson(t, db, "cousin", "Cn2", "Cousin", "MALE", "")
+				addPerson(t, db, "cousin-spouse", "CSPn", "Cousin Spouse", "FEMALE", "")
+				addEdge(t, db, "aunt", "cousin", "BIOLOGICAL", 1)
+				addUnion(t, db, "cousin-marriage", "cousin", "cousin-spouse", "ACTIVE")
+			},
+			start:          "child",
+			target:         "cousin-spouse",
+			wantKey:        "cousin_in_law",
+			wantConfidence: "exact",
+			wantStatus:     "ACTIVE",
+		},
+		{
+			name: "sibling of uncle spouse",
+			setup: func(t *testing.T, db *sql.DB) {
+				addPerson(t, db, "grandmother", "GMn", "Grandmother", "FEMALE", "")
+				addPerson(t, db, "aunt", "AUn", "Aunt", "FEMALE", "")
+				addEdge(t, db, "grandmother", "father", "BIOLOGICAL", 0)
+				addEdge(t, db, "gp", "aunt", "BIOLOGICAL", 0)
+				addEdge(t, db, "grandmother", "aunt", "BIOLOGICAL", 0)
+				addPerson(t, db, "aunt-spouse", "ASn", "Aunt Spouse", "FEMALE", "")
+				addPerson(t, db, "spouse-parent", "SPPn", "Spouse Parent", "MALE", "")
+				addPerson(t, db, "spouse-sibling", "SPSn", "Spouse Sibling", "FEMALE", "")
+				addUnion(t, db, "aunt-union", "aunt", "aunt-spouse", "ACTIVE")
+				addEdge(t, db, "spouse-parent", "aunt-spouse", "BIOLOGICAL", 1)
+				addEdge(t, db, "spouse-parent", "spouse-sibling", "BIOLOGICAL", 0)
+			},
+			start:          "child",
+			target:         "spouse-sibling",
+			wantKey:        "composed",
+			wantConfidence: "exact",
+			wantStatus:     "ACTIVE",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			db := fixtureDB(t)
+			seedFamily(t, db)
+			tc.setup(t, db)
+
+			result, err := FindKinship(ctx, db, tc.start, tc.target)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if result.Term.Key != tc.wantKey || result.Term.Confidence != tc.wantConfidence {
+				t.Fatalf("term = %+v", result.Term)
+			}
+			if result.Term.Parameters.UnionStatus != tc.wantStatus {
+				t.Fatalf("union status = %q, want %q", result.Term.Parameters.UnionStatus, tc.wantStatus)
+			}
+		})
+	}
+}
+
+func TestKinshipCompoundComposition(t *testing.T) {
+	ctx := context.Background()
+	db := fixtureDB(t)
+	seedFamily(t, db)
+	addPerson(t, db, "grandmother", "GMn", "Grandmother", "FEMALE", "")
+	addPerson(t, db, "aunt", "AUn", "Aunt", "FEMALE", "")
+	addEdge(t, db, "grandmother", "father", "BIOLOGICAL", 0)
+	addEdge(t, db, "gp", "aunt", "BIOLOGICAL", 0)
+	addEdge(t, db, "grandmother", "aunt", "BIOLOGICAL", 0)
+	addPerson(t, db, "aunt-spouse", "ASn", "Aunt Spouse", "FEMALE", "")
+	addPerson(t, db, "spouse-parent", "SPPn", "Spouse Parent", "MALE", "")
+	addPerson(t, db, "spouse-sibling", "SPSn", "Spouse Sibling", "FEMALE", "")
+	addUnion(t, db, "aunt-union", "aunt", "aunt-spouse", "ACTIVE")
+	addEdge(t, db, "spouse-parent", "aunt-spouse", "BIOLOGICAL", 1)
+	addEdge(t, db, "spouse-parent", "spouse-sibling", "BIOLOGICAL", 0)
+
+	result, err := FindKinship(ctx, db, "child", "spouse-sibling")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(mustJSON(t, result), &decoded); err != nil {
+		t.Fatal(err)
+	}
+	composition, ok := decoded["term"].(map[string]any)["composition"].([]any)
+	if !ok || len(composition) != 3 {
+		t.Fatalf("composition = %#v", decoded["term"].(map[string]any)["composition"])
+	}
+	anchor, ok := composition[0].(map[string]any)
+	if !ok || anchor["role"] != "anchor" || anchor["key"] != "aunt_uncle" ||
+		anchor["gender"] != "FEMALE" || anchor["modifiers"] != nil {
+		t.Errorf("anchor = %#v", composition[0])
+	}
+	spouse, ok := composition[1].(map[string]any)
+	if !ok || spouse["role"] != "spouse" || spouse["key"] != "spouse" ||
+		spouse["gender"] != "FEMALE" || spouse["union_status"] != "ACTIVE" {
+		t.Errorf("spouse = %#v", composition[1])
+	}
+	relative, ok := composition[2].(map[string]any)
+	if !ok || relative["role"] != "relative" || relative["key"] != "sibling" ||
+		relative["gender"] != "FEMALE" || relative["modifiers"] != nil {
+		t.Errorf("relative = %#v", composition[2])
+	}
+}
+
 func mustJSON(t *testing.T, value any) []byte {
 	t.Helper()
 	data, err := json.Marshal(value)

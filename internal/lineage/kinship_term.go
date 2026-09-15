@@ -12,13 +12,22 @@ type KinshipTermParameters struct {
 	GreatCount      *int   `json:"great_count,omitempty"`
 }
 
+type KinshipTermComposition struct {
+	Role        string   `json:"role"`
+	Key         string   `json:"key"`
+	Gender      string   `json:"gender"`
+	Modifiers   []string `json:"modifiers,omitempty"`
+	UnionStatus string   `json:"union_status,omitempty"`
+}
+
 type KinshipTerm struct {
-	Perspective string                `json:"perspective"`
-	Key         string                `json:"key"`
-	Gender      string                `json:"gender"`
-	Modifiers   []string              `json:"modifiers,omitempty"`
-	Parameters  KinshipTermParameters `json:"parameters"`
-	Confidence  string                `json:"confidence"`
+	Perspective string                   `json:"perspective"`
+	Key         string                   `json:"key"`
+	Gender      string                   `json:"gender"`
+	Modifiers   []string                 `json:"modifiers,omitempty"`
+	Parameters  KinshipTermParameters    `json:"parameters"`
+	Confidence  string                   `json:"confidence"`
+	Composition []KinshipTermComposition `json:"composition,omitempty"`
 }
 
 type kinshipParent struct {
@@ -31,14 +40,58 @@ type kinshipUnion struct {
 	Status string
 }
 
-func classifyKinshipTerm(
+type kinshipFacts struct {
+	targetGender    string
+	parentsA        []kinshipParent
+	parentsB        []kinshipParent
+	parentsByPerson map[string][]kinshipParent
+	people          map[string]KinshipPerson
+	parentUnion     *kinshipUnion
+}
+
+func classifyKinshipTerm(path []KinshipSegment, facts kinshipFacts) KinshipTerm {
+	if !containsRelation(path, RelationSpouse) {
+		return classifyBloodPath(path, facts, pathStartID(path), pathEndID(path))
+	}
+
+	term := KinshipTerm{
+		Perspective: "a_to_b",
+		Gender:      facts.targetGender,
+		Confidence:  "exact",
+	}
+	if len(path) == 1 && path[0].Relation == RelationSpouse {
+		term.Key = "spouse"
+		return term
+	}
+	if len(path) == 3 && path[0].Relation == RelationParent &&
+		path[1].Relation == RelationSpouse && path[2].Relation == RelationChild &&
+		classifySibling(&term, facts.parentsA, facts.parentsB, facts.parentUnion) {
+		return term
+	}
+	if classifyStepAunt(&term, path) {
+		return term
+	}
+	if classifyDirectAffinal(&term, path, facts) {
+		return term
+	}
+	if classifyCompoundAffinal(&term, path, facts) {
+		return term
+	}
+
+	term.Key = "related"
+	return term
+}
+
+func classifyBloodPath(
 	path []KinshipSegment,
-	targetGender string,
-	parentsA []kinshipParent,
-	parentsB []kinshipParent,
-	parentsByPerson map[string][]kinshipParent,
-	parentUnion *kinshipUnion,
+	facts kinshipFacts,
+	startID string,
+	targetID string,
 ) KinshipTerm {
+	targetGender := facts.targetGender
+	if person, ok := facts.people[targetID]; ok {
+		targetGender = person.Gender
+	}
 	term := KinshipTerm{
 		Perspective: "a_to_b",
 		Gender:      targetGender,
@@ -57,12 +110,8 @@ func classifyKinshipTerm(
 		case RelationChild:
 			term.Key = "child"
 			return term
-		case RelationSpouse:
-			term.Key = "spouse"
-			return term
 		}
 	}
-
 	if relationsMatch(path, RelationParent) {
 		term.Key = "ancestor"
 		term.Parameters.GenerationsUp = len(path)
@@ -73,16 +122,12 @@ func classifyKinshipTerm(
 		term.Parameters.GenerationsDown = len(path)
 		return term
 	}
-	if classifySibling(&term, parentsA, parentsB, parentUnion) {
+	if classifySibling(
+		&term, facts.parentsByPerson[startID], facts.parentsByPerson[targetID], nil,
+	) {
 		return term
 	}
-	if classifyMarriedCollateral(&term, path, parentsByPerson) {
-		return term
-	}
-	if classifyStepAunt(&term, path) {
-		return term
-	}
-	if classifyParentChildCollateral(&term, path, parentsByPerson) {
+	if classifyParentChildCollateral(&term, path, facts.parentsByPerson) {
 		return term
 	}
 
@@ -122,30 +167,6 @@ func classifySibling(
 	return true
 }
 
-func classifyMarriedCollateral(
-	term *KinshipTerm,
-	path []KinshipSegment,
-	parentsByPerson map[string][]kinshipParent,
-) bool {
-	if len(path) < 4 || path[len(path)-1].Relation != RelationSpouse {
-		return false
-	}
-	prefix := path[:len(path)-1]
-	if !classifyParentChildCollateral(term, prefix, parentsByPerson) {
-		return false
-	}
-	if term.Key != "aunt_uncle" && term.Key != "niece_nephew" {
-		return false
-	}
-	if path[len(path)-1].UnionStatus == "DISSOLVED" {
-		term.Modifiers = append(term.Modifiers, "former", "by_marriage")
-	} else {
-		term.Modifiers = append(term.Modifiers, "by_marriage")
-	}
-	term.Parameters.UnionStatus = path[len(path)-1].UnionStatus
-	return true
-}
-
 func classifyStepAunt(term *KinshipTerm, path []KinshipSegment) bool {
 	if len(path) < 4 || path[0].Relation != RelationParent || path[1].Relation != RelationSpouse {
 		return false
@@ -166,6 +187,146 @@ func classifyStepAunt(term *KinshipTerm, path []KinshipSegment) bool {
 	}
 	term.Parameters.UnionStatus = path[1].UnionStatus
 	return true
+}
+
+func classifyDirectAffinal(
+	term *KinshipTerm,
+	path []KinshipSegment,
+	facts kinshipFacts,
+) bool {
+	spouseIndexes := relationIndexes(path, RelationSpouse)
+	if len(spouseIndexes) != 1 {
+		return false
+	}
+	spouseIndex := spouseIndexes[0]
+	if spouseIndex != 0 && spouseIndex != len(path)-1 {
+		return false
+	}
+
+	var bloodPath []KinshipSegment
+	var bloodStartID string
+	var bloodTargetID string
+	if spouseIndex == 0 {
+		bloodPath = path[1:]
+		bloodStartID = path[0].ToID
+		bloodTargetID = pathEndID(bloodPath)
+	} else {
+		bloodPath = path[:len(path)-1]
+		bloodStartID = pathStartID(bloodPath)
+		bloodTargetID = pathEndID(bloodPath)
+	}
+	blood := classifyBloodPath(bloodPath, facts, bloodStartID, bloodTargetID)
+
+	affinalKey, ok := directAffinalKey(blood.Key)
+	if !ok {
+		return false
+	}
+	term.Key = affinalKey
+	term.Gender = facts.targetGender
+	term.Modifiers = blood.Modifiers
+	term.Parameters = blood.Parameters
+	if blood.Key == "aunt_uncle" || blood.Key == "niece_nephew" {
+		term.Modifiers = append(term.Modifiers, "by_marriage")
+	}
+	if path[spouseIndex].UnionStatus == "DISSOLVED" {
+		term.Modifiers = append(term.Modifiers, "former")
+	}
+	term.Parameters.UnionStatus = path[spouseIndex].UnionStatus
+	return true
+}
+
+func directAffinalKey(bloodKey string) (string, bool) {
+	switch bloodKey {
+	case "parent":
+		return "parent_in_law", true
+	case "child", "descendant":
+		return "child_in_law", true
+	case "sibling":
+		return "sibling_in_law", true
+	case "cousin":
+		return "cousin_in_law", true
+	case "aunt_uncle", "niece_nephew":
+		return bloodKey, true
+	default:
+		return "", false
+	}
+}
+
+func classifyCompoundAffinal(
+	term *KinshipTerm,
+	path []KinshipSegment,
+	facts kinshipFacts,
+) bool {
+	var bloodRuns [][]KinshipSegment
+	var spouseSegments []KinshipSegment
+	runStart := 0
+	for index, segment := range path {
+		if segment.Relation != RelationSpouse {
+			continue
+		}
+		bloodRuns = append(bloodRuns, path[runStart:index])
+		spouseSegments = append(spouseSegments, segment)
+		runStart = index + 1
+	}
+	bloodRuns = append(bloodRuns, path[runStart:])
+	if len(bloodRuns) < 2 || len(spouseSegments) == 0 {
+		return false
+	}
+
+	anchorPath := bloodRuns[0]
+	anchorStart := pathStartID(anchorPath)
+	anchorEnd := pathEndID(anchorPath)
+	anchor := classifyBloodPath(anchorPath, facts, anchorStart, anchorEnd)
+	if anchor.Key == "related" {
+		return false
+	}
+
+	composition := []KinshipTermComposition{compositionPart("anchor", anchor, facts, anchorEnd)}
+	for index, spouse := range spouseSegments {
+		spousePerson, ok := facts.people[spouse.ToID]
+		if !ok {
+			return false
+		}
+		composition = append(composition, KinshipTermComposition{
+			Role:        "spouse",
+			Key:         "spouse",
+			Gender:      spousePerson.Gender,
+			UnionStatus: spouse.UnionStatus,
+		})
+
+		relativePath := bloodRuns[index+1]
+		relativeStart := pathStartID(relativePath)
+		relativeEnd := pathEndID(relativePath)
+		relative := classifyBloodPath(relativePath, facts, relativeStart, relativeEnd)
+		if relative.Key == "related" {
+			return false
+		}
+		composition = append(composition, compositionPart("relative", relative, facts, relativeEnd))
+	}
+
+	term.Key = "composed"
+	term.Gender = facts.targetGender
+	term.Parameters.UnionStatus = spouseSegments[0].UnionStatus
+	term.Composition = composition
+	return true
+}
+
+func compositionPart(
+	role string,
+	term KinshipTerm,
+	facts kinshipFacts,
+	personID string,
+) KinshipTermComposition {
+	gender := term.Gender
+	if person, ok := facts.people[personID]; ok {
+		gender = person.Gender
+	}
+	return KinshipTermComposition{
+		Role:      role,
+		Key:       term.Key,
+		Gender:    gender,
+		Modifiers: term.Modifiers,
+	}
 }
 
 func classifyParentChildCollateral(
@@ -236,7 +397,8 @@ func relationshipModifiers(
 	}
 
 	if biological > 0 {
-		if biological >= 2 || (fullWhenKnownSetsMatch && sameParentIDs(parentsA, parentsB)) {
+		if biological >= 2 ||
+			(fullWhenKnownSetsMatch && len(parentsA) > 1 && sameParentIDs(parentsA, parentsB)) {
 			return []string{"full"}, "exact"
 		}
 		if len(parentsA) > 1 && len(parentsB) > 1 &&
@@ -260,8 +422,8 @@ func parentChildTurns(path []KinshipSegment) (int, int, bool) {
 		up++
 	}
 	down := 0
-	for i := up; i < len(path); i++ {
-		if path[i].Relation != RelationChild {
+	for index := up; index < len(path); index++ {
+		if path[index].Relation != RelationChild {
 			return 0, 0, false
 		}
 		down++
@@ -269,11 +431,44 @@ func parentChildTurns(path []KinshipSegment) (int, int, bool) {
 	return up, down, true
 }
 
+func pathStartID(path []KinshipSegment) string {
+	if len(path) == 0 {
+		return ""
+	}
+	return path[0].FromID
+}
+
+func pathEndID(path []KinshipSegment) string {
+	if len(path) == 0 {
+		return ""
+	}
+	return path[len(path)-1].ToID
+}
+
 func pathNodeID(path []KinshipSegment, index int) string {
 	if index == 0 {
 		return path[0].FromID
 	}
 	return path[index-1].ToID
+}
+
+func containsRelation(path []KinshipSegment, relation string) bool {
+	for _, segment := range path {
+		if segment.Relation == relation {
+			return true
+		}
+	}
+	return false
+}
+
+func relationIndexes(path []KinshipSegment, relation string) []int {
+	var indexes []int
+	for index, segment := range path {
+		if segment.Relation == relation {
+			indexes = append(indexes, index)
+		}
+	}
+	return indexes
 }
 
 func relationsMatch(path []KinshipSegment, relation string) bool {
