@@ -8,6 +8,7 @@ import type { KinshipResult } from "../../lib/api";
 const personA = { id: "a", full_native: "An", full_latin: "Abebe", gender: "MALE" };
 const personB = { id: "b", full_native: "Bn", full_latin: "Bontu", gender: "FEMALE" };
 const intermediate = { id: "parent", full_native: "Pn", full_latin: "Parent", gender: "MALE" };
+const stepParent = { id: "step-parent", full_native: "SPn", full_latin: "Step Parent", gender: "FEMALE" };
 
 vi.mock("../../lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../lib/api")>()),
@@ -18,26 +19,28 @@ vi.mock("../../lib/api", async (importOriginal) => ({
     },
     analysis: {
       kinship: vi.fn(async (): Promise<KinshipResult> => ({
-        path_key: "parent.child",
-        degrees_of_sep: 2,
+        path_key: "parent.spouse.child",
+        degrees_of_sep: 3,
         segments: [
           { from_id: "a", to_id: "parent", relation: "PARENT", relationship_type: "BIOLOGICAL", is_name_source: true },
-          { from_id: "parent", to_id: "b", relation: "CHILD", relationship_type: "BIOLOGICAL", is_name_source: true },
+          { from_id: "parent", to_id: "step-parent", relation: "SPOUSE", union_type: "CIVIL", union_status: "ACTIVE" },
+          { from_id: "step-parent", to_id: "b", relation: "CHILD", relationship_type: "BIOLOGICAL", is_name_source: true },
         ],
         individuals: {
           a: personA,
           parent: intermediate,
+          "step-parent": stepParent,
           b: personB,
         },
         term: {
           perspective: "a_to_b",
           key: "sibling",
           gender: "FEMALE",
-          modifiers: ["full"],
+          modifiers: ["step"],
           parameters: {
-            shared_parents: 2,
-            known_parents_a: 2,
-            known_parents_b: 2,
+            known_parents_a: 1,
+            known_parents_b: 1,
+            union_status: "ACTIVE",
           },
           confidence: "exact",
         },
@@ -99,6 +102,7 @@ describe("KinshipWorkspace", () => {
     expect(api.individuals.get).not.toHaveBeenCalled();
     expect(container.textContent).toContain("Abebe");
     expect(container.textContent).toContain("Parent");
+    expect(container.textContent).toContain("Step Parent");
     expect(container.textContent).toContain("Bontu");
   });
 });

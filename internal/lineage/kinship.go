@@ -57,7 +57,7 @@ func FindKinship(ctx context.Context, db *sql.DB, startID, targetID string) (*Ki
 			PathKey:      "self",
 			DegreesOfSep: 0,
 			Individuals:  map[string]KinshipPerson{startID: person},
-			Term:         classifyKinshipTerm(nil, person.Gender, nil, nil),
+			Term:         classifyKinshipTerm(nil, person.Gender, nil, nil, nil),
 		}, nil
 	}
 
@@ -80,13 +80,15 @@ func FindKinship(ctx context.Context, db *sql.DB, startID, targetID string) (*Ki
 			if err != nil {
 				return nil, err
 			}
-			parentsA, err := queryIDs(ctx, db,
-				`SELECT parent_id FROM parent_child WHERE child_id = ?`, startID)
+			parentsA, err := kinshipParents(ctx, db, startID)
 			if err != nil {
 				return nil, err
 			}
-			parentsB, err := queryIDs(ctx, db,
-				`SELECT parent_id FROM parent_child WHERE child_id = ?`, targetID)
+			parentsB, err := kinshipParents(ctx, db, targetID)
+			if err != nil {
+				return nil, err
+			}
+			parentUnion, err := kinshipParentUnion(ctx, db, parentsA, parentsB)
 			if err != nil {
 				return nil, err
 			}
@@ -96,7 +98,7 @@ func FindKinship(ctx context.Context, db *sql.DB, startID, targetID string) (*Ki
 				DegreesOfSep: len(curr.path),
 				Individuals:  people,
 				Term: classifyKinshipTerm(
-					curr.path, people[targetID].Gender, parentsA, parentsB,
+					curr.path, people[targetID].Gender, parentsA, parentsB, parentUnion,
 				),
 			}, nil
 		}
@@ -209,6 +211,86 @@ func kinshipPeople(ctx context.Context, db *sql.DB, path []KinshipSegment) (map[
 		people[id] = person
 	}
 	return people, nil
+}
+
+func kinshipParents(ctx context.Context, db *sql.DB, id string) ([]kinshipParent, error) {
+	rows, err := db.QueryContext(ctx,
+		`SELECT parent_id, relationship_type FROM parent_child WHERE child_id = ?`, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var parents []kinshipParent
+	for rows.Next() {
+		var parent kinshipParent
+		if err := rows.Scan(&parent.ID, &parent.RelationshipType); err != nil {
+			return nil, err
+		}
+		parents = append(parents, parent)
+	}
+	return parents, rows.Err()
+}
+
+func kinshipParentUnion(
+	ctx context.Context,
+	db *sql.DB,
+	parentsA []kinshipParent,
+	parentsB []kinshipParent,
+) (*kinshipUnion, error) {
+	parentsBIDs := make(map[string]bool, len(parentsB))
+	for _, parent := range parentsB {
+		parentsBIDs[parent.ID] = true
+	}
+	var best *kinshipUnion
+	bestRank := 4
+	for _, parent := range parentsA {
+		rows, err := db.QueryContext(ctx,
+			`SELECT partner_a_id, partner_b_id, union_type, status
+			FROM unions WHERE partner_a_id = ? OR partner_b_id = ?`,
+			parent.ID, parent.ID)
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			var partnerA, partnerB, unionType, status string
+			if err := rows.Scan(&partnerA, &partnerB, &unionType, &status); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			other := partnerA
+			if other == parent.ID {
+				other = partnerB
+			}
+			if !parentsBIDs[other] {
+				continue
+			}
+			candidate := &kinshipUnion{Type: unionType, Status: status}
+			rank := unionStatusRank(status)
+			if rank < bestRank {
+				best = candidate
+				bestRank = rank
+			}
+		}
+		if err := rows.Err(); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		rows.Close()
+	}
+	return best, nil
+}
+
+func unionStatusRank(status string) int {
+	switch status {
+	case "ACTIVE":
+		return 0
+	case "WIDOWED":
+		return 1
+	case "DISSOLVED":
+		return 2
+	default:
+		return 3
+	}
 }
 
 func queryIDs(ctx context.Context, db *sql.DB, query, id string) ([]string, error) {

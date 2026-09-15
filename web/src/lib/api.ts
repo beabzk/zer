@@ -151,6 +151,7 @@ export interface KinshipTermParameters {
   shared_parents?: number;
   known_parents_a?: number;
   known_parents_b?: number;
+  union_status?: string;
 }
 
 export interface KinshipTerm {

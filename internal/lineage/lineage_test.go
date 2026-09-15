@@ -394,6 +394,145 @@ func TestKinshipCoreTermDescriptors(t *testing.T) {
 	}
 }
 
+func TestKinshipSiblingPrecision(t *testing.T) {
+	ctx := context.Background()
+
+	addStepFamily := func(t *testing.T, db *sql.DB, status string) {
+		t.Helper()
+		addPerson(t, db, "step-parent-a", "SPAN", "Step Parent A", "MALE", "")
+		addPerson(t, db, "step-parent-b", "SPBN", "Step Parent B", "FEMALE", "")
+		addPerson(t, db, "step-a", "SAN", "Step A", "MALE", "")
+		addPerson(t, db, "step-b", "SBN", "Step B", "FEMALE", "")
+		addEdge(t, db, "step-parent-a", "step-a", "BIOLOGICAL", 1)
+		addEdge(t, db, "step-parent-b", "step-b", "BIOLOGICAL", 1)
+		if _, err := db.Exec(`INSERT INTO unions (id, partner_a_id, partner_b_id, union_type, status)
+			VALUES ('step-union', 'step-parent-a', 'step-parent-b', 'CIVIL', ?)`, status); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	cases := []struct {
+		name           string
+		setup          func(t *testing.T, db *sql.DB)
+		start          string
+		target         string
+		wantModifiers  []any
+		wantConfidence string
+		wantStatus     string
+	}{
+		{
+			name: "half sibling with distinct other parents",
+			setup: func(t *testing.T, db *sql.DB) {
+				addPerson(t, db, "mother2", "M2n", "Mother 2", "FEMALE", "")
+				addEdge(t, db, "mother2", "sib", "BIOLOGICAL", 0)
+			},
+			start:          "child",
+			target:         "sib",
+			wantModifiers:  []any{"half"},
+			wantConfidence: "exact",
+		},
+		{
+			name:           "incomplete sibling parent records",
+			setup:          func(t *testing.T, db *sql.DB) {},
+			start:          "child",
+			target:         "sib",
+			wantConfidence: "incomplete_parent_records",
+		},
+		{
+			name: "adoptive sibling",
+			setup: func(t *testing.T, db *sql.DB) {
+				addPerson(t, db, "adoptive-parent", "APn", "Adoptive Parent", "FEMALE", "")
+				addPerson(t, db, "adoptee-a", "AAn", "Adoptee A", "MALE", "")
+				addPerson(t, db, "adoptee-b", "ABn", "Adoptee B", "FEMALE", "")
+				addEdge(t, db, "adoptive-parent", "adoptee-a", "ADOPTIVE", 1)
+				addEdge(t, db, "adoptive-parent", "adoptee-b", "ADOPTIVE", 1)
+			},
+			start:          "adoptee-a",
+			target:         "adoptee-b",
+			wantModifiers:  []any{"adoptive"},
+			wantConfidence: "exact",
+		},
+		{
+			name: "foster sibling",
+			setup: func(t *testing.T, db *sql.DB) {
+				addPerson(t, db, "foster-parent", "FPn", "Foster Parent", "MALE", "")
+				addPerson(t, db, "foster-a", "FAn", "Foster A", "MALE", "")
+				addPerson(t, db, "foster-b", "FBn", "Foster B", "FEMALE", "")
+				addEdge(t, db, "foster-parent", "foster-a", "FOSTER", 1)
+				addEdge(t, db, "foster-parent", "foster-b", "FOSTER", 1)
+			},
+			start:          "foster-a",
+			target:         "foster-b",
+			wantModifiers:  []any{"foster"},
+			wantConfidence: "exact",
+		},
+		{
+			name:           "active step sibling",
+			setup:          func(t *testing.T, db *sql.DB) { addStepFamily(t, db, "ACTIVE") },
+			start:          "step-a",
+			target:         "step-b",
+			wantModifiers:  []any{"step"},
+			wantConfidence: "exact",
+			wantStatus:     "ACTIVE",
+		},
+		{
+			name:           "former step sibling after dissolved union",
+			setup:          func(t *testing.T, db *sql.DB) { addStepFamily(t, db, "DISSOLVED") },
+			start:          "step-a",
+			target:         "step-b",
+			wantModifiers:  []any{"former", "step"},
+			wantConfidence: "exact",
+			wantStatus:     "DISSOLVED",
+		},
+		{
+			name:           "step sibling from widowed union",
+			setup:          func(t *testing.T, db *sql.DB) { addStepFamily(t, db, "WIDOWED") },
+			start:          "step-a",
+			target:         "step-b",
+			wantModifiers:  []any{"step"},
+			wantConfidence: "exact",
+			wantStatus:     "WIDOWED",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			db := fixtureDB(t)
+			seedFamily(t, db)
+			tc.setup(t, db)
+
+			result, err := FindKinship(ctx, db, tc.start, tc.target)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if result.Term.Key != "sibling" || result.Term.Confidence != tc.wantConfidence {
+				t.Fatalf("term = %+v", result.Term)
+			}
+			if len(result.Term.Modifiers) != len(tc.wantModifiers) {
+				t.Fatalf("modifiers = %#v, want %#v", result.Term.Modifiers, tc.wantModifiers)
+			}
+			for index, modifier := range tc.wantModifiers {
+				if result.Term.Modifiers[index] != modifier {
+					t.Fatalf("modifiers = %#v, want %#v", result.Term.Modifiers, tc.wantModifiers)
+				}
+			}
+			var decoded map[string]any
+			if err := json.Unmarshal(mustJSON(t, result), &decoded); err != nil {
+				t.Fatal(err)
+			}
+			term := decoded["term"].(map[string]any)
+			parameters := term["parameters"].(map[string]any)
+			if tc.wantStatus == "" {
+				if _, exists := parameters["union_status"]; exists {
+					t.Fatalf("union status = %#v, want omitted", parameters["union_status"])
+				}
+			} else if parameters["union_status"] != tc.wantStatus {
+				t.Fatalf("union status = %#v, want %q", parameters["union_status"], tc.wantStatus)
+			}
+		})
+	}
+}
+
 func mustJSON(t *testing.T, value any) []byte {
 	t.Helper()
 	data, err := json.Marshal(value)
