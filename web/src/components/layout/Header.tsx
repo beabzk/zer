@@ -6,9 +6,23 @@ interface Props {
   locale: Locale;
   onLocaleChange: (locale: Locale) => void;
   email: string;
+  treesOpen: boolean;
+  onToggleTrees: () => void;
+  inspectorAvailable: boolean;
+  inspectorOpen: boolean;
+  onToggleInspector: () => void;
 }
 
-export function Header({ locale, onLocaleChange, email }: Props) {
+export function Header({
+  locale,
+  onLocaleChange,
+  email,
+  treesOpen,
+  onToggleTrees,
+  inspectorAvailable,
+  inspectorOpen,
+  onToggleInspector,
+}: Props) {
   return (
     <header className="border-b border-border bg-panel/90 backdrop-blur">
       <div className="mx-auto flex min-h-16 max-w-[1600px] items-center justify-between gap-4 px-4 sm:px-6">
@@ -19,6 +33,27 @@ export function Header({ locale, onLocaleChange, email }: Props) {
         </span>
       </div>
       <div className="flex items-center gap-2 sm:gap-3">
+        <Button
+          size="sm"
+          variant="ghost"
+          className="hidden md:inline-flex"
+          aria-expanded={treesOpen}
+          aria-controls={treesOpen ? "tree-rail" : undefined}
+          onClick={onToggleTrees}
+        >
+          {treesOpen ? t(locale, "shell.hideTrees") : t(locale, "shell.showTrees")}
+        </Button>
+        {inspectorAvailable && (
+          <Button
+            size="sm"
+            variant="ghost"
+            aria-expanded={inspectorOpen}
+            aria-controls={inspectorOpen ? "person-inspector" : undefined}
+            onClick={onToggleInspector}
+          >
+            {inspectorOpen ? t(locale, "shell.hideInspector") : t(locale, "shell.showInspector")}
+          </Button>
+        )}
         <Select
           value={locale}
           onChange={(e) => onLocaleChange(e.target.value as Locale)}

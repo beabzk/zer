@@ -334,7 +334,11 @@
   "shell": {
     "forbiddenTitle": "No access to this tree",
     "forbiddenDescription": "You no longer have access, or it was deleted. Choose another tree.",
-    "clearSelection": "Clear selection"
+    "clearSelection": "Clear selection",
+    "hideTrees": "Hide trees",
+    "showTrees": "Show trees",
+    "hideInspector": "Hide inspector",
+    "showInspector": "Show inspector"
   },
   "event": {
     "add": "Add event",

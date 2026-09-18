@@ -22,8 +22,6 @@ import {
   Select,
   Sheet,
   Skeleton,
-  TabTrigger,
-  Tabs,
 } from "../ui";
 
 interface Props {
@@ -36,10 +34,6 @@ interface Props {
   onFocus: (person: PersonHit) => void;
   onSelectPerson: (person: PersonHit) => void;
 }
-
-type WorkspaceTab = "profile" | "relationships" | "lineage" | "events";
-
-const tabIds: WorkspaceTab[] = ["profile", "relationships", "lineage", "events"];
 
 function formatEC(locale: Locale, year?: number, month?: number, day?: number): string | undefined {
   if (year == null && month == null && day == null) return undefined;
@@ -62,7 +56,6 @@ function parseTitles(raw?: string): string[] {
 }
 
 export function PersonWorkspace({ locale, treeId, personId, refreshKey, onEdit, onEdge, onFocus, onSelectPerson }: Props) {
-  const [tab, setTab] = useState<WorkspaceTab>("profile");
   const [detail, setDetail] = useState<PersonDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -72,6 +65,7 @@ export function PersonWorkspace({ locale, treeId, personId, refreshKey, onEdit, 
   const [lineage, setLineage] = useState<LineageNode[]>([]);
   const [lineageNames, setLineageNames] = useState<Record<string, PersonHit>>({});
   const [lineageLoading, setLineageLoading] = useState(false);
+  const [lineageOpen, setLineageOpen] = useState(false);
   const [eventEditor, setEventEditor] = useState<{ initial?: OverviewEvent } | null>(null);
 
   useEffect(() => {
@@ -95,7 +89,7 @@ export function PersonWorkspace({ locale, treeId, personId, refreshKey, onEdit, 
   }, [locale, treeId, personId, loadKey, refreshKey]);
 
   useEffect(() => {
-    if (tab !== "lineage") return;
+    if (!lineageOpen) return;
     let live = true;
     setLineageLoading(true);
     api.analysis.lineage(treeId, personId, direction, lineageDepth)
@@ -132,7 +126,7 @@ export function PersonWorkspace({ locale, treeId, personId, refreshKey, onEdit, 
     return () => {
       live = false;
     };
-  }, [tab, treeId, personId, direction, lineageDepth]);
+  }, [lineageOpen, treeId, personId, direction, lineageDepth]);
 
   if (loading) {
     return (
@@ -172,7 +166,7 @@ export function PersonWorkspace({ locale, treeId, personId, refreshKey, onEdit, 
   const deathEC = formatEC(locale, person.death_year_ec, person.death_month_ec, person.death_day_ec);
 
   return (
-    <Card className="h-fit xl:sticky xl:top-6">
+    <Card id="person-inspector" className="h-fit xl:sticky xl:top-6">
       <CardHeader>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -183,17 +177,13 @@ export function PersonWorkspace({ locale, treeId, personId, refreshKey, onEdit, 
             {person.is_deceased ? t(locale, "person.deceased") : t(locale, "person.living")}
           </Badge>
         </div>
-        <Tabs label={t(locale, "workspace.tabs")}>
-          {tabIds.map((id) => (
-            <TabTrigger key={id} value={id} active={tab === id} onSelect={(next) => setTab(next as WorkspaceTab)}>
-              {t(locale, `workspace.${id}`)}
-            </TabTrigger>
-          ))}
-        </Tabs>
+        <div className="flex flex-wrap gap-2">
+          {canEdit && <Button size="sm" onClick={() => onEdit(person)}>{t(locale, "person.edit")}</Button>}
+          <Button size="sm" variant="outline" onClick={() => onFocus(anchor)}>{t(locale, "canvas.focus")}</Button>
+        </div>
       </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        {tab === "profile" && (
-          <div className="flex flex-col gap-2 text-sm">
+      <CardContent className="flex max-h-[calc(100vh-16rem)] flex-col gap-4 overflow-y-auto">
+        <section aria-label={t(locale, "workspace.profile")} className="flex flex-col gap-2 text-sm">
             <div className="rounded-md bg-panel-muted px-3 py-3 text-muted-foreground">
               <p className="text-xs font-semibold uppercase tracking-[0.1em]">{t(locale, "person.gender")}</p>
               <p className="mt-1 text-foreground">{person.gender === "FEMALE" ? t(locale, "person.female") : t(locale, "person.male")}</p>
@@ -220,15 +210,9 @@ export function PersonWorkspace({ locale, treeId, personId, refreshKey, onEdit, 
                 {person.death_note && <p className="mt-1 text-foreground">{person.death_note}</p>}
               </div>
             ) : null}
-            <div className="flex flex-col gap-2 pt-1">
-              {canEdit && <Button onClick={() => onEdit(person)}>{t(locale, "person.edit")}</Button>}
-              <Button variant="outline" onClick={() => onFocus(anchor)}>{t(locale, "canvas.focus")}</Button>
-            </div>
-          </div>
-        )}
+        </section>
 
-        {tab === "relationships" && (
-          <div className="flex flex-col gap-4">
+        <section aria-label={t(locale, "workspace.relationships")} className="flex flex-col gap-4">
             <section>
               <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">{t(locale, "workspace.parents")}</h3>
               {detail.parents.length === 0 ? (
@@ -334,11 +318,22 @@ export function PersonWorkspace({ locale, treeId, personId, refreshKey, onEdit, 
                 <Button size="sm" variant="outline" onClick={() => onEdge({ kind: "union", partner: anchor })}>{t(locale, "edge.addUnion")}</Button>
               </div>
             )}
-          </div>
-        )}
+        </section>
 
-        {tab === "lineage" && (
-          <div className="flex flex-col gap-3">
+        <details
+          open={lineageOpen}
+          className="rounded-md border border-border bg-panel px-3 py-2"
+        >
+          <summary
+            onClick={(event) => {
+              event.preventDefault();
+              setLineageOpen((open) => !open);
+            }}
+            className="cursor-pointer rounded text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            {t(locale, "workspace.lineage")}
+          </summary>
+          <div className="mt-3 flex flex-col gap-3">
             <div className="grid grid-cols-2 gap-2">
               <Select value={direction} onChange={(e) => setDirection(e.target.value as "ancestors" | "descendants")} aria-label={t(locale, "workspace.direction")}>
                 <option value="ancestors">{t(locale, "workspace.ancestors")}</option>
@@ -375,10 +370,13 @@ export function PersonWorkspace({ locale, treeId, personId, refreshKey, onEdit, 
               </ul>
             )}
           </div>
-        )}
+        </details>
 
-        {tab === "events" && (
-          <div className="flex flex-col gap-2">
+        <details className="rounded-md border border-border bg-panel px-3 py-2">
+          <summary className="cursor-pointer rounded text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent">
+            {t(locale, "workspace.events")}
+          </summary>
+          <div className="mt-3 flex flex-col gap-2">
             {canEdit && (
               <div>
                 <Button size="sm" onClick={() => setEventEditor({})}>{t(locale, "event.add")}</Button>
@@ -411,7 +409,7 @@ export function PersonWorkspace({ locale, treeId, personId, refreshKey, onEdit, 
               </ol>
             )}
           </div>
-        )}
+        </details>
       </CardContent>
       <Sheet open={eventEditor !== null} onClose={() => setEventEditor(null)} closeLabel={t(locale, "common.close")}>
         {eventEditor && (

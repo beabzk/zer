@@ -36,6 +36,22 @@ function initialTreeId(): string {
   return treeIdFromPath() || localStorage.getItem("zer-tree") || "";
 }
 
+function storedPanelOpen(key: string): boolean {
+  try {
+    return sessionStorage.getItem(key) !== "collapsed";
+  } catch {
+    return true;
+  }
+}
+
+function storePanelOpen(key: string, open: boolean) {
+  try {
+    sessionStorage.setItem(key, open ? "open" : "collapsed");
+  } catch {
+    // Panel state remains in memory when storage is unavailable.
+  }
+}
+
 const primaryViews: Array<{ id: WorkspaceView; label: string }> = [
   { id: "overview", label: "views.overview" },
   { id: "people", label: "views.people" },
@@ -58,6 +74,8 @@ export function App() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
   const [treeMenuOpen, setTreeMenuOpen] = useState(false);
+  const [treeRailOpen, setTreeRailOpen] = useState(() => storedPanelOpen("zer-tree-rail"));
+  const [inspectorOpen, setInspectorOpen] = useState(() => storedPanelOpen("zer-inspector"));
 
   const session = auth.useSession() as unknown as {
     data: { user: { email: string } } | null;
@@ -97,6 +115,14 @@ export function App() {
     localStorage.setItem("zer-locale", locale);
     document.documentElement.lang = localeTag(locale);
   }, [locale]);
+
+  useEffect(() => {
+    storePanelOpen("zer-tree-rail", treeRailOpen);
+  }, [treeRailOpen]);
+
+  useEffect(() => {
+    storePanelOpen("zer-inspector", inspectorOpen);
+  }, [inspectorOpen]);
 
   // Keep view and tree selection in sync with the address bar.
   useEffect(() => {
@@ -188,6 +214,11 @@ export function App() {
   const bottomItems: Array<{ id: WorkspaceView; label: string }> = isAdmin
     ? [...workspaceViews, { id: "admin" as WorkspaceView, label: "admin.panel" }]
     : workspaceViews;
+  const inspectorAvailable = Boolean(
+    selectedTreeId &&
+    selectedId &&
+    (view === "canvas" || view === "pedigree" || view === "cards"),
+  );
 
   const startAddPerson = () => {
     setEditor({});
@@ -248,17 +279,28 @@ export function App() {
   return (
     <ToastProvider dismissLabel={t(locale, "common.dismiss")}>
     <div className="min-h-screen bg-background">
-      <Header locale={locale} onLocaleChange={setLocale} email={session.data.user.email} />
-      <div className="mx-auto grid max-w-[1600px] md:grid-cols-[260px_minmax(0,1fr)]">
-        <aside className="hidden border-r border-border bg-panel/50 md:block">
-          <div className="sticky top-0 flex h-[calc(100vh-4rem)] flex-col">
-            <TreeSwitcher locale={locale} activeId={selectedTreeId} onSelect={pickTree} refreshKey={refreshKey} isAdmin={isAdmin} onTreesLoaded={handleTreesLoaded} />
-            <div className="mt-auto p-4">
-              <Separator />
-              <p className="pt-4 text-xs leading-5 text-muted-foreground">{t(locale, "app.shellHint")}</p>
+      <Header
+        locale={locale}
+        onLocaleChange={setLocale}
+        email={session.data.user.email}
+        treesOpen={treeRailOpen}
+        onToggleTrees={() => setTreeRailOpen((open) => !open)}
+        inspectorAvailable={inspectorAvailable}
+        inspectorOpen={inspectorOpen}
+        onToggleInspector={() => setInspectorOpen((open) => !open)}
+      />
+      <div className={`mx-auto grid max-w-[1600px] ${treeRailOpen ? "md:grid-cols-[260px_minmax(0,1fr)]" : "md:grid-cols-[minmax(0,1fr)]"}`}>
+        {treeRailOpen && (
+          <aside id="tree-rail" className="hidden border-r border-border bg-panel/50 md:block">
+            <div className="sticky top-0 flex h-[calc(100vh-4rem)] flex-col">
+              <TreeSwitcher locale={locale} activeId={selectedTreeId} onSelect={pickTree} refreshKey={refreshKey} isAdmin={isAdmin} onTreesLoaded={handleTreesLoaded} />
+              <div className="mt-auto p-4">
+                <Separator />
+                <p className="pt-4 text-xs leading-5 text-muted-foreground">{t(locale, "app.shellHint")}</p>
+              </div>
             </div>
-          </div>
-        </aside>
+          </aside>
+        )}
 
         <main className="min-w-0 pb-20 md:pb-0">
           <div className="border-b border-border bg-background/80 px-4 py-4 backdrop-blur sm:px-6 lg:px-8">
@@ -281,7 +323,20 @@ export function App() {
                   <p className="mt-1 text-sm text-muted-foreground">{tree ? t(locale, "dashboard.workspaceHint") : t(locale, "dashboard.chooseTree")}</p>
                 </div>
               </div>
-              {selectedTreeId && !treeInaccessible && <Button size="sm" onClick={startAddPerson}>{t(locale, "person.add")}</Button>}
+              <div className="flex flex-wrap items-center gap-2">
+                {inspectorAvailable && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    aria-expanded={inspectorOpen}
+                    aria-controls={inspectorOpen ? "person-inspector" : undefined}
+                    onClick={() => setInspectorOpen((open) => !open)}
+                  >
+                    {inspectorOpen ? t(locale, "shell.hideInspector") : t(locale, "shell.showInspector")}
+                  </Button>
+                )}
+                {selectedTreeId && !treeInaccessible && <Button size="sm" onClick={startAddPerson}>{t(locale, "person.add")}</Button>}
+              </div>
             </div>
             <nav className="mt-5 hidden gap-1 overflow-x-auto pb-1 md:flex" aria-label={t(locale, "dashboard.navigation")}>
               {workspaceViews.map((item) => (
@@ -329,7 +384,7 @@ export function App() {
                 onSelectPerson={openPerson}
                 onTreeCreated={(id) => { pickTree(id); refresh(); }}
               />
-            ) : !selectedTreeId ? <Empty title={t(locale, "dashboard.chooseTree")} description={t(locale, "dashboard.chooseTreeDescription")} /> : view === "people" ? <PeopleDirectory locale={locale} treeId={selectedTreeId} onAdd={startAddPerson} onSelect={openWorkspace} /> : view === "kinship" ? <KinshipWorkspace locale={locale} treeId={selectedTreeId} onSelectPerson={openWorkspace} /> : !focusId || !focus ? <Card><CardContent className="p-6"><Empty title={t(locale, "canvas.empty")} description={t(locale, "dashboard.focusDescription")} /></CardContent></Card> : <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">{view === "canvas" && <GraphWorkspace locale={locale} treeId={selectedTreeId} focus={focus} selectedId={selectedId} onSelect={setSelectedId} refreshKey={refreshKey} />}{(view === "pedigree" || view === "cards") && <LineageWorkspace locale={locale} treeId={selectedTreeId} rootId={focusId} refreshKey={refreshKey} onSelect={setSelectedId} />}{selectedId && <PersonWorkspace locale={locale} treeId={selectedTreeId} personId={selectedId} refreshKey={refreshKey} onEdit={openEditor} onEdge={setEdgeMode} onFocus={() => nav("canvas")} onSelectPerson={(person) => { setFocus(person); setSelectedId(person.id); }} />}</div>}
+            ) : !selectedTreeId ? <Empty title={t(locale, "dashboard.chooseTree")} description={t(locale, "dashboard.chooseTreeDescription")} /> : view === "people" ? <PeopleDirectory locale={locale} treeId={selectedTreeId} onAdd={startAddPerson} onSelect={openWorkspace} /> : view === "kinship" ? <KinshipWorkspace locale={locale} treeId={selectedTreeId} onSelectPerson={openWorkspace} /> : !focusId || !focus ? <Card><CardContent className="p-6"><Empty title={t(locale, "canvas.empty")} description={t(locale, "dashboard.focusDescription")} /></CardContent></Card> : <div className={`grid gap-6 ${inspectorOpen ? "xl:grid-cols-[minmax(0,1fr)_320px]" : "xl:grid-cols-1"}`}>{view === "canvas" && <GraphWorkspace locale={locale} treeId={selectedTreeId} focus={focus} selectedId={selectedId} onSelect={setSelectedId} refreshKey={refreshKey} />}{(view === "pedigree" || view === "cards") && <LineageWorkspace locale={locale} treeId={selectedTreeId} rootId={focusId} refreshKey={refreshKey} onSelect={setSelectedId} />}{selectedId && inspectorOpen && <PersonWorkspace locale={locale} treeId={selectedTreeId} personId={selectedId} refreshKey={refreshKey} onEdit={openEditor} onEdge={setEdgeMode} onFocus={() => nav("canvas")} onSelectPerson={(person) => { setFocus(person); setSelectedId(person.id); }} />}</div>}
           </div>
         </main>
       </div>
