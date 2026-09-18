@@ -226,7 +226,11 @@
     "parents": "Parent links",
     "unions": "Unions",
     "empty": "No connections to draw",
-    "emptyDescription": "Widen the depth or enable a relationship type."
+    "emptyDescription": "Widen the depth or enable a relationship type.",
+    "relationsHeading": "Direct connections",
+    "relationsEmpty": "No linked relationships in this view.",
+    "relationParent": "{from} is the parent of {to}",
+    "relationPartner": "{from} is the partner of {to}"
   },
   "lineage": {
     "title": "Lineage",

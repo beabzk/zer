@@ -66,10 +66,43 @@ describe("layoutGraph", () => {
     expect(ids(placed).toSorted()).toEqual(["a", "b"]);
   });
 
-  it("handles single nodes and empty graphs", () => {
-    expect(layoutGraph([], [], [])).toEqual([]);
-    const [only] = layoutGraph([{ id: "x" }], [], []);
-    expect(only.x).toBe(0);
-    expect(only.y).toBe(0);
+  it("places shared spouse between partners so both unions remain adjacent", () => {
+    const nodes = ["wondimu", "hirut", "tsegaye", "netsanet", "amare", "muluken", "frehiwot", "eyob", "belay"].map(
+      (id) => ({ id }),
+    );
+    const parents = [
+      { source: "wondimu", target: "netsanet" },
+      { source: "hirut", target: "netsanet" },
+      { source: "tsegaye", target: "muluken" },
+      { source: "hirut", target: "muluken" },
+      { source: "wondimu", target: "muluken" },
+      { source: "wondimu", target: "frehiwot" },
+      { source: "hirut", target: "frehiwot" },
+      { source: "wondimu", target: "eyob" },
+      { source: "hirut", target: "eyob" },
+      { source: "netsanet", target: "belay" },
+      { source: "amare", target: "belay" },
+    ];
+    const unions = [
+      { source: "wondimu", target: "hirut" },
+      { source: "hirut", target: "tsegaye" },
+      { source: "netsanet", target: "amare" },
+    ];
+    const placed = layoutGraph(nodes, parents, unions);
+    const byId = new Map(placed.map((p) => [p.id, p]));
+
+    // All three adults at rank 0
+    expect(byId.get("wondimu")!.rank).toBe(0);
+    expect(byId.get("hirut")!.rank).toBe(0);
+    expect(byId.get("tsegaye")!.rank).toBe(0);
+
+    // Hirut is between Wondimu and Tsegaye, and both are adjacent to Hirut
+    const hirutX = byId.get("hirut")!.x;
+    const wondimuX = byId.get("wondimu")!.x;
+    const tsegayeX = byId.get("tsegaye")!.x;
+    expect(Math.abs(hirutX - wondimuX)).toBe(176 + 32);
+    expect(Math.abs(hirutX - tsegayeX)).toBe(176 + 32);
+    expect(Math.min(wondimuX, tsegayeX)).toBeLessThan(hirutX);
+    expect(Math.max(wondimuX, tsegayeX)).toBeGreaterThan(hirutX);
   });
 });

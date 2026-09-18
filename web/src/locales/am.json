@@ -170,7 +170,11 @@
     "parents": "የወላጅ ማያያዣዎች",
     "unions": "ጥምረቶች",
     "empty": "ለመሳል ምንም ግንኙነት የለም።",
-    "emptyDescription": "ጥልቀቱን አስፉ ወይም የዝምድና ዓይነት አንቃ።"
+    "emptyDescription": "ጥልቀቱን አስፉ ወይም የዝምድና ዓይነት አንቃ።",
+    "relationsHeading": "ቀጥታ ግንኙነቶች",
+    "relationsEmpty": "በዚህ እይታ የተገናኙ ዝምድናዎች የሉም።",
+    "relationParent": "{from} የ{to} ወላጅ ነው",
+    "relationPartner": "{from} የ{to} የትዳር አጋር ነው"
   },
   "lineage": {
     "title": "ትውልድ",

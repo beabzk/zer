@@ -65,6 +65,12 @@ export function t(locale: Locale, key: string): string {
   return typeof hit === "string" ? hit : key;
 }
 
+/** Translate a dotted key and replace {placeholder} tokens with values. */
+export function tf(locale: Locale, key: string, values: Record<string, string | number>): string {
+  return t(locale, key).replace(/\{(\w+)\}/g, (match, name: string) =>
+    name in values ? String(values[name]) : match,
+  );
+}
 /** Thirteen month labels for the active locale, Pagume last. */
 export function months(locale: Locale): string[] {
   const list = lookup(bundles[locale], "months") ?? lookup(bundles.en, "months");
