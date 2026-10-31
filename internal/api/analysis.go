@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"database/sql"
 	"net/http"
 
@@ -28,10 +29,91 @@ func (d Deps) handleKinship(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
+// lineageNodeBudget bounds one lineage response. Near generations fill first,
+// so a truncated response still carries the closest relatives. The client
+// shows the truncation notice reported alongside the returned nodes.
+const lineageNodeBudget = 80
+
+// PersonSummary is the compact per-person payload shared by graph and lineage
+// responses. Full names are synthesized from parent edges at request time.
+type PersonSummary struct {
+	FullNative  string `json:"full_native"`
+	FullLatin   string `json:"full_latin"`
+	Gender      string `json:"gender"`
+	BirthYearEC *int   `json:"birth_year_ec"`
+	DeathYearEC *int   `json:"death_year_ec"`
+	IsDeceased  bool   `json:"is_deceased"`
+}
+
+// summarizePerson loads the display fields for one individual. It reports
+// false when the row is missing so callers can skip the node.
+func summarizePerson(ctx context.Context, db *sql.DB, id string) (PersonSummary, bool) {
+	var gender string
+	var birthYear, deathYear *int
+	var deceased int
+	if err := db.QueryRowContext(ctx,
+		`SELECT gender, birth_year_ec, death_year_ec, is_deceased FROM individuals WHERE id = ?`,
+		id).Scan(&gender, &birthYear, &deathYear, &deceased); err != nil {
+		return PersonSummary{}, false
+	}
+	native, _ := lineage.SynthesizeFullName(ctx, db, id, 3, lineage.ScriptNative, false)
+	latin, _ := lineage.SynthesizeFullName(ctx, db, id, 3, lineage.ScriptLatin, false)
+	return PersonSummary{
+		FullNative: native, FullLatin: latin, Gender: gender,
+		BirthYearEC: birthYear, DeathYearEC: deathYear, IsDeceased: deceased == 1,
+	}, true
+}
+
+// lineageNode is one occurrence on the pedigree. The same individual can
+// appear more than once when several paths reach them; Path identifies the
+// occurrence and its consecutive IDs drive the connectors.
 type lineageNode struct {
 	ID    string   `json:"id"`
 	Depth int      `json:"depth"`
 	Path  []string `json:"path"`
+	PersonSummary
+}
+
+// lineageUnion links two partners that both appear in the response so the
+// client can place and connect them as a couple.
+type lineageUnion struct {
+	ID     string `json:"id"`
+	Source string `json:"source"`
+	Target string `json:"target"`
+}
+
+func containsID(path []string, id string) bool {
+	for _, step := range path {
+		if step == id {
+			return true
+		}
+	}
+	return false
+}
+
+// collectLineageUnions returns every union whose partners are both present in
+// the response. Unions involving absent people cannot be drawn.
+func collectLineageUnions(ctx context.Context, db *sql.DB, nodes []lineageNode) []lineageUnion {
+	present := make(map[string]bool, len(nodes))
+	for _, node := range nodes {
+		present[node.ID] = true
+	}
+	out := []lineageUnion{}
+	rows, err := db.QueryContext(ctx, `SELECT id, partner_a_id, partner_b_id FROM unions`)
+	if err != nil {
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, a, b string
+		if err := rows.Scan(&id, &a, &b); err != nil {
+			return out
+		}
+		if present[a] && present[b] {
+			out = append(out, lineageUnion{ID: id, Source: a, Target: b})
+		}
+	}
+	return out
 }
 
 func (d Deps) handleLineage(w http.ResponseWriter, r *http.Request) {
@@ -49,19 +131,22 @@ func (d Deps) handleLineage(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !individualExists(r, db, root) {
+	rootSummary, ok := summarizePerson(r.Context(), db, root)
+	if !ok {
 		writeError(w, http.StatusNotFound, "individual not found")
 		return
 	}
-	nodes := []lineageNode{{ID: root, Depth: 0, Path: []string{root}}}
-	visited := map[string]bool{root: true}
+	nodes := []lineageNode{{ID: root, Depth: 0, Path: []string{root}, PersonSummary: rootSummary}}
 	frontier := []lineageNode{nodes[0]}
 	column := "parent_id"
 	matchCol := "child_id"
 	if direction == "descendants" {
 		column, matchCol = "child_id", "parent_id"
 	}
-	for level := 1; level <= depth && len(frontier) > 0; level++ {
+	// Cycles are broken per path, not globally: an ancestor reached through two
+	// distinct paths stays visible as two occurrences.
+	truncated := false
+	for level := 1; level <= depth && len(frontier) > 0 && !truncated; level++ {
 		var next []lineageNode
 		for _, n := range frontier {
 			rows, err := db.QueryContext(r.Context(),
@@ -82,22 +167,35 @@ func (d Deps) handleLineage(w http.ResponseWriter, r *http.Request) {
 			}
 			rows.Close()
 			for _, id := range ids {
-				if visited[id] {
+				if containsID(n.Path, id) {
 					continue
 				}
-				visited[id] = true
+				summary, ok := summarizePerson(r.Context(), db, id)
+				if !ok {
+					continue
+				}
 				path := make([]string, 0, len(n.Path)+1)
 				path = append(path, n.Path...)
 				path = append(path, id)
-				node := lineageNode{ID: id, Depth: level, Path: path}
+				node := lineageNode{ID: id, Depth: level, Path: path, PersonSummary: summary}
 				nodes = append(nodes, node)
 				next = append(next, node)
+				if len(nodes) > lineageNodeBudget {
+					nodes = nodes[:lineageNodeBudget]
+					truncated = true
+					break
+				}
+			}
+			if truncated {
+				break
 			}
 		}
 		frontier = next
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"root_id": root, "direction": direction, "depth": depth, "nodes": nodes,
+		"root_id": root, "direction": direction, "depth": depth,
+		"truncated": truncated, "nodes": nodes,
+		"unions": collectLineageUnions(r.Context(), db, nodes),
 	})
 }
 

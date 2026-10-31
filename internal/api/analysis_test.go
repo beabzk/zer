@@ -1,7 +1,10 @@
 package api
 
 import (
+	"context"
 	"net/http"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -84,6 +87,18 @@ func TestKinshipEndpoint(t *testing.T) {
 	}
 }
 
+type lineageNodePayload struct {
+	ID          string   `json:"id"`
+	Depth       int      `json:"depth"`
+	Path        []string `json:"path"`
+	FullNative  string   `json:"full_native"`
+	FullLatin   string   `json:"full_latin"`
+	Gender      string   `json:"gender"`
+	BirthYearEC *int     `json:"birth_year_ec"`
+	DeathYearEC *int     `json:"death_year_ec"`
+	IsDeceased  bool     `json:"is_deceased"`
+}
+
 func TestLineageEndpoint(t *testing.T) {
 	_, _, r := testSetup(t, 1)
 	treeID := createTree(t, r, "Lin")
@@ -95,21 +110,45 @@ func TestLineageEndpoint(t *testing.T) {
 		t.Fatalf("lineage: status = %d", rec.Code)
 	}
 	var result struct {
-		Nodes []struct {
-			ID    string `json:"id"`
-			Depth int    `json:"depth"`
-		} `json:"nodes"`
+		Truncated bool                 `json:"truncated"`
+		Nodes     []lineageNodePayload `json:"nodes"`
+		Unions    []struct {
+			ID     string `json:"id"`
+			Source string `json:"source"`
+			Target string `json:"target"`
+		} `json:"unions"`
 	}
 	decodeBody(t, rec, &result)
 	if len(result.Nodes) != 4 {
 		t.Fatalf("ancestor nodes = %d, want 4 (child, father, mother, gp)", len(result.Nodes))
 	}
 	depthByID := map[string]int{}
+	byID := map[string]lineageNodePayload{}
 	for _, n := range result.Nodes {
 		depthByID[n.ID] = n.Depth
+		byID[n.ID] = n
 	}
 	if depthByID[ids["gp"]] != 2 || depthByID[ids["father"]] != 1 {
 		t.Errorf("unexpected depths: %+v", depthByID)
+	}
+	if result.Truncated {
+		t.Error("small family must not be truncated")
+	}
+	gp := byID[ids["gp"]]
+	if gp.FullLatin != "GP" || gp.FullNative != "GPn" || gp.Gender != "MALE" {
+		t.Errorf("gp summary = %+v", gp)
+	}
+	if len(gp.Path) != 3 || gp.Path[0] != ids["child"] || gp.Path[1] != ids["father"] || gp.Path[2] != gp.ID {
+		t.Errorf("gp path = %v", gp.Path)
+	}
+	if father := byID[ids["father"]]; father.FullLatin != "F GP" {
+		t.Errorf("father full name = %q, want %q", father.FullLatin, "F GP")
+	}
+	if child := byID[ids["child"]]; len(child.Path) != 1 || child.Path[0] != child.ID {
+		t.Errorf("root path = %v", child.Path)
+	}
+	if len(result.Unions) != 1 || result.Unions[0].Source != ids["father"] || result.Unions[0].Target != ids["mother"] {
+		t.Errorf("unions = %+v", result.Unions)
 	}
 
 	rec = doRequest(t, r, http.MethodGet,
@@ -131,6 +170,135 @@ func TestLineageEndpoint(t *testing.T) {
 		"/api/v1/trees/"+treeID+"/analysis/lineage/"+ids["child"]+"?direction=sideways", nil)
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("bad direction: status = %d, want 400", rec.Code)
+	}
+}
+
+func TestLineagePreservesSharedAncestorOccurrences(t *testing.T) {
+	_, _, r := testSetup(t, 1)
+	treeID := createTree(t, r, "LinShared")
+	ids := seedSmallFamily(t, r, treeID)
+	// The grandparent also parents the mother. The focus person has two
+	// distinct paths to that ancestor, so both occurrences must survive.
+	rec := doRequest(t, r, http.MethodPost, "/api/v1/trees/"+treeID+"/relationships/parent-child",
+		map[string]any{"parent_id": ids["gp"], "child_id": ids["mother"]})
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("shared ancestor edge: status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+
+	rec = doRequest(t, r, http.MethodGet,
+		"/api/v1/trees/"+treeID+"/analysis/lineage/"+ids["child"]+"?direction=ancestors&depth=2", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("lineage: status = %d", rec.Code)
+	}
+	var result struct {
+		Nodes []lineageNodePayload `json:"nodes"`
+	}
+	decodeBody(t, rec, &result)
+	if len(result.Nodes) != 5 {
+		t.Fatalf("ancestor nodes = %d, want 5 (child, father, mother, gp twice)", len(result.Nodes))
+	}
+	occurrences := 0
+	paths := map[string]bool{}
+	for _, n := range result.Nodes {
+		if n.ID == ids["gp"] {
+			occurrences++
+			paths[strings.Join(n.Path, ">")] = true
+		}
+	}
+	if occurrences != 2 {
+		t.Errorf("gp occurrences = %d, want 2", occurrences)
+	}
+	if len(paths) != 2 {
+		t.Errorf("gp paths = %v, want two distinct paths", paths)
+	}
+}
+
+func TestLineageTerminatesOnCycles(t *testing.T) {
+	_, manager, r := testSetup(t, 1)
+	treeID := createTree(t, r, "LinCycle")
+	a := createPerson(t, r, treeID, map[string]any{
+		"given_name_native": "An", "given_name_latin": "A", "gender": "MALE"})
+	b := createPerson(t, r, treeID, map[string]any{
+		"given_name_native": "Bn", "given_name_latin": "B", "gender": "FEMALE"})
+	db, err := manager.Tree(context.Background(), treeID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Direct inserts model an imported graph that skipped relationship
+	// validation. The traversal must break the cycle per path.
+	for _, edge := range [][3]string{{"cycle-a", a, b}, {"cycle-b", b, a}} {
+		if _, err := db.Exec(
+			`INSERT INTO parent_child (id, parent_id, child_id) VALUES (?, ?, ?)`,
+			edge[0], edge[1], edge[2]); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	rec := doRequest(t, r, http.MethodGet,
+		"/api/v1/trees/"+treeID+"/analysis/lineage/"+a+"?direction=ancestors&depth=6", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("lineage: status = %d", rec.Code)
+	}
+	var result struct {
+		Truncated bool                 `json:"truncated"`
+		Nodes     []lineageNodePayload `json:"nodes"`
+	}
+	decodeBody(t, rec, &result)
+	if len(result.Nodes) != 2 {
+		t.Fatalf("cycle nodes = %d, want 2", len(result.Nodes))
+	}
+	for _, n := range result.Nodes {
+		seen := map[string]bool{}
+		for _, step := range n.Path {
+			if seen[step] {
+				t.Errorf("path revisits %s: %v", step, n.Path)
+			}
+			seen[step] = true
+		}
+	}
+}
+
+func TestLineageTruncatesLargeBranches(t *testing.T) {
+	_, _, r := testSetup(t, 1)
+	treeID := createTree(t, r, "LinDeep")
+	// A chain longer than the response budget proves truncation is reported
+	// instead of leaving the client to guess.
+	const people = 85
+	ids := make([]string, people)
+	for i := range ids {
+		ids[i] = createPerson(t, r, treeID, map[string]any{
+			"given_name_native": "N" + strconv.Itoa(i),
+			"given_name_latin":  "P" + strconv.Itoa(i), "gender": "MALE"})
+	}
+	for i := 0; i < people-1; i++ {
+		rec := doRequest(t, r, http.MethodPost, "/api/v1/trees/"+treeID+"/relationships/parent-child",
+			map[string]any{"parent_id": ids[i+1], "child_id": ids[i]})
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("chain edge %d: status = %d", i, rec.Code)
+		}
+	}
+
+	rec := doRequest(t, r, http.MethodGet,
+		"/api/v1/trees/"+treeID+"/analysis/lineage/"+ids[0]+"?direction=ancestors&depth=200", nil)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("lineage: status = %d", rec.Code)
+	}
+	var result struct {
+		Truncated bool                 `json:"truncated"`
+		Nodes     []lineageNodePayload `json:"nodes"`
+	}
+	decodeBody(t, rec, &result)
+	if !result.Truncated {
+		t.Error("deep chain must report truncation")
+	}
+	if len(result.Nodes) != 80 {
+		t.Fatalf("nodes = %d, want 80", len(result.Nodes))
+	}
+	if result.Nodes[0].ID != ids[0] {
+		t.Errorf("first node = %s, want the focus person", result.Nodes[0].ID)
+	}
+	if last := result.Nodes[len(result.Nodes)-1]; last.Depth != 79 {
+		t.Errorf("last depth = %d, want 79", last.Depth)
 	}
 }
 

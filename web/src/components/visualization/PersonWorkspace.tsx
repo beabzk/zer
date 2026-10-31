@@ -9,6 +9,7 @@ import {
   type PersonHit,
 } from "../../lib/api";
 import { months, t, type Locale } from "../../lib/i18n";
+import { pathKey } from "./pedigree";
 import { type RelationshipMode } from "../forms/RelationshipForm";
 import { EventForm } from "../forms/EventForm";
 import {
@@ -63,7 +64,6 @@ export function PersonWorkspace({ locale, treeId, personId, refreshKey, onEdit, 
   const [direction, setDirection] = useState<"ancestors" | "descendants">("ancestors");
   const [lineageDepth, setLineageDepth] = useState(3);
   const [lineage, setLineage] = useState<LineageNode[]>([]);
-  const [lineageNames, setLineageNames] = useState<Record<string, PersonHit>>({});
   const [lineageLoading, setLineageLoading] = useState(false);
   const [lineageOpen, setLineageOpen] = useState(false);
   const [eventEditor, setEventEditor] = useState<{ initial?: OverviewEvent } | null>(null);
@@ -93,29 +93,9 @@ export function PersonWorkspace({ locale, treeId, personId, refreshKey, onEdit, 
     let live = true;
     setLineageLoading(true);
     api.analysis.lineage(treeId, personId, direction, lineageDepth)
-      .then(async (res) => {
+      .then((res) => {
         if (!live) return;
-        const nodes = res.nodes.slice(0, 30);
-        setLineage(nodes);
-        const names: Record<string, PersonHit> = {};
-        await Promise.all(
-          nodes.map(async (node) => {
-            try {
-              const full = await api.individuals.get(treeId, node.id);
-              if (live) {
-                names[node.id] = {
-                  id: full.id,
-                  full_native: full.full_native,
-                  full_latin: full.full_latin,
-                  gender: full.gender,
-                };
-              }
-            } catch {
-              // Missing nodes stay unlabeled; the id still renders.
-            }
-          }),
-        );
-        if (live) setLineageNames(names);
+        setLineage(res.nodes.slice(0, 30));
       })
       .catch(() => {
         if (live) setLineage([]);
@@ -351,22 +331,18 @@ export function PersonWorkspace({ locale, treeId, personId, refreshKey, onEdit, 
               <Empty title={t(locale, "kinship.none")} />
             ) : (
               <ul className="flex max-h-80 flex-col gap-1 overflow-y-auto">
-                {lineage.map((node) => {
-                  const named = lineageNames[node.id];
-                  return (
-                    <li key={node.id}>
-                      <button
-                        onClick={() => named && onSelectPerson(named)}
-                        disabled={!named}
-                        style={{ marginLeft: `${Math.min(node.depth, 4) * 12}px` }}
-                        className="w-full rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-panel-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-60"
-                      >
-                        <span className="block truncate font-medium">{named ? named.full_latin : node.id}</span>
-                        {named && <span className="block truncate text-xs text-muted-foreground">{named.full_native}</span>}
-                      </button>
-                    </li>
-                  );
-                })}
+                {lineage.map((node) => (
+                  <li key={pathKey(node.path)}>
+                    <button
+                      onClick={() => onSelectPerson(node)}
+                      style={{ marginLeft: `${Math.min(node.depth, 4) * 12}px` }}
+                      className="w-full rounded-md px-3 py-2 text-left text-sm transition-colors hover:bg-panel-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                    >
+                      <span className="block truncate font-medium">{node.full_latin}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{node.full_native}</span>
+                    </button>
+                  </li>
+                ))}
               </ul>
             )}
           </div>

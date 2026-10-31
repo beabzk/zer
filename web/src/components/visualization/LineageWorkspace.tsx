@@ -1,6 +1,10 @@
-import { useEffect, useState } from "react";
-import { ApiError, api, type LineageNode, type PersonHit } from "../../lib/api";
+import { useEffect, useMemo, useState } from "react";
+import { ApiError, api, type LineageNode, type LineageResult } from "../../lib/api";
 import { t, type Locale } from "../../lib/i18n";
+import { formatLifeYears } from "../../lib/personSummary";
+import { CARD_W } from "./layout";
+import { layoutPedigree, pathKey, type PedigreeCard } from "./pedigree";
+import { pathData } from "./routing";
 import {
   Button,
   Card,
@@ -21,32 +25,14 @@ interface Props {
   onSelect: (id: string) => void;
 }
 
-export interface LineageGroup {
-  depth: number;
-  ids: string[];
-}
+const depthChoices = [1, 2, 3, 4, 5, 6, 7, 8];
 
-export function groupByDepth(nodes: Array<Pick<LineageNode, "id" | "depth">>): LineageGroup[] {
-  const byDepth = new Map<number, string[]>();
-  for (const node of nodes) {
-    const list = byDepth.get(node.depth) ?? [];
-    list.push(node.id);
-    byDepth.set(node.depth, list);
-  }
-  return [...byDepth.entries()]
-    .toSorted(([a], [b]) => a - b)
-    .map(([depth, ids]) => ({ depth, ids }));
-}
-
-// Display cap keeps name resolution bounded on wide descendant trees.
-const maxRendered = 80;
-
+/** Pedigree branches for one direction. The server returns person summaries
+  with each occurrence, so the branch diagram needs no per-node lookups. */
 export function LineageWorkspace({ locale, treeId, rootId, refreshKey, onSelect }: Props) {
   const [direction, setDirection] = useState<"ancestors" | "descendants">("ancestors");
   const [depth, setDepth] = useState(4);
-  const [groups, setGroups] = useState<LineageGroup[]>([]);
-  const [names, setNames] = useState<Record<string, PersonHit>>({});
-  const [truncated, setTruncated] = useState(false);
+  const [result, setResult] = useState<LineageResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [loadKey, setLoadKey] = useState(0);
@@ -56,33 +42,14 @@ export function LineageWorkspace({ locale, treeId, rootId, refreshKey, onSelect 
     setLoading(true);
     setError("");
     api.analysis.lineage(treeId, rootId, direction, depth)
-      .then(async (res) => {
-        if (!live) return;
-        const sliced = res.nodes.slice(0, maxRendered);
-        setTruncated(res.nodes.length > sliced.length);
-        setGroups(groupByDepth(sliced));
-        const resolved: Record<string, PersonHit> = {};
-        await Promise.all(
-          sliced.map(async (node) => {
-            try {
-              const full = await api.individuals.get(treeId, node.id);
-              if (live) {
-                resolved[node.id] = {
-                  id: full.id,
-                  full_native: full.full_native,
-                  full_latin: full.full_latin,
-                  gender: full.gender,
-                };
-              }
-            } catch {
-              // Missing nodes stay unlabeled; the id still renders.
-            }
-          }),
-        );
-        if (live) setNames(resolved);
+      .then((res) => {
+        if (live) setResult(res);
       })
       .catch((e) => {
-        if (live) setError(e instanceof ApiError ? e.message : t(locale, "common.error"));
+        if (live) {
+          setResult(null);
+          setError(e instanceof ApiError ? e.message : t(locale, "common.error"));
+        }
       })
       .finally(() => {
         if (live) setLoading(false);
@@ -92,17 +59,38 @@ export function LineageWorkspace({ locale, treeId, rootId, refreshKey, onSelect 
     };
   }, [locale, treeId, rootId, direction, depth, refreshKey, loadKey]);
 
-  const renderCard = (id: string, root: boolean) => {
-    const named = names[id];
+  const layout = useMemo(
+    () => layoutPedigree(result?.nodes ?? [], result?.unions ?? [], direction),
+    [result, direction],
+  );
+  // The timeline keeps the focus person first on small screens.
+  const timeline = useMemo(
+    () => layout.cards.toSorted((a, b) => a.depth - b.depth || a.x - b.x),
+    [layout],
+  );
+  const nodeByKey = useMemo(() => {
+    const map = new Map<string, LineageNode>();
+    for (const node of result?.nodes ?? []) map.set(pathKey(node.path), node);
+    return map;
+  }, [result]);
+
+  const renderCard = (card: PedigreeCard) => {
+    const node = nodeByKey.get(card.key);
+    if (!node) return null;
+    const root = card.depth === 0;
+    const years = formatLifeYears(node);
+    const status = node.is_deceased ? t(locale, "person.deceased") : t(locale, "person.living");
     return (
       <button
-        key={id}
-        onClick={() => named && onSelect(id)}
-        disabled={!named}
-        className={`w-full min-w-44 rounded-lg border bg-panel px-4 py-3 text-left shadow-panel transition-colors hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-70 ${root ? "border-accent" : "border-border"}`}
+        onClick={() => onSelect(node.id)}
+        aria-label={root ? `${t(locale, "lineage.root")}: ${node.full_latin}` : undefined}
+        className={`flex h-20 w-full flex-col justify-center overflow-hidden rounded-lg border bg-panel px-3 py-2 text-left shadow-panel transition-colors hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${root ? "border-accent" : "border-border"}`}
       >
-        <span className="block truncate text-sm font-semibold">{named ? named.full_latin : id}</span>
-        {named && <span className="mt-1 block truncate text-xs text-muted-foreground">{named.full_native}</span>}
+        <span className="block truncate text-sm font-semibold">{node.full_latin}</span>
+        <span className="block truncate text-sm font-medium">{node.full_native}</span>
+        <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">
+          {[years, status].filter(Boolean).join(" · ")}
+        </span>
       </button>
     );
   };
@@ -121,7 +109,7 @@ export function LineageWorkspace({ locale, treeId, rootId, refreshKey, onSelect 
             <option value="descendants">{t(locale, "workspace.descendants")}</option>
           </Select>
           <Select value={String(depth)} onChange={(e) => setDepth(Number(e.target.value))} aria-label={t(locale, "canvas.depth")}>
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => <option key={n} value={n}>{t(locale, "canvas.depth")} {n}</option>)}
+            {depthChoices.map((n) => <option key={n} value={n}>{t(locale, "canvas.depth")} {n}</option>)}
           </Select>
         </div>
       </section>
@@ -131,7 +119,7 @@ export function LineageWorkspace({ locale, treeId, rootId, refreshKey, onSelect 
           <CardTitle>
             {direction === "ancestors" ? t(locale, "workspace.ancestors") : t(locale, "workspace.descendants")}
           </CardTitle>
-          {truncated && <CardDescription>{t(locale, "lineage.truncated")}</CardDescription>}
+          {result?.truncated && <CardDescription>{t(locale, "lineage.truncated")}</CardDescription>}
         </CardHeader>
         <CardContent>
           {error && (
@@ -146,31 +134,57 @@ export function LineageWorkspace({ locale, treeId, rootId, refreshKey, onSelect 
             <div className="flex flex-col gap-2 md:flex-row">
               {[1, 2, 3].map((row) => <Skeleton key={row} className="h-20 w-full md:w-44" />)}
             </div>
-          ) : groups.length === 0 ? (
+          ) : layout.cards.length === 0 ? (
             <Empty title={t(locale, "lineage.empty")} description={t(locale, "lineage.emptyDescription")} />
           ) : (
             <>
-              {/* Vertical timeline on small screens, generation columns above. */}
-              <ol className="flex flex-col gap-4 md:hidden">
-                {groups.flatMap((group) =>
-                  group.ids.map((id) => (
-                    <li key={id} className="relative pl-6">
-                      <span className="absolute left-2 top-0 bottom-0 w-px bg-border" aria-hidden="true" />
-                      <span className="absolute left-0 top-5 h-4 w-4 rounded-full bg-accent" aria-hidden="true" />
-                      {renderCard(id, group.depth === 0)}
-                    </li>
-                  )),
-                )}
-              </ol>
-              <div className="hidden gap-6 overflow-x-auto pb-2 md:flex">
-                {groups.map((group) => (
-                  <div key={group.depth} className="flex min-w-44 flex-col gap-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.1em] text-muted-foreground">
-                      {group.depth === 0 ? t(locale, "lineage.root") : `${t(locale, "lineage.generation")} ${group.depth}`}
-                    </p>
-                    {group.ids.map((id) => renderCard(id, group.depth === 0))}
-                  </div>
+              {/* Small screens keep a readable timeline; the branch diagram
+                  needs horizontal space and appears from md upward. */}
+              <ol data-testid="pedigree-timeline" className="flex flex-col gap-3 md:hidden">
+                {timeline.map((card) => (
+                  <li key={card.key} className="relative pl-6" style={{ marginLeft: `${Math.min(card.depth, 6) * 10}px` }}>
+                    <span className="absolute left-2 top-0 bottom-0 w-px bg-border" aria-hidden="true" />
+                    <span className="absolute left-0 top-8 h-4 w-4 rounded-full bg-accent" aria-hidden="true" />
+                    {renderCard(card)}
+                  </li>
                 ))}
+              </ol>
+              <div data-testid="pedigree-branches" className="hidden overflow-x-auto pb-2 md:block">
+                <div className="relative" style={{ width: layout.width, height: layout.height }}>
+                  <svg
+                    className="pointer-events-none absolute top-0 left-0"
+                    width={layout.width}
+                    height={layout.height}
+                    aria-hidden="true"
+                  >
+                    {layout.branches.map((link) => (
+                      <path
+                        key={link.key}
+                        d={pathData(link.segments)}
+                        fill="none"
+                        stroke="var(--border)"
+                        strokeWidth={1.5}
+                        strokeLinecap="round"
+                      />
+                    ))}
+                    {layout.partners.map((link) => (
+                      <path
+                        key={link.key}
+                        d={pathData(link.segments)}
+                        fill="none"
+                        stroke="var(--accent-strong)"
+                        strokeWidth={2}
+                        strokeDasharray="5 3"
+                        strokeLinecap="round"
+                      />
+                    ))}
+                  </svg>
+                  {layout.cards.map((card) => (
+                    <div key={card.key} className="absolute" style={{ left: card.x, top: card.y, width: CARD_W }}>
+                      {renderCard(card)}
+                    </div>
+                  ))}
+                </div>
               </div>
             </>
           )}

@@ -187,10 +187,26 @@ export interface KinshipResult {
   secondary_terms?: KinshipTerm[];
 }
 
-export interface LineageNode {
-  id: string;
+/** One pedigree occurrence. A person reached by several paths appears once
+  per path, and `path` holds the consecutive IDs that connect them. */
+export interface LineageNode extends PersonHit {
   depth: number;
   path: string[];
+}
+
+export interface LineageUnion {
+  id: string;
+  source: string;
+  target: string;
+}
+
+export interface LineageResult {
+  root_id: string;
+  direction: string;
+  depth: number;
+  truncated: boolean;
+  nodes: LineageNode[];
+  unions: LineageUnion[];
 }
 
 export interface FlowNode {
@@ -400,7 +416,7 @@ export const api = {
         `/api/v1/trees/${treeId}/analysis/kinship?person_a=${a}&person_b=${b}`,
       ),
     lineage: (treeId: string, id: string, direction: "ancestors" | "descendants", depth: number) =>
-      get<{ root_id: string; direction: string; depth: number; nodes: LineageNode[] }>(
+      get<LineageResult>(
         `/api/v1/trees/${treeId}/analysis/lineage/${id}?direction=${direction}&depth=${depth}`,
       ),
     subgraph: (treeId: string, rootId: string, depth: number) =>
