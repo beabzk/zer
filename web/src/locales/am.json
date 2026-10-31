@@ -76,7 +76,9 @@
     "noMembers": "ገና ምንም አባል የለም።",
     "noMembersDescription": "ለመተባበር የዘለለ መለያ ጋብዝ።",
     "roleUpdated": "የአባል ሚና ተሻሽሏል",
-    "memberRemoved": "አባል ተወግዷል"
+    "memberRemoved": "አባል ተወግዷል",
+    "pendingTitle": "በመጠባበቅ ላይ ያሉ ግብዣዎች",
+    "noInvitations": "ምንም ንቁ ግብዣ የለም።"
   },
   "treeInvite": {
     "title": "የዛፍ ግብዣ",
@@ -244,7 +246,12 @@
     "status": "ሁኔታ",
     "expires": "ያበቃል",
     "revoke": "ሰርዝ",
-    "accessSaved": "የመዳረሻ ቅንብሮች ተቀምጠዋል"
+    "accessSaved": "የመዳረሻ ቅንብሮች ተቀምጠዋል",
+    "exit": "ውጣ",
+    "settingsTab": "የምዝገባ ቅንብሮች",
+    "invitesTab": "የምዝገባ ግብዣዎች",
+    "usersTab": "ተጠቃሚዎች",
+    "treesTab": "የቤተሰብ ዛፎች"
   },
   "dashboard": {
     "overview": "የዛፉ አጠቃላይ እይታ",
@@ -294,7 +301,23 @@
     "description": "መግለጫ",
     "saved": "ዝግጅት ተቀምጧል",
     "deleted": "ዝግጅት ተሰርዟል",
-    "confirmDelete": "ይህን ዝግጅት ማጥፋት ይፈልጋሉ?"
+    "confirmDelete": "ይህን ዝግጅት ማጥፋት ይፈልጋሉ?",
+    "types": {
+      "birth": "ልደት",
+      "baptism": "ክርስትና",
+      "communion": "ቁርባን",
+      "marriage": "ጋብቻ",
+      "title_bestowal": "ሹመት",
+      "ordination": "ክህነት",
+      "graduation": "ምረቃ",
+      "military_service": "ውትድርና",
+      "migration": "ስደት",
+      "retirement": "ጡረታ",
+      "memorial": "መታሰቢያ"
+    },
+    "title": "የሕይወት ዝግጅቶች እና ታሪክ",
+    "descriptionHeader": "ታሪካዊ ክስተቶች፣ የሃይማኖት ሥርዓቶች እና የሕይወት ታሪክ ዝግጅቶች።",
+    "empty": "ለዚህ ሰው እስካሁን የተመዘገበ ዝግጅት የለም።"
   },
   "people": {
     "title": "ሰዎች",
@@ -327,7 +350,9 @@
     "nameSource": "የስም ምንጭ",
     "direction": "አቅጣጫ",
     "ancestors": "ቅድመ አያቶች",
-    "descendants": "ዘሮች"
+    "descendants": "ዘሮች",
+    "nameSourceDesc": "ስም የወረሱት ከ",
+    "setNameSource": "የስም መነሻ አድርግ"
   },
   "shell": {
     "forbiddenTitle": "ወደዚህ ዛፍ መዳረሻ የለም",
@@ -344,7 +369,12 @@
     "next": "ቀጣይ",
     "year": "ዓመት",
     "month": "ወር",
-    "day": "ቀን"
+    "day": "ቀን",
+    "lifespan": "የዕድሜ ዘመን",
+    "searchPlaceholder": "ለመፈለግ ስም ያስገቡ...",
+    "noResults": "ምንም ውጤት አልተገኘም",
+    "copy": "ቅዳ",
+    "view": "ተመልከት"
   },
   "months": [
     "መስከረም",
@@ -360,5 +390,13 @@
     "ሐምሌ",
     "ነሐሴ",
     "ጳጉሜ"
-  ]
+  ],
+  "calendar": {
+    "ethiopian": "የኢትዮጵያ (ዓ.ም.)",
+    "gregorian": "ግሪጎሪያን (እ.ኤ.አ.)",
+    "yearEC": "ዓመት (ዓ.ም.)",
+    "eraEC": "ዓ.ም.",
+    "eraGC": "እ.ኤ.አ.",
+    "equivalentEC": "ተመጣጣኝ የኢትዮጵያ ቀን: {day} {month} {year} ዓ.ም."
+  }
 }

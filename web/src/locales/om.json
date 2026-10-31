@@ -1,6 +1,11 @@
 {
   "common": {
-    "dismiss": "Beeksisa cufi"
+    "dismiss": "Beeksisa cufi",
+    "lifespan": "Umrii",
+    "searchPlaceholder": "Barbaaduuf maqaa galchaa...",
+    "noResults": "Wanti argame hin jiru",
+    "copy": "Garagalchi",
+    "view": "Ilaali"
   },
   "months": [
     "Meskerem",
@@ -16,5 +21,46 @@
     "Hamle",
     "Nehase",
     "Pagume"
-  ]
+  ],
+  "calendar": {
+    "ethiopian": "Itoophiyaa (EC)",
+    "gregorian": "Giriigoorii (GC)",
+    "yearEC": "Waggaa (EC)",
+    "eraEC": "EC",
+    "eraGC": "GC",
+    "equivalentEC": "Guyyaa Itoophiyaa: {day} {month} {year} EC"
+  },
+  "event": {
+    "types": {
+      "birth": "Dhaloota",
+      "baptism": "Cuuphaa",
+      "communion": "Qurbaana",
+      "marriage": "Fuudha fi Heeruma",
+      "title_bestowal": "Mootummaa",
+      "ordination": "Luba Ta'uu",
+      "graduation": "Eebba",
+      "military_service": "Tajaajila Waraanaa",
+      "migration": "Godaansa",
+      "retirement": "Soorama",
+      "memorial": "Yaadannoo"
+    },
+    "title": "Miseensota Jireenyaa fi Seenaa",
+    "descriptionHeader": "Milkiilee seenaa fi ta'iinsa jireenyaa.",
+    "empty": "Namni kun ta'iinsa galmaa'e hin qabu."
+  },
+  "workspace": {
+    "nameSourceDesc": "Maqaa kan dhaalatan irraa",
+    "setNameSource": "Madda maqaa godhi"
+  },
+  "members": {
+    "pendingTitle": "Afeerraawwan eegaa jiran",
+    "noInvitations": "Afeerraan hojjatu hin jiru."
+  },
+  "admin": {
+    "exit": "Ba'i",
+    "settingsTab": "Qindaa'ina Galmee",
+    "invitesTab": "Afeerraawwan Galmee",
+    "usersTab": "Fayyadamtoota",
+    "treesTab": "Mukoota Maatii"
+  }
 }

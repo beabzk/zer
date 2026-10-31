@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { KinshipTerm } from "./api";
+import type { KinshipTerm } from "./types";
 import { kinshipConfidenceLabel, kinshipTermLabel } from "./kinshipTerms";
 
 function term(overrides: Partial<KinshipTerm>): KinshipTerm {

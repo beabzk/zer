@@ -3,7 +3,12 @@
     "title": "ዘር"
   },
   "common": {
-    "dismiss": "መልእኽቲ ዕጸው"
+    "dismiss": "መልእኽቲ ዕጸው",
+    "lifespan": "ናይ ዕድመ ዘበን",
+    "searchPlaceholder": "ንምድላይ ስም ኣእትዉ...",
+    "noResults": "ዝተረኽበ ውጽኢት የለን",
+    "copy": "ቅዳሕ",
+    "view": "ርአይ"
   },
   "months": [
     "መስከረም",
@@ -19,5 +24,46 @@
     "ሐምሌ",
     "ነሐሴ",
     "ጳጉሜ"
-  ]
+  ],
+  "calendar": {
+    "ethiopian": "ናይ ኢትዮጵያ (ዓ.ም.)",
+    "gregorian": "ግሪጎሪያን (እ.ኤ.አ.)",
+    "yearEC": "ዓመት (ዓ.ም.)",
+    "eraEC": "ዓ.ም.",
+    "eraGC": "እ.ኤ.አ.",
+    "equivalentEC": "ተመጣጣኒ መዓልቲ: {day} {month} {year} ዓ.ም."
+  },
+  "event": {
+    "types": {
+      "birth": "ልደት",
+      "baptism": "ጥምቀት",
+      "communion": "ቍርባን",
+      "marriage": "መርዓ",
+      "title_bestowal": "ሹመት",
+      "ordination": "ክህነት",
+      "graduation": "ምረቓ",
+      "military_service": "ውትድርና",
+      "migration": "ስደት",
+      "retirement": "ጡረታ",
+      "memorial": "መዘከርታ"
+    },
+    "title": "ናይ ህይወት ፍጻመታትን ታሪክን",
+    "descriptionHeader": "ታሪኻዊ ፍጻመታት፣ ናይ ሃይማኖት ስርዓታትን ናይ ህይወት ታሪክ ፍጻመታትን።",
+    "empty": "ንነዚ ሰብ ዝተመዝገበ ፍጻመ የለን።"
+  },
+  "workspace": {
+    "nameSourceDesc": "ስም ዝወረስዎ ካብ",
+    "setNameSource": "መበገሲ ስም ግበር"
+  },
+  "members": {
+    "pendingTitle": "ኣብ ምጽባይ ዘለዉ ዕድመታት",
+    "noInvitations": "ንጡፍ ዕድመ የለን።"
+  },
+  "admin": {
+    "exit": "ውጻእ",
+    "settingsTab": "ናይ ምዝገባ ቅጥዕታት",
+    "invitesTab": "ናይ ምዝገባ ዕድመታት",
+    "usersTab": "ተጠቀምቲ",
+    "treesTab": "ናይ ስድራ ኣግራብ"
+  }
 }

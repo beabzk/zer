@@ -86,7 +86,7 @@ func TestTreeCreatesGraphTables(t *testing.T) {
 	m := NewManager(scratchDir(t))
 	defer m.Close()
 
-	db, err := m.Tree(ctx, "demo-lineage")
+	db, err := m.Tree(ctx, "sample-lineage")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -170,7 +170,7 @@ func TestRegistryRoundTripAndCascade(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO trees (id, name, slug, created_by)
-		VALUES ('t1', 'Demo', 'demo-lineage', 7)`); err != nil {
+		VALUES ('t1', 'Sample', 'sample-lineage', 7)`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := db.ExecContext(ctx, `INSERT INTO tree_members (id, tree_id, user_id, role)

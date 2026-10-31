@@ -1,82 +1,75 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
-import { cn } from "../../lib/cn";
+import React, { createContext, useContext, useState, useCallback } from 'react';
+import { Icons } from './Icons';
 
-export interface ToastItem {
-  id: number;
-  title: string;
-  description?: string;
-  variant?: "neutral" | "success" | "destructive";
+export type ToastType = 'success' | 'error' | 'info';
+
+interface ToastItem {
+  id: string;
+  message: string;
+  type: ToastType;
 }
 
 interface ToastContextValue {
-  toasts: ToastItem[];
-  push: (toast: Omit<ToastItem, "id">) => void;
-  dismiss: (id: number) => void;
+  show: (message: string, type?: ToastType) => void;
+  success: (message: string) => void;
+  error: (message: string) => void;
+  info: (message: string) => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
-let nextId = 1;
-
-export function ToastProvider({ children, dismissLabel = "Dismiss notification" }: { children: ReactNode; dismissLabel?: string }) {
+export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
 
-  const dismiss = useCallback((id: number) => {
-    setToasts((current) => current.filter((item) => item.id !== id));
+  const remove = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const push = useCallback(
-    (toast: Omit<ToastItem, "id">) => {
-      const id = nextId++;
-      setToasts((current) => [...current.slice(-3), { ...toast, id }]);
-      window.setTimeout(() => dismiss(id), 5000);
-    },
-    [dismiss],
-  );
+  const show = useCallback((message: string, type: ToastType = 'info') => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => remove(id), 4000);
+  }, [remove]);
 
-  const value = useMemo(() => ({ toasts, push, dismiss }), [toasts, push, dismiss]);
+  const success = useCallback((msg: string) => show(msg, 'success'), [show]);
+  const error = useCallback((msg: string) => show(msg, 'error'), [show]);
+  const info = useCallback((msg: string) => show(msg, 'info'), [show]);
 
   return (
-    <ToastContext.Provider value={value}>
+    <ToastContext.Provider value={{ show, success, error, info }}>
       {children}
-      <div aria-live="polite" className="pointer-events-none fixed bottom-4 left-1/2 z-50 flex w-[min(92vw,380px)] -translate-x-1/2 flex-col gap-2">
-        {toasts.map((item) => (
+      <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-md pointer-events-none">
+        {toasts.map((toast) => (
           <div
-            key={item.id}
-            role={item.variant === "destructive" ? "alert" : "status"}
-            className={cn(
-              "pointer-events-auto rounded-md border px-4 py-3 text-sm shadow-panel",
-              item.variant === "success" && "border-success bg-success-soft text-success",
-              item.variant === "destructive" && "border-destructive/30 bg-destructive/10 text-destructive",
-              (!item.variant || item.variant === "neutral") && "border-border bg-panel text-foreground",
-            )}
+            key={toast.id}
+            className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg text-sm transition-all duration-200 animate-in fade-in slide-in-from-bottom-2 ${
+              toast.type === 'success'
+                ? 'bg-stone-900 text-stone-100 border-stone-800'
+                : toast.type === 'error'
+                ? 'bg-red-950 text-red-100 border-red-900'
+                : 'bg-stone-900 text-stone-100 border-stone-800'
+            }`}
           >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="font-semibold">{item.title}</p>
-                {item.description && <p className="mt-1 text-xs leading-5 opacity-80">{item.description}</p>}
-              </div>
-              <button
-                type="button"
-                onClick={() => dismiss(item.id)}
-                aria-label={dismissLabel}
-                title={dismissLabel}
-                className="rounded px-1 text-xs opacity-60 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-              >
-                <span aria-hidden="true">×</span>
-              </button>
-            </div>
+            {toast.type === 'success' && <Icons.Check size={16} className="text-amber-400 shrink-0" />}
+            {toast.type === 'error' && <Icons.X size={16} className="text-red-400 shrink-0" />}
+            <span className="flex-1 font-medium">{toast.message}</span>
+            <button
+              onClick={() => remove(toast.id)}
+              className="text-stone-400 hover:text-stone-200 p-0.5 rounded cursor-pointer transition-colors"
+            >
+              <Icons.X size={14} />
+            </button>
           </div>
         ))}
       </div>
     </ToastContext.Provider>
   );
-}
+};
 
 export function useToast(): ToastContextValue {
-  const ctx = useContext(ToastContext);
-  if (!ctx) {
-    throw new Error("useToast must be used inside ToastProvider");
+  const context = useContext(ToastContext);
+  if (!context) {
+    throw new Error('useToast must be used within ToastProvider');
   }
-  return ctx;
+  return context;
 }

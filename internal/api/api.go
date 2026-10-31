@@ -98,6 +98,7 @@ func mount(r chi.Router, d Deps, sessionMW func(http.Handler) http.Handler) {
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/health", handleHealth)
 		r.Get("/auth/config", d.handleAuthConfig)
+		r.Get("/calendar/convert", d.handleCalendarConvert)
 		r.Post("/signup/invites/validate", d.handleValidateInvite)
 		r.Group(func(r chi.Router) {
 			r.Use(sessionMW)

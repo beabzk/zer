@@ -1,444 +1,318 @@
-export interface Tree {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  default_lang: string;
-  role?: string;
-}
+import type {
+  AuthConfig,
+  CalendarConvertResult,
+  Tree,
+  TreeStats,
+  TreeOverviewResponse,
+  PersonSummary,
+  IndividualRecord,
+  DetailResponse,
+  OverviewEvent,
+  SubgraphResponse,
+  LineageResponse,
+  KinshipResult,
+  TreeMember,
+  TreeInvitation,
+  AdminUser,
+  AdminTree,
+  AdminSignupInvite,
+} from './types';
 
-export type SignupMode = "OPEN" | "INVITE" | "CLOSED";
-
-export interface AuthConfig {
-  setup_required: boolean;
-  signup_mode: SignupMode | null;
-  password_enabled: boolean;
-  google_enabled: boolean;
-}
-
-export interface SignupSettings {
-  signup_mode: SignupMode;
-  default_invite_expiry_hours: number;
-}
-
-export interface SignupInvite {
-  id: string;
-  email: string;
-  status: "PENDING" | "ACCEPTED" | "REVOKED" | "EXPIRED";
-  expires_at: string;
-  created_at: string;
-  accepted_at?: string;
-  revoked_at?: string;
-  invite_url?: string;
-}
-
-export interface Individual {
-  id: string;
-  given_name_native: string;
-  given_name_latin: string;
-  gender: string;
-  titles?: string;
-  titles_display_enabled: number;
-  birth_year_ec?: number;
-  birth_month_ec?: number;
-  birth_day_ec?: number;
-  birth_date_gc?: string;
-  birth_place?: string;
-  birth_note?: string;
-  is_deceased: number;
-  death_year_ec?: number;
-  death_month_ec?: number;
-  death_day_ec?: number;
-  death_date_gc?: string;
-  death_place?: string;
-  death_note?: string;
-  profile_photo_url?: string;
-  full_native: string;
-  full_latin: string;
-  display_name?: string;
-}
-
-export interface PersonHit {
-  id: string;
-  full_native: string;
-  full_latin: string;
-  gender: string;
-  birth_year_ec?: number;
-  death_year_ec?: number;
-  is_deceased?: boolean;
-}
-
-export interface DirectoryPage {
-  individuals: PersonHit[];
-  total: number;
-  limit: number;
-  offset: number;
-}
-
-export type DirectoryOrder = "created" | "recent" | "name";
-
-export interface DirectoryFilters {
-  limit?: number;
-  offset?: number;
-  order?: DirectoryOrder;
-  gender?: "MALE" | "FEMALE";
-  deceased?: boolean;
-}
-
-export interface OverviewPerson extends PersonHit {
-  updated_at: string;
-}
-
-export interface DetailEdge extends PersonHit {
-  relationship_type: string;
-  is_name_source: boolean;
-}
-
-export interface DetailUnion {
-  id: string;
-  union_type: string;
-  status: string;
-  partner: PersonHit;
-}
-
-export interface PersonDetail {
-  individual: Individual;
-  parents: DetailEdge[];
-  children: DetailEdge[];
-  unions: DetailUnion[];
-  events: OverviewEvent[];
-  permissions: {
-    can_edit: boolean;
-    can_delete: boolean;
-  };
-}
-
-export interface OverviewEvent {
-  id: string;
-  individual_id: string;
-  event_type: string;
-  event_date_gc?: string;
-  event_year_ec?: number;
-  event_place?: string;
-  description?: string;
-  full_native: string;
-  full_latin: string;
-}
-
-export interface TreeOverview {
-  tree: Tree;
-  counts: {
-    individuals: number;
-    edges: number;
-    unions: number;
-    events: number;
-    members: number;
-  };
-  recent_individuals: OverviewPerson[];
-  recent_events: OverviewEvent[];
-}
-
-export interface KinshipSegment {
-  from_id: string;
-  to_id: string;
-  relation: string;
-  relationship_type?: string;
-  is_name_source?: boolean;
-  union_type?: string;
-  union_status?: string;
-}
-
-export interface KinshipTermParameters {
-  generations_up?: number;
-  generations_down?: number;
-  shared_parents?: number;
-  known_parents_a?: number;
-  known_parents_b?: number;
-  union_status?: string;
-  degree?: number;
-  removed?: number;
-  great_count?: number;
-}
-
-export interface KinshipTermComposition {
-  role: string;
-  key: string;
-  gender: string;
-  modifiers?: string[];
-  union_status?: string;
-}
-
-export interface KinshipTerm {
-  perspective: string;
-  key: string;
-  gender: string;
-  modifiers?: string[];
-  parameters: KinshipTermParameters;
-  confidence: string;
-  composition?: KinshipTermComposition[];
-}
-
-export interface KinshipResult {
-  path_key: string;
-  segments: KinshipSegment[];
-  degrees_of_sep: number;
-  individuals: Record<string, PersonHit>;
-  term: KinshipTerm;
-  secondary_terms?: KinshipTerm[];
-}
-
-/** One pedigree occurrence. A person reached by several paths appears once
-  per path, and `path` holds the consecutive IDs that connect them. */
-export interface LineageNode extends PersonHit {
-  depth: number;
-  path: string[];
-}
-
-export interface LineageUnion {
-  id: string;
-  source: string;
-  target: string;
-}
-
-export interface LineageResult {
-  root_id: string;
-  direction: string;
-  depth: number;
-  truncated: boolean;
-  nodes: LineageNode[];
-  unions: LineageUnion[];
-}
-
-export interface FlowNode {
-  id: string;
-  data: {
-    given_name_native: string;
-    given_name_latin: string;
-    gender: string;
-    full_native: string;
-    full_latin: string;
-    birth_year_ec?: number;
-    death_year_ec?: number;
-    is_deceased?: boolean;
-  };
-}
-
-export interface FlowEdge {
-  id: string;
-  source: string;
-  target: string;
-  label: string;
-}
-
-export interface TreeStats {
-  tree_id: string;
-  individuals: number;
-  edges: number;
-  unions: number;
-  events: number;
-  members: number;
-}
-
-export interface AdminUser {
-  id: number;
-  email: string;
-  email_verified_at?: string;
-  first_name?: string;
-  last_name?: string;
-  created_at: string;
-  is_admin: boolean;
-}
-
-export interface AdminTree {
-  id: string;
-  name: string;
-  slug: string;
-  default_lang: string;
-  created_at: string;
-  members: number;
-}
-
-export interface TreeMember {
-  tree_id: string;
-  user_id: number;
-  role: "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
-  email: string;
-  created_at: string;
-}
-
-export type TreeMemberRole = TreeMember["role"];
-
-export interface TreeInvitation {
-  id: string;
-  tree_id: string;
-  email: string;
-  role: TreeMember["role"];
-  status: "PENDING" | "ACCEPTED" | "REVOKED" | "EXPIRED";
-  expires_at: string;
-  created_at: string;
-  accepted_at?: string;
-  revoked_at?: string;
-  invite_url?: string;
-}
-
-export interface TreeInvitationDetails {
-  email: string;
-  tree_id: string;
-  tree_name: string;
-  role: TreeMember["role"];
-  expires_at: string;
-}
-
-export class ApiError extends Error {
-  status: number;
-  constructor(status: number, message: string) {
-    super(message);
-    this.status = status;
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const headers = new Headers(options.headers || {});
+  if (!headers.has('Content-Type') && options.body && typeof options.body === 'string') {
+    headers.set('Content-Type', 'application/json');
   }
-}
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    ...init,
+    ...options,
+    headers,
   });
+
   if (res.status === 204) {
-    return undefined as T;
+    return undefined as unknown as T;
   }
-  const data = await res.json().catch(() => ({}));
+
+  const data = await res.json().catch(() => null);
+
   if (!res.ok) {
-    const message =
-      typeof data === "object" && data !== null && "error" in data
-        ? String((data as Record<string, unknown>).error)
-        : `request failed with ${res.status}`;
-    throw new ApiError(res.status, message);
+    const errorMsg = data?.error || `Request failed with status ${res.status}`;
+    throw new Error(errorMsg);
   }
+
   return data as T;
 }
 
-const get = <T>(path: string) => request<T>(path);
-const post = <T>(path: string, body: unknown) =>
-  request<T>(path, { method: "POST", body: JSON.stringify(body) });
-const put = <T>(path: string, body: unknown) =>
-  request<T>(path, { method: "PUT", body: JSON.stringify(body) });
-const del = <T>(path: string) => request<T>(path, { method: "DELETE" });
-
 export const api = {
-  auth: {
-    config: () => get<AuthConfig>("/api/v1/auth/config"),
+  // Public
+  getAuthConfig: () => request<AuthConfig>('/api/v1/auth/config'),
+
+  validateSignupInvite: (token: string) =>
+    request<{ email: string; expires_at: string }>('/api/v1/signup/invites/validate', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    }),
+
+  convertCalendar: (params: { mode: 'ec_to_gc' | 'gc_to_ec'; year?: number; month?: number; day?: number; date?: string }) => {
+    const search = new URLSearchParams();
+    search.set('mode', params.mode);
+    if (params.year) search.set('year', params.year.toString());
+    if (params.month) search.set('month', params.month.toString());
+    if (params.day) search.set('day', params.day.toString());
+    if (params.date) search.set('date', params.date);
+    return request<CalendarConvertResult>(`/api/v1/calendar/convert?${search.toString()}`);
   },
-  signup: {
-    validateInvite: (token: string) =>
-      post<{ email: string; expires_at: string }>("/api/v1/signup/invites/validate", { token }),
+
+  // Tree Invitations
+  validateTreeInvitation: (token: string) =>
+    request<{ email: string; tree_id: string; tree_name: string; role: string; expires_at: string }>(
+      '/api/v1/tree-invitations/validate',
+      {
+        method: 'POST',
+        body: JSON.stringify({ token }),
+      }
+    ),
+
+  acceptTreeInvitation: (token: string) =>
+    request<TreeMember>('/api/v1/tree-invitations/accept', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    }),
+
+  // Trees
+  listTrees: () => request<Tree[]>('/api/v1/trees'),
+
+  createTree: (body: { name: string; slug?: string; description?: string; default_lang?: string }) =>
+    request<Tree>('/api/v1/trees', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  getTreeStats: (treeId: string) => request<TreeStats>(`/api/v1/trees/${treeId}/stats`),
+
+  getTreeOverview: (treeId: string) => request<TreeOverviewResponse>(`/api/v1/trees/${treeId}/overview`),
+
+  // Individuals
+  listIndividuals: (
+    treeId: string,
+    params?: {
+      q?: string;
+      limit?: number;
+      offset?: number;
+      order?: 'created' | 'recent' | 'name';
+      gender?: 'MALE' | 'FEMALE';
+      deceased?: 'true' | 'false';
+    }
+  ) => {
+    const search = new URLSearchParams();
+    if (params?.q) search.set('q', params.q);
+    if (params?.limit) search.set('limit', params.limit.toString());
+    if (params?.offset) search.set('offset', params.offset.toString());
+    if (params?.order) search.set('order', params.order);
+    if (params?.gender) search.set('gender', params.gender);
+    if (params?.deceased) search.set('deceased', params.deceased);
+    const query = search.toString();
+    return request<{
+      individuals: PersonSummary[];
+      total: number;
+      limit: number;
+      offset: number;
+    }>(`/api/v1/trees/${treeId}/individuals${query ? `?${query}` : ''}`);
   },
-  trees: {
-    list: () => get<Tree[]>("/api/v1/trees"),
-    create: (body: { name: string; slug?: string; description?: string; default_lang?: string }) =>
-      post<Tree>("/api/v1/trees", body),
-    stats: (treeId: string) => get<TreeStats>(`/api/v1/trees/${treeId}/stats`),
-    overview: (treeId: string) => get<TreeOverview>(`/api/v1/trees/${treeId}/overview`),
-    addMember: (treeId: string, body: { user_id: number; role: TreeMember["role"] }) =>
-      post<TreeMember>(`/api/v1/trees/${treeId}/members`, body),
-    members: (treeId: string) => get<TreeMember[]>(`/api/v1/trees/${treeId}/members`),
-    updateMember: (treeId: string, userId: number, role: TreeMember["role"]) =>
-      put<TreeMember>(`/api/v1/trees/${treeId}/members/${userId}`, { role }),
-    removeMember: (treeId: string, userId: number) =>
-      del<void>(`/api/v1/trees/${treeId}/members/${userId}`),
-    invitations: (treeId: string) => get<TreeInvitation[]>(`/api/v1/trees/${treeId}/invitations`),
-    createInvitation: (
-      treeId: string,
-      body: { email: string; role: TreeMember["role"]; expiresInHours?: number },
-    ) => post<TreeInvitation>(`/api/v1/trees/${treeId}/invitations`, body),
-    revokeInvitation: (treeId: string, invitationId: string) =>
-      del<void>(`/api/v1/trees/${treeId}/invitations/${invitationId}`),
-  },
-  treeInvitations: {
-    validate: (token: string) =>
-      post<TreeInvitationDetails>("/api/v1/tree-invitations/validate", { token }),
-    accept: (token: string) =>
-      post<TreeMember>("/api/v1/tree-invitations/accept", { token }),
-  },
-  individuals: {
-    list: (treeId: string, q?: string, opts?: DirectoryFilters) => {
-      const params = new URLSearchParams();
-      if (q) params.set("q", q);
-      if (opts?.limit !== undefined) params.set("limit", String(opts.limit));
-      if (opts?.offset !== undefined) params.set("offset", String(opts.offset));
-      if (opts?.order) params.set("order", opts.order);
-      if (opts?.gender) params.set("gender", opts.gender);
-      if (opts?.deceased !== undefined) params.set("deceased", String(opts.deceased));
-      const suffix = params.size > 0 ? `?${params.toString()}` : "";
-      return get<DirectoryPage>(`/api/v1/trees/${treeId}/individuals${suffix}`);
-    },
-    detail: (treeId: string, id: string, depth = 3) =>
-      get<PersonDetail>(`/api/v1/trees/${treeId}/individuals/${id}/detail?depth=${depth}`),
-    get: (treeId: string, id: string, depth = 3) =>
-      get<Individual>(`/api/v1/trees/${treeId}/individuals/${id}?depth=${depth}`),
-    create: (treeId: string, body: Record<string, unknown>) =>
-      post<Individual>(`/api/v1/trees/${treeId}/individuals`, body),
-    update: (treeId: string, id: string, body: Record<string, unknown>) =>
-      put<Individual>(`/api/v1/trees/${treeId}/individuals/${id}`, body),
-    remove: (treeId: string, id: string) =>
-      del<void>(`/api/v1/trees/${treeId}/individuals/${id}`),
-  },
-  relationships: {
-    addParentChild: (
-      treeId: string,
-      body: { parent_id: string; child_id: string; relationship_type?: string; is_name_source?: boolean },
-    ) => post(`/api/v1/trees/${treeId}/relationships/parent-child`, body),
-    updateParentChild: (
-      treeId: string,
-      body: { parent_id: string; child_id: string; relationship_type?: string; is_name_source?: boolean },
-    ) => put(`/api/v1/trees/${treeId}/relationships/parent-child`, body),
-    addUnion: (
-      treeId: string,
-      body: { partner_a_id: string; partner_b_id: string; union_type?: string; status?: string },
-    ) => post(`/api/v1/trees/${treeId}/relationships/union`, body),
-    updateUnion: (
-      treeId: string,
-      body: { partner_a_id: string; partner_b_id: string; union_type?: string; status?: string },
-    ) => put(`/api/v1/trees/${treeId}/relationships/union`, body),
-  },
-  events: {
-    list: (treeId: string, personId: string) =>
-      get<OverviewEvent[]>(`/api/v1/trees/${treeId}/individuals/${personId}/events`),
-    create: (treeId: string, personId: string, body: Record<string, unknown>) =>
-      post<OverviewEvent>(`/api/v1/trees/${treeId}/individuals/${personId}/events`, body),
-    update: (treeId: string, personId: string, eventId: string, body: Record<string, unknown>) =>
-      put<OverviewEvent>(`/api/v1/trees/${treeId}/individuals/${personId}/events/${eventId}`, body),
-    remove: (treeId: string, personId: string, eventId: string) =>
-      del<void>(`/api/v1/trees/${treeId}/individuals/${personId}/events/${eventId}`),
-  },
-  analysis: {
-    kinship: (treeId: string, a: string, b: string) =>
-      get<KinshipResult>(
-        `/api/v1/trees/${treeId}/analysis/kinship?person_a=${a}&person_b=${b}`,
-      ),
-    lineage: (treeId: string, id: string, direction: "ancestors" | "descendants", depth: number) =>
-      get<LineageResult>(
-        `/api/v1/trees/${treeId}/analysis/lineage/${id}?direction=${direction}&depth=${depth}`,
-      ),
-    subgraph: (treeId: string, rootId: string, depth: number) =>
-      get<{ nodes: FlowNode[]; edges: FlowEdge[] }>(
-        `/api/v1/trees/${treeId}/graph/subgraph?root_id=${rootId}&depth=${depth}`,
-      ),
-  },
-  admin: {
-    status: () => get<{ is_admin: boolean }>("/api/v1/admin/status"),
-    signupSettings: () => get<SignupSettings>("/api/v1/admin/signup-settings"),
-    updateSignupSettings: (body: SignupSettings) =>
-      put<SignupSettings>("/api/v1/admin/signup-settings", {
-        signupMode: body.signup_mode,
-        defaultInviteExpiryHours: body.default_invite_expiry_hours,
-      }),
-    invites: () => get<SignupInvite[]>("/api/v1/admin/invites"),
-    createInvite: (body: { email: string; expiresInHours?: number }) =>
-      post<SignupInvite>("/api/v1/admin/invites", body),
-    revokeInvite: (inviteId: string) => del<void>(`/api/v1/admin/invites/${inviteId}`),
-    users: () => get<AdminUser[]>("/api/v1/admin/users"),
-    trees: () => get<AdminTree[]>("/api/v1/admin/trees"),
-    deleteTree: (treeId: string) => del<void>(`/api/v1/admin/trees/${treeId}`),
-    deleteUser: (userId: number) => del<void>(`/api/v1/admin/users/${userId}`),
-  },
+
+  getIndividual: (treeId: string, id: string, titles = true) =>
+    request<IndividualRecord>(`/api/v1/trees/${treeId}/individuals/${id}${titles ? '?titles=1' : '?titles=0'}`),
+
+  getIndividualDetail: (treeId: string, id: string, depth = 3) =>
+    request<DetailResponse>(`/api/v1/trees/${treeId}/individuals/${id}/detail?depth=${depth}`),
+
+  createIndividual: (treeId: string, body: Record<string, unknown>) =>
+    request<IndividualRecord>(`/api/v1/trees/${treeId}/individuals`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  updateIndividual: (treeId: string, id: string, body: Record<string, unknown>) =>
+    request<IndividualRecord>(`/api/v1/trees/${treeId}/individuals/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+
+  deleteIndividual: (treeId: string, id: string) =>
+    request<void>(`/api/v1/trees/${treeId}/individuals/${id}`, {
+      method: 'DELETE',
+    }),
+
+  // Events
+  listEvents: (treeId: string, individualId: string) =>
+    request<OverviewEvent[]>(`/api/v1/trees/${treeId}/individuals/${individualId}/events`),
+
+  createEvent: (treeId: string, individualId: string, body: Record<string, unknown>) =>
+    request<OverviewEvent>(`/api/v1/trees/${treeId}/individuals/${individualId}/events`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  updateEvent: (treeId: string, individualId: string, eventId: string, body: Record<string, unknown>) =>
+    request<OverviewEvent>(`/api/v1/trees/${treeId}/individuals/${individualId}/events/${eventId}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+
+  deleteEvent: (treeId: string, individualId: string, eventId: string) =>
+    request<void>(`/api/v1/trees/${treeId}/individuals/${individualId}/events/${eventId}`, {
+      method: 'DELETE',
+    }),
+
+  // Relationships
+  addParentChild: (
+    treeId: string,
+    body: {
+      parent_id: string;
+      child_id: string;
+      relationship_type?: 'BIOLOGICAL' | 'ADOPTIVE' | 'FOSTER';
+      is_name_source?: boolean;
+    }
+  ) =>
+    request<{ id: string; parent_id: string; child_id: string; relationship_type: string; is_name_source: boolean }>(
+      `/api/v1/trees/${treeId}/relationships/parent-child`,
+      {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }
+    ),
+
+  updateParentChild: (
+    treeId: string,
+    body: {
+      parent_id: string;
+      child_id: string;
+      relationship_type?: 'BIOLOGICAL' | 'ADOPTIVE' | 'FOSTER';
+      is_name_source?: boolean;
+    }
+  ) =>
+    request<{ parent_id: string; child_id: string }>(`/api/v1/trees/${treeId}/relationships/parent-child`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+
+  addUnion: (
+    treeId: string,
+    body: {
+      partner_a_id: string;
+      partner_b_id: string;
+      union_type?: 'TRADITIONAL' | 'RELIGIOUS' | 'CIVIL';
+      status?: 'ACTIVE' | 'DISSOLVED' | 'WIDOWED';
+    }
+  ) =>
+    request<{ id: string; partner_a_id: string; partner_b_id: string; union_type: string; status: string }>(
+      `/api/v1/trees/${treeId}/relationships/union`,
+      {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }
+    ),
+
+  updateUnion: (
+    treeId: string,
+    body: {
+      partner_a_id: string;
+      partner_b_id: string;
+      union_type?: 'TRADITIONAL' | 'RELIGIOUS' | 'CIVIL';
+      status?: 'ACTIVE' | 'DISSOLVED' | 'WIDOWED';
+    }
+  ) =>
+    request<{ id: string; partner_a_id: string; partner_b_id: string; union_type: string; status: string }>(
+      `/api/v1/trees/${treeId}/relationships/union`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      }
+    ),
+
+  // Analysis & Graph
+  getKinship: (treeId: string, personA: string, personB: string) =>
+    request<KinshipResult>(
+      `/api/v1/trees/${treeId}/analysis/kinship?person_a=${encodeURIComponent(personA)}&person_b=${encodeURIComponent(
+        personB
+      )}`
+    ),
+
+  getLineage: (treeId: string, id: string, direction: 'ancestors' | 'descendants' = 'ancestors', depth = 6) =>
+    request<LineageResponse>(`/api/v1/trees/${treeId}/analysis/lineage/${id}?direction=${direction}&depth=${depth}`),
+
+  getSubgraph: (treeId: string, rootId: string, depth = 3) =>
+    request<SubgraphResponse>(`/api/v1/trees/${treeId}/graph/subgraph?root_id=${rootId}&depth=${depth}`),
+
+  // Members
+  listMembers: (treeId: string) => request<TreeMember[]>(`/api/v1/trees/${treeId}/members`),
+
+  addMember: (treeId: string, userId: number, role: string) =>
+    request<TreeMember>(`/api/v1/trees/${treeId}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId, role }),
+    }),
+
+  updateMember: (treeId: string, userId: number, role: string) =>
+    request<TreeMember>(`/api/v1/trees/${treeId}/members/${userId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    }),
+
+  removeMember: (treeId: string, userId: number) =>
+    request<void>(`/api/v1/trees/${treeId}/members/${userId}`, {
+      method: 'DELETE',
+    }),
+
+  // Tree Invitations
+  listTreeInvitations: (treeId: string) => request<TreeInvitation[]>(`/api/v1/trees/${treeId}/invitations`),
+
+  createTreeInvitation: (treeId: string, body: { email: string; role: string; expiresInHours?: number }) =>
+    request<TreeInvitation>(`/api/v1/trees/${treeId}/invitations`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  revokeTreeInvitation: (treeId: string, invitationId: string) =>
+    request<void>(`/api/v1/trees/${treeId}/invitations/${invitationId}`, {
+      method: 'DELETE',
+    }),
+
+  // Admin
+  getAdminStatus: () => request<{ is_admin: boolean }>('/api/v1/admin/status'),
+
+  getSignupSettings: () => request<{ signup_mode: string; default_invite_expiry_hours: number }>('/api/v1/admin/signup-settings'),
+
+  updateSignupSettings: (body: { signupMode: string; defaultInviteExpiryHours: number }) =>
+    request<{ signup_mode: string; default_invite_expiry_hours: number }>('/api/v1/admin/signup-settings', {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+
+  listAdminInvites: () => request<AdminSignupInvite[]>('/api/v1/admin/invites'),
+
+  createAdminInvite: (body: { email: string; expiresInHours?: number }) =>
+    request<AdminSignupInvite>('/api/v1/admin/invites', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  revokeAdminInvite: (inviteId: string) =>
+    request<void>(`/api/v1/admin/invites/${inviteId}`, {
+      method: 'DELETE',
+    }),
+
+  listAdminUsers: () => request<AdminUser[]>('/api/v1/admin/users'),
+
+  deleteAdminUser: (userId: number) =>
+    request<void>(`/api/v1/admin/users/${userId}`, {
+      method: 'DELETE',
+    }),
+
+  listAdminTrees: () => request<AdminTree[]>('/api/v1/admin/trees'),
+
+  deleteAdminTree: (treeId: string) =>
+    request<void>(`/api/v1/admin/trees/${treeId}`, {
+      method: 'DELETE',
+    }),
 };

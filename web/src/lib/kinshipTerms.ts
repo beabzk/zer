@@ -1,4 +1,4 @@
-import type { KinshipTerm, KinshipTermComposition } from "./api";
+import type { KinshipTerm, KinshipTermComposition } from "./types";
 import { t, type Locale } from "./i18n";
 
 type GenderKey = "female" | "male" | "default";

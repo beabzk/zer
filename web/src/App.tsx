@@ -1,449 +1,370 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { auth } from "./lib/auth";
-import { api, type Individual, type PersonHit, type Tree } from "./lib/api";
-import { localeTag, t, type Locale } from "./lib/i18n";
-import {
-  lastFocusKey,
-  parseLocation,
-  pathForView,
-  treeIdFromPath,
-  viewFromPath,
-  viewNeedsFocus,
-  type WorkspaceView,
-} from "./lib/navigation";
-import { Header } from "./components/layout/Header";
-import { TreeSwitcher } from "./components/layout/TreeSwitcher";
-import { LoginView } from "./components/visualization/LoginView";
-import { DashboardOverview } from "./components/visualization/DashboardOverview";
-import { PeopleDirectory } from "./components/visualization/PeopleDirectory";
-import { GraphWorkspace } from "./components/visualization/GraphWorkspace";
-import { LineageWorkspace } from "./components/visualization/LineageWorkspace";
-import { KinshipWorkspace } from "./components/visualization/KinshipWorkspace";
-import { AdminPanel } from "./components/visualization/AdminPanel";
-import { TreeInvitationView } from "./components/visualization/TreeInvitationView";
-import { TreeMembersPanel } from "./components/visualization/TreeMembersPanel";
-import { IndividualForm } from "./components/forms/IndividualForm";
-import { RelationshipForm, type RelationshipMode } from "./components/forms/RelationshipForm";
-import { PersonWorkspace } from "./components/visualization/PersonWorkspace";
-import { Button, Card, CardContent, Empty, Separator, Sheet, Skeleton, ToastProvider } from "./components/ui";
+import React, { useState, useEffect } from 'react';
+import { useSession } from './lib/auth';
+import { api } from './lib/api';
+import type { AuthConfig, Tree } from './lib/types';
+import { ToastProvider, useToast } from './components/ui/Toast';
+import { Header } from './components/Header';
+import { LoginPage } from './pages/LoginPage';
+import { SetupPage } from './pages/SetupPage';
+import { TreeSelectPage } from './pages/TreeSelectPage';
+import { TreeInvitationPage } from './pages/TreeInvitationPage';
+import { AdminPage } from './pages/AdminPage';
+import { OverviewView } from './views/OverviewView';
+import { DirectoryView } from './views/DirectoryView';
+import { PersonView } from './views/PersonView';
+import { GraphView } from './views/GraphView';
+import { LineageView } from './views/LineageView';
+import { KinshipView } from './views/KinshipView';
+import { MembersView } from './views/MembersView';
+import { IndividualForm } from './components/forms/IndividualForm';
+import { RelationshipForm } from './components/forms/RelationshipForm';
+import { TreeForm } from './components/forms/TreeForm';
 
-function storedLocale(): Locale {
-  const raw = localStorage.getItem("zer-locale");
-  return raw === "am" || raw === "om" || raw === "ti" ? raw : "en";
-}
+export const AppContent: React.FC = () => {
+  const toast = useToast();
+  const { data: session, isPending: sessionPending } = useSession();
 
-function initialTreeId(): string {
-  return treeIdFromPath() || localStorage.getItem("zer-tree") || "";
-}
+  const [authConfig, setAuthConfig] = useState<AuthConfig | null>(null);
+  const [configLoading, setConfigLoading] = useState(true);
+  const [isSetupMode, setIsSetupMode] = useState(false);
 
-function storedPanelOpen(key: string): boolean {
-  try {
-    return sessionStorage.getItem(key) !== "collapsed";
-  } catch {
-    return true;
-  }
-}
-
-function storePanelOpen(key: string, open: boolean) {
-  try {
-    sessionStorage.setItem(key, open ? "open" : "collapsed");
-  } catch {
-    // Panel state remains in memory when storage is unavailable.
-  }
-}
-
-const primaryViews: Array<{ id: WorkspaceView; label: string }> = [
-  { id: "overview", label: "views.overview" },
-  { id: "people", label: "views.people" },
-  { id: "canvas", label: "views.canvas" },
-  { id: "pedigree", label: "views.pedigree" },
-  { id: "kinship", label: "views.kinship" },
-];
-
-export function App() {
-  const [locale, setLocale] = useState<Locale>(storedLocale);
-  const [treeId, setTreeIdState] = useState(initialTreeId);
+  // Tree state
   const [trees, setTrees] = useState<Tree[]>([]);
-  const [treesReady, setTreesReady] = useState(false);
-  const [view, setViewState] = useState<WorkspaceView>(() => viewFromPath());
-  const [focus, setFocus] = useState<PersonHit | null>(null);
-  const [selectedId, setSelectedId] = useState("");
-  const [editor, setEditor] = useState<{ initial?: Individual } | null>(null);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
-  const [edgeMode, setEdgeMode] = useState<RelationshipMode | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [currentTree, setCurrentTree] = useState<Tree | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [treeMenuOpen, setTreeMenuOpen] = useState(false);
-  const [treeRailOpen, setTreeRailOpen] = useState(() => storedPanelOpen("zer-tree-rail"));
-  const [inspectorOpen, setInspectorOpen] = useState(() => storedPanelOpen("zer-inspector"));
 
-  const session = auth.useSession() as unknown as {
-    data: { user: { email: string } } | null;
-    isPending: boolean;
-  };
+  // Navigation state
+  const [activeTab, setActiveTab] = useState<string>('overview');
+  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
+  const [graphRootId, setGraphRootId] = useState<string | undefined>(undefined);
+  const [lineageRootId, setLineageRootId] = useState<string | undefined>(undefined);
+  const [kinshipAId, setKinshipAId] = useState<string | undefined>(undefined);
+  const [kinshipBId, setKinshipBId] = useState<string | undefined>(undefined);
 
-  // Refs mirror the current location so navigation helpers can read the
-  // latest view and tree without stale closures or impure state updaters.
-  const viewRef = useRef(view);
-  const treeRef = useRef(treeId);
-  viewRef.current = view;
-  treeRef.current = treeId;
+  // Tree Invitation Token in URL
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
 
-  const setTreeId = useCallback((id: string) => {
-    setTreeIdState(id);
-    treeRef.current = id;
-    if (id) {
-      localStorage.setItem("zer-tree", id);
-    } else {
-      localStorage.removeItem("zer-tree");
-    }
+  // Global action modals
+  const [addPersonModalOpen, setAddPersonModalOpen] = useState(false);
+  const [addRelationshipModalOpen, setAddRelationshipModalOpen] = useState(false);
+  const [createTreeModalOpen, setCreateTreeModalOpen] = useState(false);
+
+  // Load Auth Config on mount
+  useEffect(() => {
+    api
+      .getAuthConfig()
+      .then((cfg) => {
+        setAuthConfig(cfg);
+        if (cfg.setup_required) {
+          setIsSetupMode(true);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setConfigLoading(false));
   }, []);
 
-  const setView = useCallback((next: WorkspaceView, replace = false) => {
-    setViewState(next);
-    viewRef.current = next;
-    const path = pathForView(next, treeRef.current);
-    window.history[replace ? "replaceState" : "pushState"]({}, "", path);
-  }, []);
+  // Parse Hash on mount & popstate
+  const parseHash = () => {
+    const hash = window.location.hash.replace(/^#/, '');
 
-  const handleTreesLoaded = useCallback((list: Tree[]) => {
-    setTrees(list);
-    setTreesReady(true);
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("zer-locale", locale);
-    document.documentElement.lang = localeTag(locale);
-  }, [locale]);
-
-  useEffect(() => {
-    storePanelOpen("zer-tree-rail", treeRailOpen);
-  }, [treeRailOpen]);
-
-  useEffect(() => {
-    storePanelOpen("zer-inspector", inspectorOpen);
-  }, [inspectorOpen]);
-
-  // Keep view and tree selection in sync with the address bar.
-  useEffect(() => {
-    const onPopState = () => {
-      const location = parseLocation(window.location.pathname);
-      setViewState(location.view);
-      viewRef.current = location.view;
-      if (location.treeId) {
-        setTreeId(location.treeId);
+    // Check for tree invite in hash: #tree-invite=TOKEN or #tree-invite?invite=TOKEN
+    if (hash.startsWith('tree-invite')) {
+      const match = hash.match(/invite=([a-zA-Z0-9_\-]+)/);
+      if (match && match[1]) {
+        setInviteToken(match[1]);
+        return;
       }
-    };
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, [setTreeId]);
-
-  useEffect(() => {
-    if (!window.location.pathname || window.location.pathname === "/") {
-      window.history.replaceState({}, "", pathForView(view, treeId));
     }
-  }, [treeId, view]);
 
-  useEffect(() => {
-    if (!session.data) {
-      setIsAdmin(false);
+    if (!hash) {
+      setActiveTab('overview');
       return;
     }
-    api.admin.status().then((status) => setIsAdmin(status.is_admin)).catch(() => setIsAdmin(false));
-  }, [session.data]);
 
-  const pickTree = useCallback((id: string) => {
-    setTreeId(id);
-    setFocus(null);
-    setSelectedId("");
-    setWorkspaceId(null);
-    setTreeMenuOpen(false);
-    // Preserve the workspace mode across trees. Views that need a
-    // focused person fall back to the overview because focus is cleared.
-    const next = viewNeedsFocus(viewRef.current) ? "overview" : viewRef.current;
-    setViewState(next);
-    viewRef.current = next;
-    window.history.pushState({}, "", pathForView(next, id));
-  }, [setTreeId]);
+    const parts = hash.split('/');
+    const main = parts[0];
+    const sub = parts[1];
 
-  const clearTree = useCallback(() => {
-    setTreeId("");
-    setFocus(null);
-    setSelectedId("");
-    setWorkspaceId(null);
-    setViewState("overview");
-    viewRef.current = "overview";
-    window.history.pushState({}, "", pathForView("overview", ""));
-  }, [setTreeId]);
-
-  const refresh = useCallback(() => setRefreshKey((key) => key + 1), []);
-
-  const openPerson = useCallback((person: PersonHit) => {
-    setFocus(person);
-    setSelectedId(person.id);
-    const currentTree = treeRef.current;
-    if (currentTree) {
-      try {
-        localStorage.setItem(lastFocusKey(currentTree), JSON.stringify(person));
-      } catch {
-        // Storage may be unavailable; the focus state still applies.
-      }
+    if (main === 'person' && sub) {
+      setSelectedPersonId(sub);
+      setActiveTab('person');
+    } else if (main === 'graph') {
+      if (sub) setGraphRootId(sub);
+      setActiveTab('graph');
+    } else if (main === 'lineage') {
+      if (sub) setLineageRootId(sub);
+      setActiveTab('lineage');
+    } else if (main === 'kinship') {
+      if (sub) setKinshipAId(sub);
+      if (parts[2]) setKinshipBId(parts[2]);
+      setActiveTab('kinship');
+    } else if (['overview', 'people', 'members', 'admin'].includes(main)) {
+      setActiveTab(main);
     }
-    // Overview selections lead into the graph workspace where the
-    // person workspace panel is visible. Directory selections open the
-    // workspace drawer instead and keep their search state.
-    const currentView = viewRef.current;
-    if (currentView === "overview") {
-      setViewState("canvas");
-      viewRef.current = "canvas";
-      window.history.pushState({}, "", pathForView("canvas", currentTree));
-    }
-  }, []);
-
-  const tree = useMemo(() => trees.find((candidate) => candidate.id === treeId), [treeId, trees]);
-  const selectedTreeId = treeId && tree ? treeId : "";
-  const memberManagementRole = isAdmin
-    ? "OWNER"
-    : tree?.role === "ADMIN" || tree?.role === "OWNER"
-      ? tree.role
-      : undefined;
-  const canManageMembers = memberManagementRole !== undefined;
-  const workspaceViews = canManageMembers
-    ? [...primaryViews, { id: "members" as WorkspaceView, label: "views.members" }]
-    : primaryViews;
-  const bottomItems: Array<{ id: WorkspaceView; label: string }> = isAdmin
-    ? [...workspaceViews, { id: "admin" as WorkspaceView, label: "admin.panel" }]
-    : workspaceViews;
-  const inspectorAvailable = Boolean(
-    selectedTreeId &&
-    selectedId &&
-    (view === "canvas" || view === "pedigree" || view === "cards"),
-  );
-
-  const startAddPerson = () => {
-    setEditor({});
-  };
-
-  const openEditor = (person: Individual) => {
-    setEditor({ initial: person });
   };
 
   useEffect(() => {
-    if (treesReady && treeId && !tree) {
-      clearTree();
+    parseHash();
+    window.addEventListener('hashchange', parseHash);
+    return () => window.removeEventListener('hashchange', parseHash);
+  }, []);
+
+  // Sync hash when active tab or person changes
+  const navigateTo = (tab: string, personId?: string) => {
+    setActiveTab(tab);
+    if (tab === 'person' && personId) {
+      setSelectedPersonId(personId);
+      window.location.hash = `person/${personId}`;
+    } else if (tab === 'graph') {
+      if (personId) {
+        setGraphRootId(personId);
+        window.location.hash = `graph/${personId}`;
+      } else {
+        window.location.hash = 'graph';
+      }
+    } else if (tab === 'lineage') {
+      if (personId) {
+        setLineageRootId(personId);
+        window.location.hash = `lineage/${personId}`;
+      } else {
+        window.location.hash = 'lineage';
+      }
+    } else if (tab === 'kinship') {
+      window.location.hash = 'kinship';
+    } else {
+      window.location.hash = tab;
     }
-  }, [clearTree, tree, treeId, treesReady]);
+  };
 
-  // Directory selection opens the workspace drawer. The directory keeps
-  // its search state because the view never changes.
-  const openWorkspace = useCallback((person: PersonHit) => {
-    setWorkspaceId(person.id);
-  }, []);
+  // Load user's trees & admin status when session is ready
+  const loadTrees = () => {
+    if (!session?.user) return;
 
-  const closeWorkspace = useCallback(() => {
-    setWorkspaceId(null);
-  }, []);
+    api
+      .listTrees()
+      .then((treeList) => {
+        setTrees(treeList);
+        // If stored active tree exists in sessionStorage, re-select it
+        const savedTreeId = sessionStorage.getItem('zer_active_tree_id');
+        const found = treeList.find((t) => t.id === savedTreeId);
+        if (found) {
+          setCurrentTree(found);
+        } else if (treeList.length > 0 && !currentTree) {
+          setCurrentTree(treeList[0]);
+          sessionStorage.setItem('zer_active_tree_id', treeList[0].id);
+        }
+      })
+      .catch((err) => toast.error(err.message));
 
-  const handlePersonSaved = useCallback((person: Individual) => {
-    setFocus({
-      id: person.id,
-      full_native: person.full_native,
-      full_latin: person.full_latin,
-      gender: person.gender,
-    });
-    setSelectedId(person.id);
-    refresh();
-  }, [refresh]);
+    api
+      .getAdminStatus()
+      .then((res) => setIsAdmin(res.is_admin))
+      .catch(() => setIsAdmin(false));
+  };
 
-  const handlePersonDeleted = useCallback(() => {
-    setFocus(null);
-    setSelectedId("");
-    setWorkspaceId(null);
-    refresh();
-  }, [refresh]);
+  useEffect(() => {
+    if (session?.user) {
+      loadTrees();
+    }
+  }, [session?.user]);
 
-  if (session.isPending) {
-    return <p className="p-6 text-sm text-muted-foreground">{t(locale, "common.loading")}</p>;
-  }
-  if (!session.data) {
-    return <LoginView locale={locale} />;
-  }
-  if (window.location.pathname === "/tree-invite") {
-    return <TreeInvitationView locale={locale} />;
-  }
+  const handleSelectTree = (tree: Tree) => {
+    setCurrentTree(tree);
+    sessionStorage.setItem('zer_active_tree_id', tree.id);
+    navigateTo('overview');
+  };
 
-  const nav = (next: WorkspaceView) => setView(next);
-  const focusId = focus?.id ?? "";
-  // The stored id may reference a tree the user can no longer access.
-  const treeInaccessible = Boolean(treeId && treesReady && trees.length > 0 && !tree);
-  return (
-    <ToastProvider dismissLabel={t(locale, "common.dismiss")}>
-    <div className="min-h-screen bg-background">
-      <Header
-        locale={locale}
-        onLocaleChange={setLocale}
-        email={session.data.user.email}
-        treesOpen={treeRailOpen}
-        onToggleTrees={() => setTreeRailOpen((open) => !open)}
-        inspectorAvailable={inspectorAvailable}
-        inspectorOpen={inspectorOpen}
-        onToggleInspector={() => setInspectorOpen((open) => !open)}
-      />
-      <div className={`mx-auto grid max-w-[1600px] ${treeRailOpen ? "md:grid-cols-[260px_minmax(0,1fr)]" : "md:grid-cols-[minmax(0,1fr)]"}`}>
-        {treeRailOpen && (
-          <aside id="tree-rail" className="hidden border-r border-border bg-panel/50 md:block">
-            <div className="sticky top-0 flex h-[calc(100vh-4rem)] flex-col">
-              <TreeSwitcher locale={locale} activeId={selectedTreeId} onSelect={pickTree} refreshKey={refreshKey} isAdmin={isAdmin} onTreesLoaded={handleTreesLoaded} />
-              <div className="mt-auto p-4">
-                <Separator />
-                <p className="pt-4 text-xs leading-5 text-muted-foreground">{t(locale, "app.shellHint")}</p>
-              </div>
-            </div>
-          </aside>
-        )}
-
-        <main className="min-w-0 pb-20 md:pb-0">
-          <div className="border-b border-border bg-background/80 px-4 py-4 backdrop-blur sm:px-6 lg:px-8">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-              <div className="flex items-center gap-3">
-                <div className="relative md:hidden">
-                  <Button variant="outline" size="sm" onClick={() => setTreeMenuOpen((open) => !open)} aria-expanded={treeMenuOpen}>
-                    {tree?.name ?? t(locale, "trees.title")}
-                  </Button>
-                  {treeMenuOpen && (
-                    <div className="absolute left-0 top-11 z-20 w-[min(88vw,320px)] rounded-lg border border-border bg-panel p-2 shadow-panel">
-                      <TreeSwitcher locale={locale} activeId={selectedTreeId} onSelect={pickTree} refreshKey={refreshKey} isAdmin={isAdmin} onTreesLoaded={handleTreesLoaded} />
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                    {treeId && !treesReady ? <Skeleton className="h-3 w-32" /> : (tree?.name ?? t(locale, "dashboard.workspace"))}
-                  </div>
-                  <p className="mt-1 text-sm text-muted-foreground">{tree ? t(locale, "dashboard.workspaceHint") : t(locale, "dashboard.chooseTree")}</p>
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {inspectorAvailable && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    aria-expanded={inspectorOpen}
-                    aria-controls={inspectorOpen ? "person-inspector" : undefined}
-                    onClick={() => setInspectorOpen((open) => !open)}
-                  >
-                    {inspectorOpen ? t(locale, "shell.hideInspector") : t(locale, "shell.showInspector")}
-                  </Button>
-                )}
-                {selectedTreeId && !treeInaccessible && <Button size="sm" onClick={startAddPerson}>{t(locale, "person.add")}</Button>}
-              </div>
-            </div>
-            <nav className="mt-5 hidden gap-1 overflow-x-auto pb-1 md:flex" aria-label={t(locale, "dashboard.navigation")}>
-              {workspaceViews.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => nav(item.id)}
-                  aria-current={view === item.id ? "page" : undefined}
-                  className={`flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${view === item.id ? "bg-foreground text-background" : "text-muted-foreground hover:bg-panel-muted hover:text-foreground"}`}
-                >
-                  {t(locale, item.label)}
-                </button>
-              ))}
-              {isAdmin && (
-                <button
-                  onClick={() => nav("admin")}
-                  aria-current={view === "admin" ? "page" : undefined}
-                  className={`ml-auto flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${view === "admin" ? "bg-foreground text-background" : "text-muted-foreground hover:bg-panel-muted hover:text-foreground"}`}
-                >
-                  {t(locale, "admin.panel")}
-                </button>
-              )}
-            </nav>
-          </div>
-
-          <div className="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-            {view === "admin" && isAdmin ? <AdminPanel locale={locale} onTreeDeleted={(deletedId) => { if (deletedId === treeId) clearTree(); else refresh(); }} /> : treeInaccessible ? (
-              <Empty
-                title={t(locale, "shell.forbiddenTitle")}
-                description={t(locale, "shell.forbiddenDescription")}
-                action={<Button variant="outline" onClick={clearTree}>{t(locale, "shell.clearSelection")}</Button>}
-              />
-            ) : view === "members" ? (
-              memberManagementRole && selectedTreeId && tree ? (
-                <TreeMembersPanel locale={locale} treeId={selectedTreeId} treeName={tree.name} callerRole={memberManagementRole} />
-              ) : (
-                <Empty title={t(locale, "members.title")} description={t(locale, "members.unavailable")} />
-              )
-            ) : view === "overview" ? (
-              <DashboardOverview
-                locale={locale}
-                tree={tree}
-                treeId={selectedTreeId}
-                onAddPerson={startAddPerson}
-                onExplore={() => nav(focusId ? "canvas" : "people")}
-                onSelectPerson={openPerson}
-                onTreeCreated={(id) => { pickTree(id); refresh(); }}
-              />
-            ) : !selectedTreeId ? <Empty title={t(locale, "dashboard.chooseTree")} description={t(locale, "dashboard.chooseTreeDescription")} /> : view === "people" ? <PeopleDirectory locale={locale} treeId={selectedTreeId} onAdd={startAddPerson} onSelect={openWorkspace} /> : view === "kinship" ? <KinshipWorkspace locale={locale} treeId={selectedTreeId} onSelectPerson={openWorkspace} /> : !focusId || !focus ? <Card><CardContent className="p-6"><Empty title={t(locale, "canvas.empty")} description={t(locale, "dashboard.focusDescription")} /></CardContent></Card> : <div className={`grid gap-6 ${inspectorOpen ? "xl:grid-cols-[minmax(0,1fr)_320px]" : "xl:grid-cols-1"}`}>{view === "canvas" && <GraphWorkspace locale={locale} treeId={selectedTreeId} focus={focus} selectedId={selectedId} onSelect={setSelectedId} refreshKey={refreshKey} />}{(view === "pedigree" || view === "cards") && <LineageWorkspace locale={locale} treeId={selectedTreeId} rootId={focusId} refreshKey={refreshKey} onSelect={setSelectedId} />}{selectedId && inspectorOpen && <PersonWorkspace locale={locale} treeId={selectedTreeId} personId={selectedId} refreshKey={refreshKey} onEdit={openEditor} onEdge={setEdgeMode} onFocus={() => nav("canvas")} onSelectPerson={(person) => { setFocus(person); setSelectedId(person.id); }} />}</div>}
-          </div>
-        </main>
-      </div>
-
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-panel/95 backdrop-blur md:hidden" aria-label={t(locale, "dashboard.navigation")}>
-        <div className="grid" style={{ gridTemplateColumns: `repeat(${bottomItems.length}, minmax(0, 1fr))` }}>
-          {bottomItems.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => nav(item.id)}
-              aria-current={view === item.id ? "page" : undefined}
-              className={`flex min-w-0 flex-col items-center gap-1 px-1 py-2.5 text-[11px] font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent ${view === item.id ? "text-foreground" : "text-muted-foreground"}`}
-            >
-              <span className={`h-1 w-6 rounded-full ${view === item.id ? "bg-accent" : "bg-transparent"}`} aria-hidden="true" />
-              <span className="w-full truncate text-center leading-tight">{t(locale, item.label)}</span>
-            </button>
-          ))}
+  if (configLoading || sessionPending) {
+    return (
+      <div className="min-h-screen bg-stone-100 flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <div className="w-10 h-10 border-2 border-stone-300 border-t-amber-800 rounded-full animate-spin mx-auto" />
+          <p className="text-xs text-stone-500 font-mono">Connecting to Zer engine...</p>
         </div>
-      </nav>
+      </div>
+    );
+  }
 
-      <Sheet open={editor !== null} onClose={() => setEditor(null)} closeLabel={t(locale, "common.close")}>
-        {editor && selectedTreeId && (
-          <IndividualForm
-            locale={locale}
-            treeId={selectedTreeId}
-            initial={editor.initial}
-            canDelete={isAdmin || tree?.role !== "VIEWER"}
-            onClose={() => setEditor(null)}
-            onSaved={handlePersonSaved}
-            onDeleted={handlePersonDeleted}
+  // Setup screen for first-run
+  if (isSetupMode) {
+    return (
+      <SetupPage
+        onSuccess={() => {
+          setIsSetupMode(false);
+          window.location.reload();
+        }}
+      />
+    );
+  }
+
+  // Unauthenticated -> Login screen
+  if (!session?.user) {
+    return (
+      <LoginPage
+        authConfig={authConfig}
+        onSuccess={() => window.location.reload()}
+        onNavigateSetup={() => setIsSetupMode(true)}
+      />
+    );
+  }
+
+  // Handle tree invitation flow if token exists
+  if (inviteToken) {
+    return (
+      <TreeInvitationPage
+        token={inviteToken}
+        onAccepted={(treeId) => {
+          setInviteToken(null);
+          window.location.hash = '';
+          loadTrees();
+          api.listTrees().then((ts) => {
+            const found = ts.find((t) => t.id === treeId);
+            if (found) handleSelectTree(found);
+          });
+        }}
+        onCancel={() => {
+          setInviteToken(null);
+          window.location.hash = '';
+        }}
+      />
+    );
+  }
+
+  // Instance Admin Console View
+  if (activeTab === 'admin' && isAdmin) {
+    return <AdminPage onBack={() => navigateTo('overview')} />;
+  }
+
+  // If no tree is selected or user has 0 trees, show Tree Select Page
+  if (!currentTree) {
+    return (
+      <TreeSelectPage
+        trees={trees}
+        onSelectTree={handleSelectTree}
+        onRefreshTrees={loadTrees}
+        isAdmin={isAdmin}
+        onNavigateAdmin={() => navigateTo('admin')}
+      />
+    );
+  }
+
+  // Main Tree Workspace
+  return (
+    <div className={`min-h-screen bg-stone-100/60 flex flex-col ${activeTab === 'graph' ? 'h-screen overflow-hidden' : ''}`}>
+      <Header
+        currentTree={currentTree}
+        trees={trees}
+        onSelectTree={handleSelectTree}
+        onOpenCreateTree={() => setCreateTreeModalOpen(true)}
+        activeTab={activeTab}
+        onNavigateTab={(tab) => navigateTo(tab)}
+        isAdmin={isAdmin}
+      />
+
+      <main className={`flex-1 ${activeTab === 'graph' ? 'overflow-hidden flex flex-col min-h-0' : 'pb-16'}`}>
+        {activeTab === 'overview' && (
+          <OverviewView
+            treeId={currentTree.id}
+            onNavigatePerson={(id) => navigateTo('person', id)}
+            onNavigateTab={(tab) => navigateTo(tab)}
+            onOpenAddPerson={() => setAddPersonModalOpen(true)}
+            onOpenAddRelationship={() => setAddRelationshipModalOpen(true)}
           />
         )}
-      </Sheet>
-      <Sheet open={workspaceId !== null} onClose={closeWorkspace} closeLabel={t(locale, "common.close")}>
-        {workspaceId && (
-          <PersonWorkspace
-            locale={locale}
-            treeId={selectedTreeId}
-            personId={workspaceId}
-            refreshKey={refreshKey}
-            onEdit={openEditor}
-            onEdge={setEdgeMode}
-            onFocus={(person) => { setFocus(person); setSelectedId(person.id); closeWorkspace(); nav("canvas"); }}
-            onSelectPerson={(person) => setWorkspaceId(person.id)}
+
+        {activeTab === 'people' && (
+          <DirectoryView
+            treeId={currentTree.id}
+            onNavigatePerson={(id) => navigateTo('person', id)}
+            onNavigateGraph={(id) => navigateTo('graph', id)}
+            onNavigateLineage={(id) => navigateTo('lineage', id)}
+            onOpenAddPerson={() => setAddPersonModalOpen(true)}
           />
         )}
-      </Sheet>
-      <Sheet open={edgeMode !== null} onClose={() => setEdgeMode(null)} closeLabel={t(locale, "common.close")}>
-        {edgeMode && (
-          <RelationshipForm
-            locale={locale}
-            treeId={selectedTreeId}
-            mode={edgeMode}
-            onClose={() => setEdgeMode(null)}
-            onSaved={refresh}
+
+        {activeTab === 'person' && selectedPersonId && (
+          <PersonView
+            treeId={currentTree.id}
+            personId={selectedPersonId}
+            onBack={() => navigateTo('people')}
+            onNavigatePerson={(id) => navigateTo('person', id)}
+            onNavigateGraph={(id) => navigateTo('graph', id)}
+            onNavigateLineage={(id) => navigateTo('lineage', id)}
+            onNavigateKinshipWith={(id) => {
+              setKinshipAId(id);
+              navigateTo('kinship');
+            }}
           />
         )}
-      </Sheet>
+
+        {activeTab === 'graph' && (
+          <GraphView
+            treeId={currentTree.id}
+            initialRootId={graphRootId || selectedPersonId || undefined}
+            onNavigatePerson={(id) => navigateTo('person', id)}
+          />
+        )}
+
+        {activeTab === 'lineage' && (
+          <LineageView
+            treeId={currentTree.id}
+            initialRootId={lineageRootId || selectedPersonId || undefined}
+            onNavigatePerson={(id) => navigateTo('person', id)}
+          />
+        )}
+
+        {activeTab === 'kinship' && (
+          <KinshipView
+            treeId={currentTree.id}
+            initialPersonAId={kinshipAId}
+            initialPersonBId={kinshipBId}
+            onNavigatePerson={(id) => navigateTo('person', id)}
+          />
+        )}
+
+        {activeTab === 'members' && (
+          <MembersView treeId={currentTree.id} userRole={currentTree.role} />
+        )}
+      </main>
+
+      {/* Global Add Person Modal */}
+      <IndividualForm
+        isOpen={addPersonModalOpen}
+        onClose={() => setAddPersonModalOpen(false)}
+        treeId={currentTree.id}
+        onSuccess={(person) => {
+          navigateTo('person', person.id);
+        }}
+      />
+
+      {/* Global Link Relationship Modal */}
+      <RelationshipForm
+        isOpen={addRelationshipModalOpen}
+        onClose={() => setAddRelationshipModalOpen(false)}
+        treeId={currentTree.id}
+        onSuccess={() => {
+          // Re-render
+          navigateTo(activeTab);
+        }}
+      />
+
+      {/* Global Create Tree Modal */}
+      <TreeForm
+        isOpen={createTreeModalOpen}
+        onClose={() => setCreateTreeModalOpen(false)}
+        onSuccess={(newTree) => {
+          loadTrees();
+          handleSelectTree(newTree);
+        }}
+      />
     </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <ToastProvider>
+      <AppContent />
     </ToastProvider>
   );
-}
+};

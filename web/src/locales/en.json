@@ -81,7 +81,9 @@
     "noMembers": "No members yet.",
     "noMembersDescription": "Invite an existing account to collaborate.",
     "roleUpdated": "Member role updated",
-    "memberRemoved": "Member removed"
+    "memberRemoved": "Member removed",
+    "pendingTitle": "Pending invitations",
+    "noInvitations": "No active invitations."
   },
   "treeInvite": {
     "title": "Tree invitation",
@@ -165,18 +167,54 @@
     "spouse": "Spouse",
     "terms": {
       "self": "Same person",
-      "parent": { "female": "Mother", "male": "Father", "default": "Parent" },
-      "child": { "female": "Daughter", "male": "Son", "default": "Child" },
+      "parent": {
+        "female": "Mother",
+        "male": "Father",
+        "default": "Parent"
+      },
+      "child": {
+        "female": "Daughter",
+        "male": "Son",
+        "default": "Child"
+      },
       "ancestor": "Ancestor",
       "descendant": "Descendant",
-      "sibling": { "female": "Sister", "male": "Brother", "default": "Sibling" },
-      "aunt_uncle": { "female": "Aunt", "male": "Uncle", "default": "Aunt or uncle" },
-      "niece_nephew": { "female": "Niece", "male": "Nephew", "default": "Niece or nephew" },
+      "sibling": {
+        "female": "Sister",
+        "male": "Brother",
+        "default": "Sibling"
+      },
+      "aunt_uncle": {
+        "female": "Aunt",
+        "male": "Uncle",
+        "default": "Aunt or uncle"
+      },
+      "niece_nephew": {
+        "female": "Niece",
+        "male": "Nephew",
+        "default": "Niece or nephew"
+      },
       "cousin": "cousin",
-      "spouse": { "female": "Wife", "male": "Husband", "default": "Spouse" },
-      "parent_in_law": { "female": "Mother-in-law", "male": "Father-in-law", "default": "Parent-in-law" },
-      "child_in_law": { "female": "Daughter-in-law", "male": "Son-in-law", "default": "Child-in-law" },
-      "sibling_in_law": { "female": "Sister-in-law", "male": "Brother-in-law", "default": "Sibling-in-law" },
+      "spouse": {
+        "female": "Wife",
+        "male": "Husband",
+        "default": "Spouse"
+      },
+      "parent_in_law": {
+        "female": "Mother-in-law",
+        "male": "Father-in-law",
+        "default": "Parent-in-law"
+      },
+      "child_in_law": {
+        "female": "Daughter-in-law",
+        "male": "Son-in-law",
+        "default": "Child-in-law"
+      },
+      "sibling_in_law": {
+        "female": "Sister-in-law",
+        "male": "Brother-in-law",
+        "default": "Sibling-in-law"
+      },
       "cousin_in_law": "cousin-in-law",
       "related": "Related"
     },
@@ -300,7 +338,12 @@
     "status": "Status",
     "expires": "Expires",
     "revoke": "Revoke",
-    "accessSaved": "Access settings saved"
+    "accessSaved": "Access settings saved",
+    "exit": "Exit Console",
+    "settingsTab": "Signup Settings",
+    "invitesTab": "Signup Invites",
+    "usersTab": "Users",
+    "treesTab": "Trees"
   },
   "dashboard": {
     "overview": "Tree overview",
@@ -359,7 +402,23 @@
     "description": "Description",
     "saved": "Event saved",
     "deleted": "Event deleted",
-    "confirmDelete": "Delete this event?"
+    "confirmDelete": "Delete this event?",
+    "types": {
+      "birth": "Birth",
+      "baptism": "Baptism",
+      "communion": "Communion",
+      "marriage": "Marriage",
+      "title_bestowal": "Title Bestowal",
+      "ordination": "Ordination",
+      "graduation": "Graduation",
+      "military_service": "Military Service",
+      "migration": "Migration",
+      "retirement": "Retirement",
+      "memorial": "Memorial"
+    },
+    "title": "Life Events & Timeline",
+    "descriptionHeader": "Historical milestones, ecclesiastical rites, and biographical events.",
+    "empty": "No life events recorded for this individual yet."
   },
   "people": {
     "title": "People",
@@ -392,7 +451,9 @@
     "nameSource": "Name source",
     "direction": "Direction",
     "ancestors": "Ancestors",
-    "descendants": "Descendants"
+    "descendants": "Descendants",
+    "nameSourceDesc": "Inheriting name from",
+    "setNameSource": "Set name source"
   },
   "common": {
     "loading": "Loading...",
@@ -404,7 +465,12 @@
     "next": "Next",
     "year": "Year",
     "month": "Month",
-    "day": "Day"
+    "day": "Day",
+    "lifespan": "Lifespan",
+    "searchPlaceholder": "Type a name to search...",
+    "noResults": "No results found",
+    "copy": "Copy",
+    "view": "View"
   },
   "months": [
     "Meskerem",
@@ -420,5 +486,13 @@
     "Hamle",
     "Nehase",
     "Pagume"
-  ]
+  ],
+  "calendar": {
+    "ethiopian": "Ethiopian (EC)",
+    "gregorian": "Gregorian (GC)",
+    "yearEC": "Year (EC)",
+    "eraEC": "EC",
+    "eraGC": "GC",
+    "equivalentEC": "Equivalent EC: {day} {month} {year} EC"
+  }
 }
