@@ -153,7 +153,7 @@ export function RelationshipForm({
       onSaved();
       onClose();
     } catch (e) {
-      // Cycle, duplicate-link, and validation failures surface inline
+      // Cycle, duplicate-link, and validation failures appear inline
       // and as a toast so drawer context is never the only signal.
       fail(e instanceof ApiError ? e.message : t(locale, "common.error"));
     } finally {

@@ -1,6 +1,6 @@
 -- Per-tree family graph. Each tree lives in its own SQLite file.
 -- Individuals carry given names only. Full names are derived at runtime.
--- Relationships use parent_child and unions primitives exclusively.
+-- Relationships use parent_child and unions tables exclusively.
 CREATE TABLE individuals (
     id TEXT PRIMARY KEY,
     given_name_native TEXT NOT NULL,

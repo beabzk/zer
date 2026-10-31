@@ -1,6 +1,6 @@
 // Package lineage derives names and relationships from the family graph
-// at query time. The database stores parent_child and unions primitives
-// only, every other relation is computed here.
+// at query time. The database stores only parent_child and unions rows;
+// every other relation is computed here.
 package lineage
 
 import (
