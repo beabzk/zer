@@ -142,6 +142,9 @@ export interface SubgraphEdge {
   source: string;
   target: string;
   label: 'parent' | 'union';
+  relationship_type?: RelationshipType;
+  union_type?: UnionType;
+  status?: UnionStatus;
 }
 
 export interface SubgraphResponse {

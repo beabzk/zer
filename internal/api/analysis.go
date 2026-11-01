@@ -205,10 +205,13 @@ type flowNode struct {
 }
 
 type flowEdge struct {
-	ID     string `json:"id"`
-	Source string `json:"source"`
-	Target string `json:"target"`
-	Label  string `json:"label"`
+	ID               string `json:"id"`
+	Source           string `json:"source"`
+	Target           string `json:"target"`
+	Label            string `json:"label"`
+	RelationshipType string `json:"relationship_type,omitempty"`
+	UnionType        string `json:"union_type,omitempty"`
+	Status           string `json:"status,omitempty"`
 }
 
 func (d Deps) handleSubgraph(w http.ResponseWriter, r *http.Request) {
@@ -303,24 +306,44 @@ func (d Deps) handleSubgraph(w http.ResponseWriter, r *http.Request) {
 		}})
 	}
 	edges := []flowEdge{}
-	collect := func(query, label string) {
-		rows, err := db.QueryContext(r.Context(), query)
-		if err != nil {
-			return
-		}
-		defer rows.Close()
-		for rows.Next() {
-			var edgeID, source, target string
-			if err := rows.Scan(&edgeID, &source, &target); err != nil {
-				return
+	pcRows, err := db.QueryContext(r.Context(), `SELECT id, parent_id, child_id, relationship_type FROM parent_child`)
+	if err == nil {
+		for pcRows.Next() {
+			var edgeID, source, target, relType string
+			if err := pcRows.Scan(&edgeID, &source, &target, &relType); err == nil {
+				if visited[source] && visited[target] {
+					edges = append(edges, flowEdge{
+						ID:               edgeID,
+						Source:           source,
+						Target:           target,
+						Label:            "parent",
+						RelationshipType: relType,
+					})
+				}
 			}
-			if visited[source] && visited[target] {
-				edges = append(edges, flowEdge{ID: edgeID, Source: source, Target: target, Label: label})
-			}
 		}
+		pcRows.Close()
 	}
-	collect(`SELECT id, parent_id, child_id FROM parent_child`, "parent")
-	collect(`SELECT id, partner_a_id, partner_b_id FROM unions`, "union")
+
+	uRows, err := db.QueryContext(r.Context(), `SELECT id, partner_a_id, partner_b_id, union_type, status FROM unions`)
+	if err == nil {
+		for uRows.Next() {
+			var edgeID, source, target, uType, status string
+			if err := uRows.Scan(&edgeID, &source, &target, &uType, &status); err == nil {
+				if visited[source] && visited[target] {
+					edges = append(edges, flowEdge{
+						ID:        edgeID,
+						Source:    source,
+						Target:    target,
+						Label:     "union",
+						UnionType: uType,
+						Status:    status,
+					})
+				}
+			}
+		}
+		uRows.Close()
+	}
 
 	writeJSON(w, http.StatusOK, map[string]any{"nodes": nodes, "edges": edges})
 }

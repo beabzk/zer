@@ -1055,4 +1055,117 @@ describe('buildFamilyTreeLayout', () => {
       expect(hasUnion || hasConnector).toBe(true);
     });
   });
+
+  it('distributes 2 spouses into opposing left and right wings with direct bridges', () => {
+    const nodes: SubgraphNode[] = [
+      { id: 'husband', data: { given_name_native: 'ባል', given_name_latin: 'Husband', full_native: 'ባል', full_latin: 'Husband', gender: 'MALE', is_deceased: false } },
+      { id: 'wife1', data: { given_name_native: 'ሚስት 1', given_name_latin: 'Wife 1', full_native: 'ሚስት 1', full_latin: 'Wife 1', gender: 'FEMALE', is_deceased: false } },
+      { id: 'wife2', data: { given_name_native: 'ሚስት 2', given_name_latin: 'Wife 2', full_native: 'ሚስት 2', full_latin: 'Wife 2', gender: 'FEMALE', is_deceased: false } },
+    ];
+    const edges: SubgraphEdge[] = [
+      { id: 'u1', source: 'husband', target: 'wife1', label: 'union', status: 'ACTIVE' },
+      { id: 'u2', source: 'husband', target: 'wife2', label: 'union', status: 'ACTIVE' },
+    ];
+
+    const result = buildFamilyTreeLayout('husband', nodes, edges);
+    expect(result.cards).toHaveLength(3);
+    assertNoCollisions(result.cards);
+
+    const husbandCard = result.cards.find((c) => c.id === 'husband')!;
+    const wife1Card = result.cards.find((c) => c.id === 'wife1')!;
+    const wife2Card = result.cards.find((c) => c.id === 'wife2')!;
+
+    // One spouse on the right, one spouse on the left of husband
+    expect(wife1Card.x).toBeGreaterThan(husbandCard.x);
+    expect(wife2Card.x).toBeLessThan(husbandCard.x);
+
+    // Both unions are direct horizontal bridges (no overpasses needed)
+    expect(result.unions).toHaveLength(2);
+    result.unions.forEach((u) => {
+      expect(u.isOverpass).toBe(false);
+    });
+  });
+
+  it('distributes 4 spouses across dual wings and routes outer unions overhead without card intersection', () => {
+    const nodes: SubgraphNode[] = [
+      { id: 'husband', data: { given_name_native: 'ባል', given_name_latin: 'Husband', full_native: 'ባል', full_latin: 'Husband', gender: 'MALE', is_deceased: false } },
+      { id: 'wife1', data: { given_name_native: 'ሚስት 1', given_name_latin: 'Wife 1', full_native: 'ሚስት 1', full_latin: 'Wife 1', gender: 'FEMALE', is_deceased: false } },
+      { id: 'wife2', data: { given_name_native: 'ሚስት 2', given_name_latin: 'Wife 2', full_native: 'ሚስት 2', full_latin: 'Wife 2', gender: 'FEMALE', is_deceased: false } },
+      { id: 'wife3', data: { given_name_native: 'ሚስት 3', given_name_latin: 'Wife 3', full_native: 'ሚስት 3', full_latin: 'Wife 3', gender: 'FEMALE', is_deceased: false } },
+      { id: 'wife4', data: { given_name_native: 'ሚስት 4', given_name_latin: 'Wife 4', full_native: 'ሚስት 4', full_latin: 'Wife 4', gender: 'FEMALE', is_deceased: false } },
+    ];
+    const edges: SubgraphEdge[] = [
+      { id: 'u1', source: 'husband', target: 'wife1', label: 'union', status: 'ACTIVE' },
+      { id: 'u2', source: 'husband', target: 'wife2', label: 'union', status: 'ACTIVE' },
+      { id: 'u3', source: 'husband', target: 'wife3', label: 'union', status: 'ACTIVE' },
+      { id: 'u4', source: 'husband', target: 'wife4', label: 'union', status: 'ACTIVE' },
+    ];
+
+    const result = buildFamilyTreeLayout('husband', nodes, edges);
+    expect(result.cards).toHaveLength(5);
+    assertNoCollisions(result.cards);
+
+    const husbandCard = result.cards.find((c) => c.id === 'husband')!;
+    const leftWives = result.cards.filter((c) => c.id.startsWith('wife') && c.x < husbandCard.x);
+    const rightWives = result.cards.filter((c) => c.id.startsWith('wife') && c.x > husbandCard.x);
+
+    // Exactly 2 wives on the left, 2 wives on the right
+    expect(leftWives).toHaveLength(2);
+    expect(rightWives).toHaveLength(2);
+
+    // Outer wives are routed overpass above the cards
+    const overpassUnions = result.unions.filter((u) => u.isOverpass);
+    expect(overpassUnions).toHaveLength(2);
+    overpassUnions.forEach((u) => {
+      // Overpass junction and bridge height is above the top of cards
+      expect(u.junctionY).toBeLessThan(husbandCard.y);
+    });
+  });
+
+  it('guarantees seamless connection between vertical stems, buses, and drops without air gaps', () => {
+    const nodes: SubgraphNode[] = [
+      { id: 'father', data: { given_name_native: 'አባት', given_name_latin: 'Father', full_native: 'አባት', full_latin: 'Father', gender: 'MALE', is_deceased: false } },
+      { id: 'mother', data: { given_name_native: 'እናት', given_name_latin: 'Mother', full_native: 'እናት', full_latin: 'Mother', gender: 'FEMALE', is_deceased: false } },
+      { id: 'child1', data: { given_name_native: 'ልጅ 1', given_name_latin: 'Child 1', full_native: 'ልጅ 1', full_latin: 'Child 1', gender: 'MALE', is_deceased: false } },
+      { id: 'child2', data: { given_name_native: 'ልጅ 2', given_name_latin: 'Child 2', full_native: 'ልጅ 2', full_latin: 'Child 2', gender: 'FEMALE', is_deceased: false } },
+    ];
+    const edges: SubgraphEdge[] = [
+      { id: 'u1', source: 'father', target: 'mother', label: 'union', status: 'ACTIVE' },
+      { id: 'e1', source: 'father', target: 'child1', label: 'parent', relationship_type: 'BIOLOGICAL' },
+      { id: 'e2', source: 'mother', target: 'child1', label: 'parent', relationship_type: 'BIOLOGICAL' },
+      { id: 'e3', source: 'father', target: 'child2', label: 'parent', relationship_type: 'ADOPTIVE' },
+      { id: 'e4', source: 'mother', target: 'child2', label: 'parent', relationship_type: 'ADOPTIVE' },
+    ];
+
+    const result = buildFamilyTreeLayout('father', nodes, edges);
+    const stem = result.connectors.find((c) => c.type === 'descent_stem')!;
+    const bus = result.connectors.find((c) => c.type === 'sibling_bus')!;
+    const drops = result.connectors.filter((c) => c.type === 'child_drop');
+    const union = result.unions[0];
+
+    expect(stem).toBeDefined();
+    expect(bus).toBeDefined();
+    expect(drops).toHaveLength(2);
+
+    // Stem start Y matches the union junction Y (0 air gap)
+    expect(stem.path.startsWith(`M ${union.junctionX} ${union.junctionY}`)).toBe(true);
+
+    // Extract bus Y coordinate from bus path (e.g., M 136 125.5 L 368 125.5)
+    const busYMatch = bus.path.match(/M [-\d.]+ ([-\d.]+) L [-\d.]+ ([-\d.]+)/);
+    expect(busYMatch).not.toBeNull();
+    const busY = busYMatch![1];
+
+    // Stem must end at busY
+    expect(stem.path.endsWith(`L ${union.junctionX} ${busY}`)).toBe(true);
+
+    // Drops must start at busY
+    drops.forEach((d) => {
+      expect(d.path.startsWith(`M `)).toBe(true);
+      expect(d.path.includes(` ${busY} L `)).toBe(true);
+    });
+
+    // Relationship tags are preserved on drops
+    const child2Drop = drops.find((d) => d.id.includes('child2'))!;
+    expect(child2Drop.relationshipType).toBe('ADOPTIVE');
+  });
 });

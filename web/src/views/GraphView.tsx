@@ -79,6 +79,23 @@ export const GraphView: React.FC<GraphViewProps> = ({
     return buildFamilyTreeLayout(rootId, data.nodes, data.edges);
   }, [data, rootId]);
 
+  // Dynamic legend items based on what is actively rendered
+  const usedLegendItems = useMemo(() => {
+    const items = new Set<string>();
+    layout.connectors.forEach((c) => {
+      if (c.type === 'union_bridge') {
+        if (c.unionStatus === 'DISSOLVED') items.add('union_dissolved');
+        else if (c.unionStatus === 'WIDOWED') items.add('union_widowed');
+        else items.add('union_active');
+      } else {
+        if (c.relationshipType === 'ADOPTIVE') items.add('rel_adoptive');
+        else if (c.relationshipType === 'FOSTER') items.add('rel_foster');
+        else items.add('rel_biological');
+      }
+    });
+    return items;
+  }, [layout]);
+
   // Fast node lookup for inspector drawer
   const selectedNode = useMemo(() => {
     if (!data || !selectedNodeId) return null;
@@ -210,16 +227,44 @@ export const GraphView: React.FC<GraphViewProps> = ({
 
         {/* Right: Legend & Navigation Controls */}
         <div className="flex items-center gap-2 pointer-events-auto">
-          {/* Legend */}
-          <div className="hidden lg:flex items-center gap-4 bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-xl border border-stone-200/90 shadow-sm text-xs text-stone-600">
-            <div className="flex items-center gap-2">
-              <span className="w-5 h-0.5 bg-stone-700 rounded-full" />
-              <span>{t('graph.parents')}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="w-5 h-0.5 border-t-2 border-dashed border-amber-600" />
-              <span>{t('graph.unions')}</span>
-            </div>
+          {/* Dynamic Legend */}
+          <div className="hidden lg:flex items-center gap-4 bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-xl border border-stone-200/90 shadow-sm text-xs text-stone-600 flex-wrap">
+            {usedLegendItems.has('rel_biological') && (
+              <div className="flex items-center gap-2">
+                <span className="w-5 h-0.5 bg-stone-700 rounded-full" />
+                <span>{t('edge.biological')}</span>
+              </div>
+            )}
+            {usedLegendItems.has('rel_adoptive') && (
+              <div className="flex items-center gap-2">
+                <span className="w-5 h-0.5 border-t-2 border-dashed border-teal-600" />
+                <span className="text-teal-700 font-medium">{t('edge.adoptive')}</span>
+              </div>
+            )}
+            {usedLegendItems.has('rel_foster') && (
+              <div className="flex items-center gap-2">
+                <span className="w-5 h-0.5 border-t-2 border-dotted border-purple-600" />
+                <span className="text-purple-700 font-medium">{t('edge.foster')}</span>
+              </div>
+            )}
+            {usedLegendItems.has('union_active') && (
+              <div className="flex items-center gap-2">
+                <span className="w-5 h-0.5 border-t-2 border-dashed border-amber-600" />
+                <span>{t('edge.active')}</span>
+              </div>
+            )}
+            {usedLegendItems.has('union_dissolved') && (
+              <div className="flex items-center gap-2">
+                <span className="w-5 h-0.5 border-t-2 border-dashed border-slate-400" />
+                <span className="text-slate-500">{t('edge.dissolved')}</span>
+              </div>
+            )}
+            {usedLegendItems.has('union_widowed') && (
+              <div className="flex items-center gap-2">
+                <span className="w-5 h-0.5 border-t-2 border-dashed border-rose-600" />
+                <span className="text-rose-700">{t('edge.widowed')}</span>
+              </div>
+            )}
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-amber-200" />
               <span>{t('canvas.focus')}</span>
@@ -292,25 +337,38 @@ export const GraphView: React.FC<GraphViewProps> = ({
                 const isUnion = connector.type === 'union_bridge';
 
                 if (isUnion) {
+                  const isDissolved = connector.unionStatus === 'DISSOLVED';
+                  const isWidowed = connector.unionStatus === 'WIDOWED';
+                  const stroke = isDissolved ? '#94a3b8' : isWidowed ? '#be123c' : '#d97706';
+                  const strokeDasharray = isDissolved ? '9 4 2 4' : isWidowed ? '6 3 2 3' : '5 4';
+                  const strokeWidth = isDissolved ? '2' : '2.5';
+
                   return (
                     <path
                       key={connector.id}
                       d={connector.path}
-                      stroke="#d97706"
-                      strokeWidth="2.5"
-                      strokeDasharray="5 4"
+                      stroke={stroke}
+                      strokeWidth={strokeWidth}
+                      strokeDasharray={strokeDasharray}
                       fill="none"
                       strokeLinecap="round"
                     />
                   );
                 }
 
+                const isAdoptive = connector.relationshipType === 'ADOPTIVE';
+                const isFoster = connector.relationshipType === 'FOSTER';
+                const stroke = isAdoptive ? '#0d9488' : isFoster ? '#7c3aed' : '#57534e';
+                const strokeDasharray = isAdoptive ? '7 4' : isFoster ? '3 4' : undefined;
+                const strokeWidth = isAdoptive || isFoster ? '2.5' : '2';
+
                 return (
                   <path
                     key={connector.id}
                     d={connector.path}
-                    stroke="#57534e"
-                    strokeWidth="2"
+                    stroke={stroke}
+                    strokeWidth={strokeWidth}
+                    strokeDasharray={strokeDasharray}
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     fill="none"
@@ -321,18 +379,24 @@ export const GraphView: React.FC<GraphViewProps> = ({
 
             {/* 2. Union Junction Tees */}
             <g className="junctions-layer">
-              {layout.unions.map((u) => (
-                <g key={`junction-group-${u.id}`}>
-                  <circle
-                    cx={u.junctionX}
-                    cy={u.junctionY}
-                    r="4.5"
-                    fill="#d97706"
-                    stroke="#ffffff"
-                    strokeWidth="2"
-                  />
-                </g>
-              ))}
+              {layout.unions.map((u) => {
+                const isDissolved = u.status === 'DISSOLVED';
+                const isWidowed = u.status === 'WIDOWED';
+                const fill = isDissolved ? '#94a3b8' : isWidowed ? '#be123c' : '#d97706';
+
+                return (
+                  <g key={`junction-group-${u.id}`}>
+                    <circle
+                      cx={u.junctionX}
+                      cy={u.junctionY}
+                      r="4.5"
+                      fill={fill}
+                      stroke="#ffffff"
+                      strokeWidth="2"
+                    />
+                  </g>
+                );
+              })}
             </g>
 
             {/* 3. Person Cards */}

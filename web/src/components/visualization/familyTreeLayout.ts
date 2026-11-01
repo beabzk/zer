@@ -30,12 +30,17 @@ export interface LayoutUnion {
   junctionY: number;
   bridgePath: string;
   status: string;
+  unionType?: string;
+  isOverpass?: boolean;
 }
 
 export interface LayoutConnector {
   id: string;
   type: 'union_bridge' | 'descent_stem' | 'sibling_bus' | 'child_drop';
   path: string;
+  relationshipType?: 'BIOLOGICAL' | 'ADOPTIVE' | 'FOSTER';
+  unionStatus?: 'ACTIVE' | 'DISSOLVED' | 'WIDOWED';
+  unionType?: string;
 }
 
 export interface FamilyTreeLayoutResult {
@@ -103,6 +108,31 @@ export function buildFamilyTreeLayout(
           spousesOf.get(e.target)?.push(e.source);
         }
       }
+    }
+  });
+
+  // Edge metadata map
+  const edgeInfoMap = new Map<
+    string,
+    {
+      relType?: 'BIOLOGICAL' | 'ADOPTIVE' | 'FOSTER';
+      unionType?: 'TRADITIONAL' | 'RELIGIOUS' | 'CIVIL';
+      status?: 'ACTIVE' | 'DISSOLVED' | 'WIDOWED';
+    }
+  >();
+
+  edges.forEach((e) => {
+    edgeInfoMap.set(`${e.source}->${e.target}`, {
+      relType: e.relationship_type,
+      unionType: e.union_type,
+      status: e.status,
+    });
+    if (e.label === 'union') {
+      edgeInfoMap.set(`${e.target}->${e.source}`, {
+        relType: e.relationship_type,
+        unionType: e.union_type,
+        status: e.status,
+      });
     }
   });
 
@@ -223,12 +253,33 @@ export function buildFamilyTreeLayout(
 
   const layoutUnions: LayoutUnion[] = [];
   const connectors: LayoutConnector[] = [];
+  let overpassCount = 0;
+
+  const distributeSpouses = (allSpouseIds: string[]) => {
+    const left: string[] = [];
+    const right: string[] = [];
+
+    allSpouseIds.forEach((sid, idx) => {
+      if (idx === 0) {
+        right.push(sid);
+      } else if (idx === 1) {
+        left.push(sid);
+      } else if (idx % 2 === 0) {
+        left.unshift(sid);
+      } else {
+        right.push(sid);
+      }
+    });
+
+    return { left, right };
+  };
 
   const processCoupleUnion = (
     unionKey: string,
     partnerAId: string,
     partnerBId: string,
-    status = 'ACTIVE'
+    defaultStatus = 'ACTIVE',
+    defaultUnionType = 'TRADITIONAL'
   ) => {
     const cardA = cardMap.get(partnerAId);
     const cardB = cardMap.get(partnerBId);
@@ -237,17 +288,60 @@ export function buildFamilyTreeLayout(
     const leftCard = cardA.x < cardB.x ? cardA : cardB;
     const rightCard = cardA.x < cardB.x ? cardB : cardA;
 
-    const y = leftCard.y + CARD_HEIGHT / 2;
-    const x1 = leftCard.x + CARD_WIDTH;
-    const x2 = rightCard.x;
-    const junctionX = (x1 + x2) / 2;
-    const junctionY = y;
+    const edgeInfo =
+      edgeInfoMap.get(`${partnerAId}->${partnerBId}`) ||
+      edgeInfoMap.get(`${partnerBId}->${partnerAId}`);
+    const status = edgeInfo?.status || defaultStatus;
+    const unionType = edgeInfo?.unionType || defaultUnionType;
 
-    const bridgePath = `M ${x1} ${y} L ${x2} ${y}`;
+    // Check if any card lies between leftCard and rightCard on this tier
+    const interveningCards = layoutCards.filter(
+      (c) =>
+        c.generation === leftCard.generation &&
+        c.id !== leftCard.id &&
+        c.id !== rightCard.id &&
+        c.x < rightCard.x &&
+        c.x + c.width > leftCard.x + leftCard.width
+    );
+
+    let bridgePath = '';
+    let junctionX = 0;
+    let junctionY = 0;
+    let isOverpass = false;
+
+    if (interveningCards.length === 0) {
+      // Direct horizontal bridge
+      const y = leftCard.y + CARD_HEIGHT / 2;
+      const x1 = leftCard.x + CARD_WIDTH;
+      const x2 = rightCard.x;
+      junctionX = (x1 + x2) / 2;
+      junctionY = y;
+      bridgePath = `M ${x1} ${y} L ${x2} ${y}`;
+    } else {
+      // Overpass route: arch ABOVE intermediate cards through the clear tier margin
+      isOverpass = true;
+      const overpassY = leftCard.y - 18 - overpassCount * 12;
+      overpassCount++;
+
+      const exitX = leftCard.x + CARD_WIDTH;
+      const enterX = rightCard.x;
+      const stepOffset = Math.min(12, Math.max(4, (enterX - exitX) / 8));
+      const stepLeft = exitX + stepOffset;
+      const stepRight = enterX - stepOffset;
+      const y = leftCard.y + CARD_HEIGHT / 2;
+
+      junctionX = (stepLeft + stepRight) / 2;
+      junctionY = overpassY;
+
+      bridgePath = `M ${exitX} ${y} H ${stepLeft} V ${overpassY} H ${stepRight} V ${y} L ${enterX} ${y}`;
+    }
+
     connectors.push({
       id: `bridge-${unionKey}`,
       type: 'union_bridge',
       path: bridgePath,
+      unionStatus: status as any,
+      unionType,
     });
 
     const unionItem: LayoutUnion = {
@@ -257,7 +351,9 @@ export function buildFamilyTreeLayout(
       junctionX,
       junctionY,
       status,
+      unionType,
       bridgePath,
+      isOverpass,
     };
     layoutUnions.push(unionItem);
     return unionItem;
@@ -274,30 +370,47 @@ export function buildFamilyTreeLayout(
       .filter((c): c is LayoutCard => Boolean(c));
     if (validChildren.length === 0) return;
 
+    // Standardize busY: placed 45% of the tier gap below the parent tier bottom
     const firstChild = validChildren[0];
-    const busY = junctionY + (firstChild.y - junctionY) * 0.45;
+    const parentBottomY = firstChild.y - V_TIER_GAP;
+    const busY = parentBottomY + V_TIER_GAP * 0.45;
+
+    const getChildRelType = (childId: string): 'BIOLOGICAL' | 'ADOPTIVE' | 'FOSTER' => {
+      const pIds = parentsOf.get(childId) || [];
+      for (const pid of pIds) {
+        const info = edgeInfoMap.get(`${pid}->${childId}`);
+        if (info?.relType && info.relType !== 'BIOLOGICAL') {
+          return info.relType;
+        }
+      }
+      return 'BIOLOGICAL';
+    };
 
     if (validChildren.length === 1) {
       const c = validChildren[0];
       const cx = c.x + CARD_WIDTH / 2;
       const cy = c.y;
+      const relType = getChildRelType(c.id);
 
       if (Math.abs(cx - junctionX) < 2) {
         connectors.push({
           id: `drop-${descentKey}-${c.id}`,
           type: 'child_drop',
           path: `M ${junctionX} ${junctionY} L ${cx} ${cy}`,
+          relationshipType: relType,
         });
       } else {
         connectors.push({
           id: `drop-${descentKey}-${c.id}`,
           type: 'child_drop',
-          path: `M ${junctionX} ${junctionY} L ${junctionX} ${busY} L ${cx} ${busY} L ${cx} ${cy}`,
+          path: `M ${junctionX} ${junctionY} V ${busY} H ${cx} V ${cy}`,
+          relationshipType: relType,
         });
       }
       return;
     }
 
+    // Stem connects from junction dot down to busY
     connectors.push({
       id: `stem-${descentKey}`,
       type: 'descent_stem',
@@ -317,10 +430,12 @@ export function buildFamilyTreeLayout(
     validChildren.forEach((c) => {
       const cx = c.x + CARD_WIDTH / 2;
       const cy = c.y;
+      const relType = getChildRelType(c.id);
       connectors.push({
         id: `drop-${descentKey}-${c.id}`,
         type: 'child_drop',
         path: `M ${cx} ${busY} L ${cx} ${cy}`,
+        relationshipType: relType,
       });
     });
   };
@@ -341,11 +456,24 @@ export function buildFamilyTreeLayout(
       }
       const pCard = cardMap.get(parentId);
       if (pCard) {
-        connectors.push({
-          id: `anc-drop-${parentId}-${childId}`,
-          type: 'child_drop',
-          path: `M ${pCard.x + CARD_WIDTH / 2} ${pCard.y + CARD_HEIGHT} L ${childCard.x + CARD_WIDTH / 2} ${childCard.y}`,
-        });
+        const parentBottomY = pCard.y + CARD_HEIGHT;
+        const parentCenterX = pCard.x + CARD_WIDTH / 2;
+        const childCenterX = childCard.x + CARD_WIDTH / 2;
+        const ancBusY = parentBottomY + V_TIER_GAP * 0.45;
+
+        if (Math.abs(parentCenterX - childCenterX) < 2) {
+          connectors.push({
+            id: `anc-drop-${parentId}-${childId}`,
+            type: 'child_drop',
+            path: `M ${parentCenterX} ${parentBottomY} L ${childCenterX} ${childCard.y}`,
+          });
+        } else {
+          connectors.push({
+            id: `anc-drop-${parentId}-${childId}`,
+            type: 'child_drop',
+            path: `M ${parentCenterX} ${parentBottomY} V ${ancBusY} H ${childCenterX} V ${childCard.y}`,
+          });
+        }
         layoutAncestorsRecursively(parentId);
       }
     } else if (pIds.length >= 2) {
@@ -372,11 +500,20 @@ export function buildFamilyTreeLayout(
 
       const u = processCoupleUnion(`couple-${mId}-${fId}`, mId, fId);
       if (u) {
-        connectors.push({
-          id: `anc-stem-${u.id}-${childId}`,
-          type: 'child_drop',
-          path: `M ${u.junctionX} ${u.junctionY} L ${childCenterX} ${childCard.y}`,
-        });
+        const ancBusY = u.junctionY + (childCard.y - u.junctionY) * 0.45;
+        if (Math.abs(u.junctionX - childCenterX) < 2) {
+          connectors.push({
+            id: `anc-stem-${u.id}-${childId}`,
+            type: 'child_drop',
+            path: `M ${u.junctionX} ${u.junctionY} L ${childCenterX} ${childCard.y}`,
+          });
+        } else {
+          connectors.push({
+            id: `anc-stem-${u.id}-${childId}`,
+            type: 'child_drop',
+            path: `M ${u.junctionX} ${u.junctionY} V ${ancBusY} H ${childCenterX} V ${childCard.y}`,
+          });
+        }
       }
 
       layoutAncestorsRecursively(mId);
@@ -695,6 +832,13 @@ export function buildFamilyTreeLayout(
     if (!spouseFatherId && spouseParentIds.length > 0) spouseFatherId = spouseParentIds[0];
     if (!spouseMotherId && spouseParentIds.length > 1) spouseMotherId = spouseParentIds[1];
 
+    const spouseMotherOtherSpouses = spouseMotherId
+      ? (spousesOf.get(spouseMotherId) || []).filter((sid) => sid !== spouseFatherId && nodeMap.has(sid))
+      : [];
+    const spouseFatherOtherSpouses = spouseFatherId
+      ? (spousesOf.get(spouseFatherId) || []).filter((sid) => sid !== spouseMotherId && nodeMap.has(sid))
+      : [];
+
     const spouseSiblingIds = new Set<string>();
     spouseParentIds.forEach((pid) => {
       childrenOf.get(pid)?.forEach((cid) => {
@@ -711,10 +855,16 @@ export function buildFamilyTreeLayout(
       spouseSibBranches.reduce((sum, b) => sum + b.width, 0) +
       Math.max(0, spouseSibBranches.length - 1) * H_GAP;
 
-    const hasBothSpouseParents = Boolean(spouseMotherId && spouseFatherId);
-    const spouseParentsWidth = hasBothSpouseParents
-      ? 2 * CARD_WIDTH + SPOUSE_GAP
-      : CARD_WIDTH;
+    const totalSpouseParentsCount =
+      (spouseMotherId ? 1 : 0) +
+      (spouseFatherId && spouseFatherId !== spouseMotherId ? 1 : 0) +
+      spouseMotherOtherSpouses.length +
+      spouseFatherOtherSpouses.length;
+
+    const spouseParentsWidth =
+      totalSpouseParentsCount > 0
+        ? totalSpouseParentsCount * CARD_WIDTH + (totalSpouseParentsCount - 1) * SPOUSE_GAP
+        : 0;
 
     const spouseBranchWidth = Math.max(spouseParentsWidth, spouseSibsTotalWidth);
 
@@ -725,12 +875,16 @@ export function buildFamilyTreeLayout(
 
     // Lay out Focal Parents at Gen -1
     let focalParentsJunctionX = focalBoxLeft + focalBranchWidth / 2;
+    let focalParentsJunctionY = getYForGen(-1) + CARD_HEIGHT / 2;
     if (hasBothFocalParents && motherId && fatherId) {
       const pStartX = focalBoxLeft + (focalBranchWidth - focalParentsWidth) / 2;
       addCard(motherId, pStartX, -1, 'paternal');
       addCard(fatherId, pStartX + CARD_WIDTH + SPOUSE_GAP, -1, 'paternal');
       const u = processCoupleUnion('focal-parents', motherId, fatherId);
-      if (u) focalParentsJunctionX = u.junctionX;
+      if (u) {
+        focalParentsJunctionX = u.junctionX;
+        focalParentsJunctionY = u.junctionY;
+      }
       layoutAncestorsRecursively(motherId);
       layoutAncestorsRecursively(fatherId);
     } else if (hasFocalParents) {
@@ -738,6 +892,8 @@ export function buildFamilyTreeLayout(
       const pStartX = focalBoxLeft + (focalBranchWidth - CARD_WIDTH) / 2;
       addCard(singleP, pStartX, -1, 'paternal');
       focalParentsJunctionX = pStartX + CARD_WIDTH / 2;
+      const pCard = cardMap.get(singleP);
+      if (pCard) focalParentsJunctionY = pCard.y + CARD_HEIGHT;
       layoutAncestorsRecursively(singleP);
     }
 
@@ -753,27 +909,65 @@ export function buildFamilyTreeLayout(
     // Connect Focal Parents to Focal Sibling Group
     if (hasFocalParents) {
       const allFocalChildren = [...focalSiblingsList, effectiveRootId];
-      const pCard = cardMap.get((motherId || fatherId)!);
-      const jy = pCard ? pCard.y + CARD_HEIGHT : getYForGen(-1) + CARD_HEIGHT;
-      processDescentBranch('focal-siblings-branch', focalParentsJunctionX, jy, allFocalChildren);
+      processDescentBranch('focal-siblings-branch', focalParentsJunctionX, focalParentsJunctionY, allFocalChildren);
     }
 
     // Lay out Spouse Parents at Gen -1
     let spouseParentsJunctionX = spouseBoxLeft + spouseBranchWidth / 2;
-    if (hasBothSpouseParents && spouseMotherId && spouseFatherId) {
+    let spouseParentsJunctionY = getYForGen(-1) + CARD_HEIGHT / 2;
+
+    if (totalSpouseParentsCount > 0) {
       const spStartX = spouseBoxLeft + (spouseBranchWidth - spouseParentsWidth) / 2;
-      addCard(spouseMotherId, spStartX, -1, 'maternal');
-      addCard(spouseFatherId, spStartX + CARD_WIDTH + SPOUSE_GAP, -1, 'maternal');
-      const u = processCoupleUnion('spouse-parents', spouseMotherId, spouseFatherId);
-      if (u) spouseParentsJunctionX = u.junctionX;
-      layoutAncestorsRecursively(spouseMotherId);
-      layoutAncestorsRecursively(spouseFatherId);
-    } else if (spouseParentIds.length > 0) {
-      const singleSP = (spouseMotherId || spouseFatherId)!;
-      const spStartX = spouseBoxLeft + (spouseBranchWidth - CARD_WIDTH) / 2;
-      addCard(singleSP, spStartX, -1, 'maternal');
-      spouseParentsJunctionX = spStartX + CARD_WIDTH / 2;
-      layoutAncestorsRecursively(singleSP);
+      let curPStartX = spStartX;
+
+      // 1. Mother's other spouses (to the left of mother)
+      spouseMotherOtherSpouses.forEach((sid) => {
+        addCard(sid, curPStartX, -1, 'maternal', false, true);
+        curPStartX += CARD_WIDTH + SPOUSE_GAP;
+      });
+
+      // 2. Mother
+      if (spouseMotherId) {
+        addCard(spouseMotherId, curPStartX, -1, 'maternal');
+        curPStartX += CARD_WIDTH + SPOUSE_GAP;
+      }
+
+      // 3. Father
+      if (spouseFatherId && spouseFatherId !== spouseMotherId) {
+        addCard(spouseFatherId, curPStartX, -1, 'maternal');
+        curPStartX += CARD_WIDTH + SPOUSE_GAP;
+      }
+
+      // 4. Father's other spouses (to the right of father)
+      spouseFatherOtherSpouses.forEach((sid) => {
+        addCard(sid, curPStartX, -1, 'maternal', false, true);
+        curPStartX += CARD_WIDTH + SPOUSE_GAP;
+      });
+
+      if (spouseMotherId && spouseFatherId && spouseMotherId !== spouseFatherId) {
+        const u = processCoupleUnion('spouse-parents', spouseMotherId, spouseFatherId);
+        if (u) {
+          spouseParentsJunctionX = u.junctionX;
+          spouseParentsJunctionY = u.junctionY;
+        }
+      } else if (spouseMotherId || spouseFatherId) {
+        const singleP = cardMap.get((spouseMotherId || spouseFatherId)!);
+        if (singleP) {
+          spouseParentsJunctionX = singleP.x + CARD_WIDTH / 2;
+          spouseParentsJunctionY = singleP.y + CARD_HEIGHT;
+        }
+      }
+
+      // Connect secondary unions
+      spouseMotherOtherSpouses.forEach((sid) => {
+        if (spouseMotherId) processCoupleUnion(`spouse-mom-${sid}`, sid, spouseMotherId);
+      });
+      spouseFatherOtherSpouses.forEach((sid) => {
+        if (spouseFatherId) processCoupleUnion(`spouse-dad-${sid}`, spouseFatherId, sid);
+      });
+
+      if (spouseMotherId) layoutAncestorsRecursively(spouseMotherId);
+      if (spouseFatherId && spouseFatherId !== spouseMotherId) layoutAncestorsRecursively(spouseFatherId);
     }
 
     // Lay out Spouse + Spouse Siblings at Gen 0 (Spouse sits on the far left closest to root)
@@ -788,9 +982,7 @@ export function buildFamilyTreeLayout(
     // Connect Spouse Parents to Spouse Sibling Group
     if (spouseParentIds.length > 0) {
       const allSpouseChildren = [primarySpouseId, ...spouseSiblingsList];
-      const spCard = cardMap.get((spouseMotherId || spouseFatherId)!);
-      const jy = spCard ? spCard.y + CARD_HEIGHT : getYForGen(-1) + CARD_HEIGHT;
-      processDescentBranch('spouse-siblings-branch', spouseParentsJunctionX, jy, allSpouseChildren);
+      processDescentBranch('spouse-siblings-branch', spouseParentsJunctionX, spouseParentsJunctionY, allSpouseChildren);
     }
 
     // Central Union Bridge between Focal Root and Primary Spouse at Gen 0
@@ -1020,24 +1212,36 @@ export function buildFamilyTreeLayout(
     const leftSiblings = focalSiblingsList.slice(0, halfSiblings);
     const rightSiblings = focalSiblingsList.slice(halfSiblings);
 
-    const hasSpouse = Boolean(primarySpouseId);
-    const secondarySpouseIds = rootSpouseIds.filter((sid) => sid !== primarySpouseId);
-    const coupleWidth = hasSpouse ? 2 * CARD_WIDTH + SPOUSE_GAP : CARD_WIDTH;
+    const { left: leftSpouses, right: rightSpouses } = distributeSpouses(rootSpouseIds);
+    const spousesCount = leftSpouses.length + rightSpouses.length;
+    const focalGroupWidth = (1 + spousesCount) * CARD_WIDTH + spousesCount * SPOUSE_GAP;
 
-    const focalCoupleStartX = parentsJunctionX - coupleWidth / 2;
-    const rootX = focalCoupleStartX;
-    const spouseX = focalCoupleStartX + CARD_WIDTH + SPOUSE_GAP;
+    const focalGroupStartX = parentsJunctionX - focalGroupWidth / 2;
+    let curGroupX = focalGroupStartX;
 
+    // Lay out left wing spouses
+    leftSpouses.forEach((sid) => {
+      addCard(sid, curGroupX, 0, 'center', false, true);
+      curGroupX += CARD_WIDTH + SPOUSE_GAP;
+    });
+
+    // Lay out root
+    const rootX = curGroupX;
     addCard(effectiveRootId, rootX, 0, 'center', true, false);
-    if (primarySpouseId) {
-      addCard(primarySpouseId, spouseX, 0, 'center', false, true);
-    }
+    curGroupX += CARD_WIDTH + SPOUSE_GAP;
 
-    let curSecSpouseX = (hasSpouse ? spouseX : rootX) + CARD_WIDTH + SPOUSE_GAP;
-    secondarySpouseIds.forEach((secId) => {
-      addCard(secId, curSecSpouseX, 0, 'center', false, true);
-      processCoupleUnion(`root-spouse-${secId}`, effectiveRootId, secId);
-      curSecSpouseX += CARD_WIDTH + SPOUSE_GAP;
+    // Lay out right wing spouses
+    rightSpouses.forEach((sid) => {
+      addCard(sid, curGroupX, 0, 'center', false, true);
+      curGroupX += CARD_WIDTH + SPOUSE_GAP;
+    });
+
+    // Connect spouses to root
+    leftSpouses.forEach((sid) => {
+      processCoupleUnion(`root-spouse-${sid}`, sid, effectiveRootId);
+    });
+    rightSpouses.forEach((sid) => {
+      processCoupleUnion(`root-spouse-${sid}`, effectiveRootId, sid);
     });
 
     const visitedBranchNodesB = new Set<string>();
@@ -1048,7 +1252,7 @@ export function buildFamilyTreeLayout(
     const leftBranches = leftSiblings.map((id) => buildDescendantBranch(id, visitedBranchNodesB));
     const rightBranches = rightSiblings.map((id) => buildDescendantBranch(id, visitedBranchNodesB));
 
-    let curRightBound = rootX - H_GAP;
+    let curRightBound = focalGroupStartX - H_GAP;
     for (let i = leftBranches.length - 1; i >= 0; i--) {
       const b = leftBranches[i];
       const startX = curRightBound - b.width;
@@ -1056,11 +1260,7 @@ export function buildFamilyTreeLayout(
       curRightBound = startX - H_GAP;
     }
 
-    const rightStartBase =
-      secondarySpouseIds.length > 0
-        ? curSecSpouseX - SPOUSE_GAP
-        : (hasSpouse ? spouseX : rootX) + CARD_WIDTH;
-    let curLeftBound = rightStartBase + H_GAP;
+    let curLeftBound = focalGroupStartX + focalGroupWidth + H_GAP;
     rightBranches.forEach((b) => {
       layoutSingleDescendantBranch(b, curLeftBound, 0, 'center');
       curLeftBound += b.width + H_GAP;
@@ -1088,8 +1288,15 @@ export function buildFamilyTreeLayout(
     const childrenList = Array.from(rootChildIds);
     if (childrenList.length > 0) {
       if (primarySpouseId) {
-        const u = processCoupleUnion('root-spouse', effectiveRootId, primarySpouseId);
-        const jx = u ? u.junctionX : (rootX + CARD_WIDTH + spouseX) / 2;
+        const u = layoutUnions.find(
+          (u) =>
+            (u.partnerAId === effectiveRootId && u.partnerBId === primarySpouseId) ||
+            (u.partnerBId === effectiveRootId && u.partnerAId === primarySpouseId)
+        ) || processCoupleUnion('root-spouse', effectiveRootId, primarySpouseId);
+
+        const rCard = cardMap.get(effectiveRootId);
+        const pCard = cardMap.get(primarySpouseId);
+        const jx = u ? u.junctionX : (rCard && pCard ? (rCard.x + pCard.x + CARD_WIDTH) / 2 : 0);
         const jy = u ? u.junctionY : getYForGen(0) + CARD_HEIGHT / 2;
         layoutDescendants(childrenList, jx, jy, 1, 'root-children-branch');
       } else {
@@ -1148,13 +1355,14 @@ export function buildFamilyTreeLayout(
         if (Math.abs(parentCenterX - childCenterX) < 2) {
           pathStr = `M ${parentCenterX} ${parentBottomY} L ${childCenterX} ${childTopY}`;
         } else {
-          pathStr = `M ${parentCenterX} ${parentBottomY} L ${parentCenterX} ${midY} L ${childCenterX} ${midY} L ${childCenterX} ${childTopY}`;
+          pathStr = `M ${parentCenterX} ${parentBottomY} V ${midY} H ${childCenterX} V ${childTopY}`;
         }
 
         connectors.push({
           id: `rec-drop-${e.id || `${e.source}-${e.target}`}`,
           type: 'child_drop',
           path: pathStr,
+          relationshipType: e.relationship_type || 'BIOLOGICAL',
         });
       }
     }
@@ -1171,6 +1379,12 @@ export function buildFamilyTreeLayout(
     maxX = Math.max(maxX, c.x + c.width);
     minY = Math.min(minY, c.y);
     maxY = Math.max(maxY, c.y + c.height);
+  });
+
+  layoutUnions.forEach((u) => {
+    if (u.isOverpass) {
+      minY = Math.min(minY, u.junctionY - 12);
+    }
   });
 
   if (layoutCards.length === 0) {
