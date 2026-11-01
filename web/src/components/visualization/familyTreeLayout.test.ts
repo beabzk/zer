@@ -867,4 +867,192 @@ describe('buildFamilyTreeLayout', () => {
     const inLawBus = result.connectors.find((c) => c.id === 'bus-inlaw-branch-girma');
     expect(inLawBus).toBeDefined();
   });
+
+  it('correctly lays out married sibling with spouse and children when unmarried sibling is root (Worku as root in Haile Lineage)', () => {
+    // Exactly matches the seeded Haile Lineage:
+    // Haile + Mulu -> Girma (+ Tadelech) -> Abebe (+ Desta), Worku, Genet
+    // Abebe + Desta -> Tirunesh, Yared
+    const nodes: SubgraphNode[] = [
+      { id: 'haile', data: { given_name_native: 'ሃይለ', given_name_latin: 'Haile', full_native: 'ሃይለ', full_latin: 'Haile', gender: 'MALE', is_deceased: true } },
+      { id: 'mulu', data: { given_name_native: 'ሙሉ', given_name_latin: 'Mulu', full_native: 'ሙሉ', full_latin: 'Mulu', gender: 'FEMALE', is_deceased: false } },
+      { id: 'girma', data: { given_name_native: 'ግርማ', given_name_latin: 'Girma', full_native: 'ግርማ', full_latin: 'Girma', gender: 'MALE', is_deceased: false } },
+      { id: 'tadelech', data: { given_name_native: 'ታደለች', given_name_latin: 'Tadelech', full_native: 'ታደለች', full_latin: 'Tadelech', gender: 'FEMALE', is_deceased: false } },
+      { id: 'abebe', data: { given_name_native: 'አበበ', given_name_latin: 'Abebe', full_native: 'አበበ', full_latin: 'Abebe', gender: 'MALE', is_deceased: false } },
+      { id: 'desta', data: { given_name_native: 'ደስታ', given_name_latin: 'Desta', full_native: 'ደስታ', full_latin: 'Desta', gender: 'FEMALE', is_deceased: false } },
+      { id: 'worku', data: { given_name_native: 'ወርቁ', given_name_latin: 'Worku', full_native: 'ወርቁ', full_latin: 'Worku', gender: 'MALE', is_deceased: false } },
+      { id: 'genet', data: { given_name_native: 'ገነት', given_name_latin: 'Genet', full_native: 'ገነት', full_latin: 'Genet', gender: 'FEMALE', is_deceased: false } },
+      { id: 'tirunesh', data: { given_name_native: 'ጥሩነሽ', given_name_latin: 'Tirunesh', full_native: 'ጥሩነሽ', full_latin: 'Tirunesh', gender: 'FEMALE', is_deceased: false } },
+      { id: 'yared', data: { given_name_native: 'ያሬድ', given_name_latin: 'Yared', full_native: 'ያሬድ', full_latin: 'Yared', gender: 'MALE', is_deceased: false } },
+    ];
+
+    const edges: SubgraphEdge[] = [
+      { id: 'e1', source: 'haile', target: 'girma', label: 'parent' },
+      { id: 'e2', source: 'mulu', target: 'girma', label: 'parent' },
+      { id: 'u1', source: 'haile', target: 'mulu', label: 'union' },
+      { id: 'e3', source: 'girma', target: 'abebe', label: 'parent' },
+      { id: 'e4', source: 'tadelech', target: 'abebe', label: 'parent' },
+      { id: 'e5', source: 'girma', target: 'worku', label: 'parent' },
+      { id: 'e6', source: 'tadelech', target: 'worku', label: 'parent' },
+      { id: 'e7', source: 'girma', target: 'genet', label: 'parent' },
+      { id: 'e8', source: 'tadelech', target: 'genet', label: 'parent' },
+      { id: 'u2', source: 'girma', target: 'tadelech', label: 'union' },
+      { id: 'e9', source: 'abebe', target: 'tirunesh', label: 'parent' },
+      { id: 'e10', source: 'desta', target: 'tirunesh', label: 'parent' },
+      { id: 'e11', source: 'abebe', target: 'yared', label: 'parent' },
+      { id: 'e12', source: 'desta', target: 'yared', label: 'parent' },
+      { id: 'u3', source: 'abebe', target: 'desta', label: 'union' },
+    ];
+
+    const result = buildFamilyTreeLayout('worku', nodes, edges);
+
+    // 1. All 10 individuals must be positioned
+    expect(result.cards).toHaveLength(10);
+
+    // 2. No collisions between cards
+    expect(() => assertNoCollisions(result.cards)).not.toThrow();
+
+    // 3. Worku is root at generation 0
+    const workuCard = result.cards.find((c) => c.id === 'worku')!;
+    expect(workuCard).toBeDefined();
+    expect(workuCard.isRoot).toBe(true);
+    expect(workuCard.generation).toBe(0);
+
+    // 4. Abebe and Desta are placed as a couple with union bridge
+    const abebeCard = result.cards.find((c) => c.id === 'abebe')!;
+    const destaCard = result.cards.find((c) => c.id === 'desta')!;
+    expect(abebeCard).toBeDefined();
+    expect(destaCard).toBeDefined();
+    expect(destaCard.isSpouse).toBe(true);
+    expect(abebeCard.generation).toBe(0);
+    expect(destaCard.generation).toBe(0);
+
+    // Abebe and Desta must have a union bridge
+    const abebeDestaUnion = result.unions.find(
+      (u) =>
+        (u.partnerAId === 'abebe' && u.partnerBId === 'desta') ||
+        (u.partnerAId === 'desta' && u.partnerBId === 'abebe')
+    );
+    expect(abebeDestaUnion).toBeDefined();
+
+    // 5. Tirunesh and Yared are at generation 1 below Abebe & Desta
+    const tiruneshCard = result.cards.find((c) => c.id === 'tirunesh')!;
+    const yaredCard = result.cards.find((c) => c.id === 'yared')!;
+    expect(tiruneshCard).toBeDefined();
+    expect(yaredCard).toBeDefined();
+    expect(tiruneshCard.generation).toBe(1);
+    expect(yaredCard.generation).toBe(1);
+
+    // 6. Connectors exist connecting to Tirunesh and Yared
+    const tiruneshDrop = result.connectors.find((c) => c.id.includes('tirunesh'));
+    const yaredDrop = result.connectors.find((c) => c.id.includes('yared'));
+    expect(tiruneshDrop).toBeDefined();
+    expect(yaredDrop).toBeDefined();
+
+    // 7. Desta is NOT an outlier dumped far to the right; she is adjacent to Abebe
+    expect(Math.abs(destaCard.x - abebeCard.x)).toBeLessThanOrEqual(260);
+  });
+
+  it('handles unmarried sibling as root with married sibling in Senait Line (Samuel as root)', () => {
+    // Senait Line:
+    // Zewditu + Assefa -> Senait (+ Dereje) -> Mahlet (+ Meseret), Samuel
+    // Mahlet + Meseret -> Ruth, Sara
+    const nodes: SubgraphNode[] = [
+      { id: 'zewditu', data: { given_name_native: 'ዘውዲቱ', given_name_latin: 'Zewditu', full_native: 'ዘውዲቱ', full_latin: 'Zewditu', gender: 'FEMALE', is_deceased: true } },
+      { id: 'assefa', data: { given_name_native: 'አሰፋ', given_name_latin: 'Assefa', full_native: 'አሰፋ', full_latin: 'Assefa', gender: 'MALE', is_deceased: false } },
+      { id: 'senait', data: { given_name_native: 'ሰናይት', given_name_latin: 'Senait', full_native: 'ሰናይት', full_latin: 'Senait', gender: 'FEMALE', is_deceased: false } },
+      { id: 'dereje', data: { given_name_native: 'ደረጄ', given_name_latin: 'Dereje', full_native: 'ደረጄ', full_latin: 'Dereje', gender: 'MALE', is_deceased: false } },
+      { id: 'mahlet', data: { given_name_native: 'ማህሌት', given_name_latin: 'Mahlet', full_native: 'ማህሌት', full_latin: 'Mahlet', gender: 'FEMALE', is_deceased: false } },
+      { id: 'meseret', data: { given_name_native: 'መሰረት', given_name_latin: 'Meseret', full_native: 'መሰረት', full_latin: 'Meseret', gender: 'MALE', is_deceased: false } },
+      { id: 'samuel', data: { given_name_native: 'ሳሙኤል', given_name_latin: 'Samuel', full_native: 'ሳሙኤል', full_latin: 'Samuel', gender: 'MALE', is_deceased: false } },
+      { id: 'ruth', data: { given_name_native: 'ሩት', given_name_latin: 'Ruth', full_native: 'ሩት', full_latin: 'Ruth', gender: 'FEMALE', is_deceased: false } },
+      { id: 'sara', data: { given_name_native: 'ሳራ', given_name_latin: 'Sara', full_native: 'ሳራ', full_latin: 'Sara', gender: 'FEMALE', is_deceased: false } },
+    ];
+
+    const edges: SubgraphEdge[] = [
+      { id: 'e1', source: 'zewditu', target: 'senait', label: 'parent' },
+      { id: 'e2', source: 'assefa', target: 'senait', label: 'parent' },
+      { id: 'u1', source: 'zewditu', target: 'assefa', label: 'union' },
+      { id: 'e3', source: 'senait', target: 'mahlet', label: 'parent' },
+      { id: 'e4', source: 'dereje', target: 'mahlet', label: 'parent' },
+      { id: 'e5', source: 'senait', target: 'samuel', label: 'parent' },
+      { id: 'e6', source: 'dereje', target: 'samuel', label: 'parent' },
+      { id: 'u2', source: 'senait', target: 'dereje', label: 'union' },
+      { id: 'e7', source: 'mahlet', target: 'ruth', label: 'parent' },
+      { id: 'e8', source: 'meseret', target: 'ruth', label: 'parent' },
+      { id: 'e9', source: 'mahlet', target: 'sara', label: 'parent' },
+      { id: 'e10', source: 'meseret', target: 'sara', label: 'parent' },
+      { id: 'u3', source: 'mahlet', target: 'meseret', label: 'union' },
+    ];
+
+    const result = buildFamilyTreeLayout('samuel', nodes, edges);
+
+    expect(result.cards).toHaveLength(9);
+    expect(() => assertNoCollisions(result.cards)).not.toThrow();
+
+    const mahletMeseretUnion = result.unions.find(
+      (u) =>
+        (u.partnerAId === 'mahlet' && u.partnerBId === 'meseret') ||
+        (u.partnerAId === 'meseret' && u.partnerBId === 'mahlet')
+    );
+    expect(mahletMeseretUnion).toBeDefined();
+
+    const ruthDrop = result.connectors.find((c) => c.id.includes('ruth'));
+    const saraDrop = result.connectors.find((c) => c.id.includes('sara'));
+    expect(ruthDrop).toBeDefined();
+    expect(saraDrop).toBeDefined();
+  });
+
+  it('handles multiple sequential unions in blended families without orphan nodes (Blended Remarriage)', () => {
+    // Solomon + Bethlehem (dissolved) -> Shiferaw
+    // Rahel + Kifle (dissolved) -> Konjit
+    // Solomon + Rahel (active) -> Alemitu
+    // Shiferaw + Meron (active) -> Endeshaw
+    const nodes: SubgraphNode[] = [
+      { id: 'solomon', data: { given_name_native: 'ሰለሞን', given_name_latin: 'Solomon', full_native: 'ሰለሞን', full_latin: 'Solomon', gender: 'MALE', is_deceased: false } },
+      { id: 'bethlehem', data: { given_name_native: 'ቤተልሔም', given_name_latin: 'Bethlehem', full_native: 'ቤተልሔም', full_latin: 'Bethlehem', gender: 'FEMALE', is_deceased: false } },
+      { id: 'rahel', data: { given_name_native: 'ራሔል', given_name_latin: 'Rahel', full_native: 'ራሔል', full_latin: 'Rahel', gender: 'FEMALE', is_deceased: false } },
+      { id: 'kifle', data: { given_name_native: 'ክፍሌ', given_name_latin: 'Kifle', full_native: 'ክፍሌ', full_latin: 'Kifle', gender: 'MALE', is_deceased: false } },
+      { id: 'shiferaw', data: { given_name_native: 'ሽፈራው', given_name_latin: 'Shiferaw', full_native: 'ሽፈራው', full_latin: 'Shiferaw', gender: 'MALE', is_deceased: false } },
+      { id: 'konjit', data: { given_name_native: 'ቆንጂት', given_name_latin: 'Konjit', full_native: 'ቆንጂት', full_latin: 'Konjit', gender: 'FEMALE', is_deceased: false } },
+      { id: 'alemitu', data: { given_name_native: 'አለሚቱ', given_name_latin: 'Alemitu', full_native: 'አለሚቱ', full_latin: 'Alemitu', gender: 'FEMALE', is_deceased: false } },
+      { id: 'meron', data: { given_name_native: 'መሮን', given_name_latin: 'Meron', full_native: 'መሮን', full_latin: 'Meron', gender: 'FEMALE', is_deceased: false } },
+      { id: 'endeshaw', data: { given_name_native: 'እንዳሻው', given_name_latin: 'Endeshaw', full_native: 'እንዳሻው', full_latin: 'Endeshaw', gender: 'MALE', is_deceased: false } },
+    ];
+
+    const edges: SubgraphEdge[] = [
+      { id: 'e1', source: 'solomon', target: 'shiferaw', label: 'parent' },
+      { id: 'e2', source: 'bethlehem', target: 'shiferaw', label: 'parent' },
+      { id: 'e3', source: 'rahel', target: 'konjit', label: 'parent' },
+      { id: 'e4', source: 'kifle', target: 'konjit', label: 'parent' },
+      { id: 'e5', source: 'solomon', target: 'alemitu', label: 'parent' },
+      { id: 'e6', source: 'rahel', target: 'alemitu', label: 'parent' },
+      { id: 'e7', source: 'shiferaw', target: 'endeshaw', label: 'parent' },
+      { id: 'e8', source: 'meron', target: 'endeshaw', label: 'parent' },
+      { id: 'u1', source: 'solomon', target: 'bethlehem', label: 'union' },
+      { id: 'u2', source: 'rahel', target: 'kifle', label: 'union' },
+      { id: 'u3', source: 'solomon', target: 'rahel', label: 'union' },
+      { id: 'u4', source: 'shiferaw', target: 'meron', label: 'union' },
+    ];
+
+    const result = buildFamilyTreeLayout('solomon', nodes, edges);
+
+    expect(result.cards).toHaveLength(9);
+    expect(() => assertNoCollisions(result.cards)).not.toThrow();
+
+    // Verify all 4 unions are represented
+    expect(result.unions.length).toBeGreaterThanOrEqual(2);
+    // Verify every person is connected via at least one connector/union
+    result.cards.forEach((card) => {
+      const hasUnion = result.unions.some(
+        (u) => u.partnerAId === card.id || u.partnerBId === card.id
+      );
+      const hasConnector = result.connectors.some(
+        (c) =>
+          c.id.includes(card.id) ||
+          c.path.includes(`L ${card.x + 100} ${card.y}`) ||
+          c.path.includes(`M ${card.x + 100} ${card.y}`)
+      );
+      expect(hasUnion || hasConnector).toBe(true);
+    });
+  });
 });

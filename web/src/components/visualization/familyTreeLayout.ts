@@ -139,12 +139,12 @@ export function buildFamilyTreeLayout(
     });
   });
 
-  // Children of root
+  // Children of root across all unions
   const rootChildIds = new Set<string>();
   childrenOf.get(effectiveRootId)?.forEach((cid) => rootChildIds.add(cid));
-  if (primarySpouseId) {
-    childrenOf.get(primarySpouseId)?.forEach((cid) => rootChildIds.add(cid));
-  }
+  rootSpouseIds.forEach((sid) => {
+    childrenOf.get(sid)?.forEach((cid) => rootChildIds.add(cid));
+  });
 
   // Check if primarySpouse has in-law parents in graph
   const spouseParentIds = primarySpouseId ? parentsOf.get(primarySpouseId) || [] : [];
@@ -478,6 +478,107 @@ export function buildFamilyTreeLayout(
     };
   };
 
+  const layoutSingleDescendantBranch = (
+    b: DescendantBranchNode,
+    branchStartX: number,
+    generation: number,
+    branchRole: 'center' | 'children' = 'children'
+  ) => {
+    const coupleStartX = branchStartX + (b.width - b.coupleWidth) / 2;
+
+    // Add child card
+    addCard(b.childId, coupleStartX, generation, branchRole);
+
+    // Add spouse card if present
+    if (b.spouseId) {
+      const spouseStartX = coupleStartX + CARD_WIDTH + SPOUSE_GAP;
+      addCard(b.spouseId, spouseStartX, generation, branchRole, false, true);
+      const u = processCoupleUnion(`couple-${b.childId}-${b.spouseId}`, b.childId, b.spouseId);
+
+      // Lay out spouse siblings to the right of spouse
+      let curSpouseSibX = spouseStartX + CARD_WIDTH + H_GAP;
+      b.spouseSiblingIds.forEach((sibId) => {
+        addCard(sibId, curSpouseSibX, generation, branchRole);
+        curSpouseSibX += CARD_WIDTH + H_GAP;
+      });
+
+      // Add spouse parents (in-laws) at (generation - 1)
+      const spouseGroupCenter = spouseStartX + b.spouseGroupWidth / 2;
+      const allSpouseChildren = [b.spouseId, ...b.spouseSiblingIds];
+      let inLawJunctionX = spouseGroupCenter;
+      let inLawJunctionY = getYForGen(generation - 1) + CARD_HEIGHT;
+
+      if (b.spouseParentIds.length >= 2) {
+        let mId: string | undefined;
+        let fId: string | undefined;
+        b.spouseParentIds.forEach((pid) => {
+          const p = nodeMap.get(pid);
+          if (p?.data.gender === 'FEMALE') mId = pid;
+          else fId = pid;
+        });
+        if (!mId) mId = b.spouseParentIds[0];
+        if (!fId) fId = b.spouseParentIds[1];
+
+        const inLawParentsStartX = spouseGroupCenter - b.inLawParentsWidth / 2;
+        addCard(mId, inLawParentsStartX, generation - 1, branchRole);
+        addCard(fId, inLawParentsStartX + CARD_WIDTH + SPOUSE_GAP, generation - 1, branchRole);
+
+        const uInlaws = processCoupleUnion(`inlaws-${mId}-${fId}`, mId, fId);
+        if (uInlaws) {
+          inLawJunctionX = uInlaws.junctionX;
+          inLawJunctionY = uInlaws.junctionY;
+        }
+        layoutAncestorsRecursively(mId);
+        layoutAncestorsRecursively(fId);
+      } else if (b.spouseParentIds.length === 1) {
+        const singleP = b.spouseParentIds[0];
+        const pStartX = spouseGroupCenter - CARD_WIDTH / 2;
+        addCard(singleP, pStartX, generation - 1, branchRole);
+        const pCard = cardMap.get(singleP);
+        if (pCard) {
+          inLawJunctionX = pCard.x + CARD_WIDTH / 2;
+          inLawJunctionY = pCard.y + CARD_HEIGHT;
+        }
+        layoutAncestorsRecursively(singleP);
+      }
+
+      // Connect in-law parents to spouse + spouse siblings
+      if (b.spouseParentIds.length > 0) {
+        processDescentBranch(
+          `inlaw-branch-${b.childId}`,
+          inLawJunctionX,
+          inLawJunctionY,
+          allSpouseChildren
+        );
+      }
+
+      // Lay out grandchildren below couple
+      if (b.childBranches.length > 0 && u) {
+        layoutDescendantBranches(
+          b.childBranches,
+          u.junctionX,
+          u.junctionY,
+          generation + 1,
+          `descendant-branch-${b.childId}`
+        );
+      }
+    } else {
+      // Single parent child with descendants
+      if (b.childBranches.length > 0) {
+        const cCard = cardMap.get(b.childId);
+        const jx = cCard ? cCard.x + CARD_WIDTH / 2 : coupleStartX + CARD_WIDTH / 2;
+        const jy = cCard ? cCard.y + CARD_HEIGHT : getYForGen(generation) + CARD_HEIGHT;
+        layoutDescendantBranches(
+          b.childBranches,
+          jx,
+          jy,
+          generation + 1,
+          `descendant-branch-${b.childId}`
+        );
+      }
+    }
+  };
+
   const layoutDescendantBranches = (
     branches: DescendantBranchNode[],
     parentJunctionX: number,
@@ -525,101 +626,7 @@ export function buildFamilyTreeLayout(
         }
       }
 
-      const branchStartX = curX;
-      const coupleStartX = branchStartX + (b.width - b.coupleWidth) / 2;
-
-      // Add child card
-      addCard(b.childId, coupleStartX, generation, 'children');
-
-      // Add spouse card if present
-      if (b.spouseId) {
-        const spouseStartX = coupleStartX + CARD_WIDTH + SPOUSE_GAP;
-        addCard(b.spouseId, spouseStartX, generation, 'children', false, true);
-        const u = processCoupleUnion(`couple-${b.childId}-${b.spouseId}`, b.childId, b.spouseId);
-
-        // Lay out spouse siblings to the right of spouse
-        let curSpouseSibX = spouseStartX + CARD_WIDTH + H_GAP;
-        b.spouseSiblingIds.forEach((sibId) => {
-          addCard(sibId, curSpouseSibX, generation, 'children');
-          curSpouseSibX += CARD_WIDTH + H_GAP;
-        });
-
-        // Add spouse parents (in-laws) at (generation - 1)
-        const spouseGroupCenter = spouseStartX + b.spouseGroupWidth / 2;
-        const allSpouseChildren = [b.spouseId, ...b.spouseSiblingIds];
-        let inLawJunctionX = spouseGroupCenter;
-        let inLawJunctionY = getYForGen(generation - 1) + CARD_HEIGHT;
-
-        if (b.spouseParentIds.length >= 2) {
-          let mId: string | undefined;
-          let fId: string | undefined;
-          b.spouseParentIds.forEach((pid) => {
-            const p = nodeMap.get(pid);
-            if (p?.data.gender === 'FEMALE') mId = pid;
-            else fId = pid;
-          });
-          if (!mId) mId = b.spouseParentIds[0];
-          if (!fId) fId = b.spouseParentIds[1];
-
-          const inLawParentsStartX = spouseGroupCenter - b.inLawParentsWidth / 2;
-          addCard(mId, inLawParentsStartX, generation - 1, 'children');
-          addCard(fId, inLawParentsStartX + CARD_WIDTH + SPOUSE_GAP, generation - 1, 'children');
-
-          const uInlaws = processCoupleUnion(`inlaws-${mId}-${fId}`, mId, fId);
-          if (uInlaws) {
-            inLawJunctionX = uInlaws.junctionX;
-            inLawJunctionY = uInlaws.junctionY;
-          }
-          layoutAncestorsRecursively(mId);
-          layoutAncestorsRecursively(fId);
-        } else if (b.spouseParentIds.length === 1) {
-          const singleP = b.spouseParentIds[0];
-          const pStartX = spouseGroupCenter - CARD_WIDTH / 2;
-          addCard(singleP, pStartX, generation - 1, 'children');
-          const pCard = cardMap.get(singleP);
-          if (pCard) {
-            inLawJunctionX = pCard.x + CARD_WIDTH / 2;
-            inLawJunctionY = pCard.y + CARD_HEIGHT;
-          }
-          layoutAncestorsRecursively(singleP);
-        }
-
-        // Connect in-law parents to spouse + spouse siblings
-        if (b.spouseParentIds.length > 0) {
-          processDescentBranch(
-            `inlaw-branch-${b.childId}`,
-            inLawJunctionX,
-            inLawJunctionY,
-            allSpouseChildren
-          );
-        }
-
-        // Lay out grandchildren below couple
-        if (b.childBranches.length > 0 && u) {
-          layoutDescendantBranches(
-            b.childBranches,
-            u.junctionX,
-            u.junctionY,
-            generation + 1,
-            `descendant-branch-${b.childId}`
-          );
-        }
-      } else {
-        // Single parent child with descendants
-        if (b.childBranches.length > 0) {
-          const cCard = cardMap.get(b.childId);
-          const jx = cCard ? cCard.x + CARD_WIDTH / 2 : coupleStartX + CARD_WIDTH / 2;
-          const jy = cCard ? cCard.y + CARD_HEIGHT : getYForGen(generation) + CARD_HEIGHT;
-          layoutDescendantBranches(
-            b.childBranches,
-            jx,
-            jy,
-            generation + 1,
-            `descendant-branch-${b.childId}`
-          );
-        }
-      }
-
+      layoutSingleDescendantBranch(b, curX, generation, 'children');
       curX += b.width + H_GAP;
     });
 
@@ -653,9 +660,19 @@ export function buildFamilyTreeLayout(
   if (hasSpouseInLaws && primarySpouseId) {
     // 1. Focal Side (Focal family on the left)
     const focalSiblingsList = Array.from(rootSiblingIds);
-    const focalSibsTotal = focalSiblingsList.length + 1; // siblings + focal root
-    const focalSibsWidth =
-      focalSibsTotal * CARD_WIDTH + (focalSibsTotal - 1) * H_GAP;
+    const visitedBranchNodesA = new Set<string>();
+    visitedBranchNodesA.add(effectiveRootId);
+    if (primarySpouseId) visitedBranchNodesA.add(primarySpouseId);
+    rootParentIds.forEach((pid) => visitedBranchNodesA.add(pid));
+    spouseParentIds.forEach((pid) => visitedBranchNodesA.add(pid));
+
+    const focalSibBranches = focalSiblingsList.map((id) =>
+      buildDescendantBranch(id, visitedBranchNodesA)
+    );
+    const focalSibsTotalWidth =
+      focalSibBranches.reduce((sum, b) => sum + b.width, 0) +
+      (focalSibBranches.length > 0 ? focalSibBranches.length * H_GAP : 0) +
+      CARD_WIDTH;
 
     const hasFocalParents = rootParentIds.length > 0;
     const hasBothFocalParents = rootParentIds.length >= 2;
@@ -665,7 +682,7 @@ export function buildFamilyTreeLayout(
       ? CARD_WIDTH
       : 0;
 
-    const focalBranchWidth = Math.max(focalParentsWidth, focalSibsWidth);
+    const focalBranchWidth = Math.max(focalParentsWidth, focalSibsTotalWidth);
 
     // 2. Spouse Side (Spouse family on the right)
     let spouseMotherId: string | undefined;
@@ -685,16 +702,21 @@ export function buildFamilyTreeLayout(
       });
     });
     const spouseSiblingsList = Array.from(spouseSiblingIds);
-    const spouseSibsTotal = spouseSiblingsList.length + 1; // spouse + spouse siblings
-    const spouseSibsWidth =
-      spouseSibsTotal * CARD_WIDTH + (spouseSibsTotal - 1) * H_GAP;
+    const spouseSibBranches = spouseSiblingsList.map((id) =>
+      buildDescendantBranch(id, visitedBranchNodesA)
+    );
+    const spouseSibsTotalWidth =
+      CARD_WIDTH +
+      (spouseSibBranches.length > 0 ? H_GAP : 0) +
+      spouseSibBranches.reduce((sum, b) => sum + b.width, 0) +
+      Math.max(0, spouseSibBranches.length - 1) * H_GAP;
 
     const hasBothSpouseParents = Boolean(spouseMotherId && spouseFatherId);
     const spouseParentsWidth = hasBothSpouseParents
       ? 2 * CARD_WIDTH + SPOUSE_GAP
       : CARD_WIDTH;
 
-    const spouseBranchWidth = Math.max(spouseParentsWidth, spouseSibsWidth);
+    const spouseBranchWidth = Math.max(spouseParentsWidth, spouseSibsTotalWidth);
 
     // Clearance between Left (Focal) and Right (Spouse) Subtrees
     const branchSeparationGap = BRANCH_GAP;
@@ -720,11 +742,11 @@ export function buildFamilyTreeLayout(
     }
 
     // Lay out Focal Siblings + Focal Root at Gen 0 (Root sits on the far right closest to spouse)
-    const focalSibsStartX = focalBoxLeft + (focalBranchWidth - focalSibsWidth) / 2;
+    const focalSibsStartX = focalBoxLeft + (focalBranchWidth - focalSibsTotalWidth) / 2;
     let curFocalX = focalSibsStartX;
-    focalSiblingsList.forEach((sibId) => {
-      addCard(sibId, curFocalX, 0, 'center');
-      curFocalX += CARD_WIDTH + H_GAP;
+    focalSibBranches.forEach((b) => {
+      layoutSingleDescendantBranch(b, curFocalX, 0, 'center');
+      curFocalX += b.width + H_GAP;
     });
     addCard(effectiveRootId, curFocalX, 0, 'center', true, false);
 
@@ -755,12 +777,12 @@ export function buildFamilyTreeLayout(
     }
 
     // Lay out Spouse + Spouse Siblings at Gen 0 (Spouse sits on the far left closest to root)
-    const spouseSibsStartX = spouseBoxLeft + (spouseBranchWidth - spouseSibsWidth) / 2;
+    const spouseSibsStartX = spouseBoxLeft + (spouseBranchWidth - spouseSibsTotalWidth) / 2;
     addCard(primarySpouseId, spouseSibsStartX, 0, 'center', false, true);
     let curSpouseSibX = spouseSibsStartX + CARD_WIDTH + H_GAP;
-    spouseSiblingsList.forEach((sibId) => {
-      addCard(sibId, curSpouseSibX, 0, 'center');
-      curSpouseSibX += CARD_WIDTH + H_GAP;
+    spouseSibBranches.forEach((b) => {
+      layoutSingleDescendantBranch(b, curSpouseSibX, 0, 'center');
+      curSpouseSibX += b.width + H_GAP;
     });
 
     // Connect Spouse Parents to Spouse Sibling Group
@@ -992,13 +1014,14 @@ export function buildFamilyTreeLayout(
       parentsJunctionX = singleP.x + CARD_WIDTH / 2;
     }
 
-    // Lay Out Tier 0: Focal Root, Primary Spouse, and Siblings
+    // Lay Out Tier 0: Focal Root, Primary Spouse, Secondary Spouses, and Siblings
     const focalSiblingsList = Array.from(rootSiblingIds);
     const halfSiblings = Math.floor(focalSiblingsList.length / 2);
     const leftSiblings = focalSiblingsList.slice(0, halfSiblings);
     const rightSiblings = focalSiblingsList.slice(halfSiblings);
 
     const hasSpouse = Boolean(primarySpouseId);
+    const secondarySpouseIds = rootSpouseIds.filter((sid) => sid !== primarySpouseId);
     const coupleWidth = hasSpouse ? 2 * CARD_WIDTH + SPOUSE_GAP : CARD_WIDTH;
 
     const focalCoupleStartX = parentsJunctionX - coupleWidth / 2;
@@ -1010,16 +1033,37 @@ export function buildFamilyTreeLayout(
       addCard(primarySpouseId, spouseX, 0, 'center', false, true);
     }
 
-    let curLeftSibX = rootX - H_GAP - CARD_WIDTH;
-    for (let i = leftSiblings.length - 1; i >= 0; i--) {
-      addCard(leftSiblings[i], curLeftSibX, 0, 'center');
-      curLeftSibX -= CARD_WIDTH + H_GAP;
+    let curSecSpouseX = (hasSpouse ? spouseX : rootX) + CARD_WIDTH + SPOUSE_GAP;
+    secondarySpouseIds.forEach((secId) => {
+      addCard(secId, curSecSpouseX, 0, 'center', false, true);
+      processCoupleUnion(`root-spouse-${secId}`, effectiveRootId, secId);
+      curSecSpouseX += CARD_WIDTH + SPOUSE_GAP;
+    });
+
+    const visitedBranchNodesB = new Set<string>();
+    visitedBranchNodesB.add(effectiveRootId);
+    rootSpouseIds.forEach((sid) => visitedBranchNodesB.add(sid));
+    rootParentIds.forEach((pid) => visitedBranchNodesB.add(pid));
+
+    const leftBranches = leftSiblings.map((id) => buildDescendantBranch(id, visitedBranchNodesB));
+    const rightBranches = rightSiblings.map((id) => buildDescendantBranch(id, visitedBranchNodesB));
+
+    let curRightBound = rootX - H_GAP;
+    for (let i = leftBranches.length - 1; i >= 0; i--) {
+      const b = leftBranches[i];
+      const startX = curRightBound - b.width;
+      layoutSingleDescendantBranch(b, startX, 0, 'center');
+      curRightBound = startX - H_GAP;
     }
 
-    let curRightSibX = (hasSpouse ? spouseX : rootX) + CARD_WIDTH + H_GAP;
-    rightSiblings.forEach((sibId) => {
-      addCard(sibId, curRightSibX, 0, 'center');
-      curRightSibX += CARD_WIDTH + H_GAP;
+    const rightStartBase =
+      secondarySpouseIds.length > 0
+        ? curSecSpouseX - SPOUSE_GAP
+        : (hasSpouse ? spouseX : rootX) + CARD_WIDTH;
+    let curLeftBound = rightStartBase + H_GAP;
+    rightBranches.forEach((b) => {
+      layoutSingleDescendantBranch(b, curLeftBound, 0, 'center');
+      curLeftBound += b.width + H_GAP;
     });
 
     // Connect Parents to Tier 0
@@ -1070,6 +1114,49 @@ export function buildFamilyTreeLayout(
       const g = genMap.get(n.id) ?? 0;
       addCard(n.id, unpositionedOffset, g, 'center');
       unpositionedOffset += CARD_WIDTH + H_GAP;
+    }
+  });
+
+  // Edge Reconciliation Pass: Ensure every edge between placed cards has a visual connector
+  edges.forEach((e) => {
+    const cardSrc = cardMap.get(e.source);
+    const cardTgt = cardMap.get(e.target);
+    if (!cardSrc || !cardTgt) return;
+
+    if (e.label === 'union') {
+      const alreadyConnected = layoutUnions.some(
+        (u) =>
+          (u.partnerAId === e.source && u.partnerBId === e.target) ||
+          (u.partnerAId === e.target && u.partnerBId === e.source)
+      );
+      if (!alreadyConnected) {
+        processCoupleUnion(`union-rec-${e.id || `${e.source}-${e.target}`}`, e.source, e.target);
+      }
+    } else if (e.label === 'parent') {
+      const childCenterX = cardTgt.x + CARD_WIDTH / 2;
+      const childTopY = cardTgt.y;
+      const hasDrop = connectors.some((c) => {
+        return c.id.includes(e.target) || c.path.includes(`L ${childCenterX} ${childTopY}`);
+      });
+
+      if (!hasDrop) {
+        const parentCenterX = cardSrc.x + CARD_WIDTH / 2;
+        const parentBottomY = cardSrc.y + CARD_HEIGHT;
+        const midY = (parentBottomY + childTopY) / 2;
+
+        let pathStr = '';
+        if (Math.abs(parentCenterX - childCenterX) < 2) {
+          pathStr = `M ${parentCenterX} ${parentBottomY} L ${childCenterX} ${childTopY}`;
+        } else {
+          pathStr = `M ${parentCenterX} ${parentBottomY} L ${parentCenterX} ${midY} L ${childCenterX} ${midY} L ${childCenterX} ${childTopY}`;
+        }
+
+        connectors.push({
+          id: `rec-drop-${e.id || `${e.source}-${e.target}`}`,
+          type: 'child_drop',
+          path: pathStr,
+        });
+      }
     }
   });
 
