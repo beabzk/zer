@@ -1,12 +1,12 @@
-export type Role = 'OWNER' | 'ADMIN' | 'EDITOR' | 'VIEWER';
+export type Role = "OWNER" | "ADMIN" | "EDITOR" | "VIEWER";
 
-export type Gender = 'MALE' | 'FEMALE';
+export type Gender = "MALE" | "FEMALE";
 
-export type RelationshipType = 'BIOLOGICAL' | 'ADOPTIVE' | 'FOSTER';
+export type RelationshipType = "BIOLOGICAL" | "ADOPTIVE" | "FOSTER";
 
-export type UnionType = 'TRADITIONAL' | 'RELIGIOUS' | 'CIVIL';
+export type UnionType = "TRADITIONAL" | "RELIGIOUS" | "CIVIL";
 
-export type UnionStatus = 'ACTIVE' | 'DISSOLVED' | 'WIDOWED';
+export type UnionStatus = "ACTIVE" | "DISSOLVED" | "WIDOWED";
 
 export interface Tree {
   id: string;
@@ -141,7 +141,7 @@ export interface SubgraphEdge {
   id: string;
   source: string;
   target: string;
-  label: 'parent' | 'union';
+  label: "parent" | "union";
   relationship_type?: RelationshipType;
   union_type?: UnionType;
   status?: UnionStatus;
@@ -172,7 +172,7 @@ export interface LineageUnion {
 
 export interface LineageResponse {
   root_id: string;
-  direction: 'ancestors' | 'descendants';
+  direction: "ancestors" | "descendants";
   depth: number;
   truncated: boolean;
   nodes: LineageNode[];
@@ -182,7 +182,7 @@ export interface LineageResponse {
 export interface KinshipSegment {
   from_id: string;
   to_id: string;
-  relation: 'PARENT' | 'CHILD' | 'SPOUSE';
+  relation: "PARENT" | "CHILD" | "SPOUSE";
   relationship_type?: RelationshipType;
   is_name_source?: boolean;
   union_type?: UnionType;
@@ -246,7 +246,7 @@ export interface TreeInvitation {
   tree_id: string;
   email: string;
   role: Role;
-  status: 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED';
+  status: "PENDING" | "ACCEPTED" | "REVOKED" | "EXPIRED";
   expires_at: string;
   created_at: string;
   accepted_at?: string | null;
@@ -256,7 +256,7 @@ export interface TreeInvitation {
 
 export interface AuthConfig {
   setup_required: boolean;
-  signup_mode?: 'OPEN' | 'INVITE' | 'CLOSED';
+  signup_mode?: "OPEN" | "INVITE" | "CLOSED";
   password_enabled: boolean;
   google_enabled: boolean;
 }
@@ -293,7 +293,7 @@ export interface AdminTree {
 export interface AdminSignupInvite {
   id: string;
   email: string;
-  status: 'PENDING' | 'ACCEPTED' | 'REVOKED' | 'EXPIRED';
+  status: "PENDING" | "ACCEPTED" | "REVOKED" | "EXPIRED";
   expires_at: string;
   created_at: string;
   accepted_at: string | null;

@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import { Icons } from './Icons';
+import React, { createContext, useContext, useState, useCallback } from "react";
+import { Icons } from "./Icons";
 
-export type ToastType = 'success' | 'error' | 'info';
+export type ToastType = "success" | "error" | "info";
 
 interface ToastItem {
   id: string;
@@ -25,15 +25,18 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const show = useCallback((message: string, type: ToastType = 'info') => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => remove(id), 4000);
-  }, [remove]);
+  const show = useCallback(
+    (message: string, type: ToastType = "info") => {
+      const id = Math.random().toString(36).substring(2, 9);
+      setToasts((prev) => [...prev, { id, message, type }]);
+      setTimeout(() => remove(id), 4000);
+    },
+    [remove],
+  );
 
-  const success = useCallback((msg: string) => show(msg, 'success'), [show]);
-  const error = useCallback((msg: string) => show(msg, 'error'), [show]);
-  const info = useCallback((msg: string) => show(msg, 'info'), [show]);
+  const success = useCallback((msg: string) => show(msg, "success"), [show]);
+  const error = useCallback((msg: string) => show(msg, "error"), [show]);
+  const info = useCallback((msg: string) => show(msg, "info"), [show]);
 
   return (
     <ToastContext.Provider value={{ show, success, error, info }}>
@@ -43,15 +46,17 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           <div
             key={toast.id}
             className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg text-sm transition-all duration-200 animate-in fade-in slide-in-from-bottom-2 ${
-              toast.type === 'success'
-                ? 'bg-stone-900 text-stone-100 border-stone-800'
-                : toast.type === 'error'
-                ? 'bg-red-950 text-red-100 border-red-900'
-                : 'bg-stone-900 text-stone-100 border-stone-800'
+              toast.type === "success"
+                ? "bg-stone-900 text-stone-100 border-stone-800"
+                : toast.type === "error"
+                  ? "bg-red-950 text-red-100 border-red-900"
+                  : "bg-stone-900 text-stone-100 border-stone-800"
             }`}
           >
-            {toast.type === 'success' && <Icons.Check size={16} className="text-amber-400 shrink-0" />}
-            {toast.type === 'error' && <Icons.X size={16} className="text-red-400 shrink-0" />}
+            {toast.type === "success" && (
+              <Icons.Check size={16} className="text-amber-400 shrink-0" />
+            )}
+            {toast.type === "error" && <Icons.X size={16} className="text-red-400 shrink-0" />}
             <span className="flex-1 font-medium">{toast.message}</span>
             <button
               onClick={() => remove(toast.id)}
@@ -69,7 +74,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 export function useToast(): ToastContextValue {
   const context = useContext(ToastContext);
   if (!context) {
-    throw new Error('useToast must be used within ToastProvider');
+    throw new Error("useToast must be used within ToastProvider");
   }
   return context;
 }

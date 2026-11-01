@@ -35,7 +35,10 @@ function degreeLabel(locale: Locale, degree: number): string {
   };
   const named = namedDegrees[degree];
   if (named) return t(locale, `kinship.degreeLabels.${named}`);
-  const suffix = degree % 100 >= 11 && degree % 100 <= 13 ? "th" : ["th", "st", "nd", "rd"][degree % 10] ?? "th";
+  const suffix =
+    degree % 100 >= 11 && degree % 100 <= 13
+      ? "th"
+      : (["th", "st", "nd", "rd"][degree % 10] ?? "th");
   return `${degree}${suffix}`;
 }
 
@@ -81,7 +84,11 @@ function termSuffix(locale: Locale, term: KinshipTerm): string {
   return "";
 }
 
-function modifierLabels(locale: Locale, term: KinshipTerm, placement: "before" | "after"): string[] {
+function modifierLabels(
+  locale: Locale,
+  term: KinshipTerm,
+  placement: "before" | "after",
+): string[] {
   const order = placement === "before" ? modifiersBeforeTerm : modifiersAfterTerm;
   return order
     .filter((modifier) => term.modifiers?.includes(modifier))
@@ -107,15 +114,16 @@ export function kinshipTermLabel(locale: Locale, term: KinshipTerm): string {
   if (term.key === "composed" && term.composition?.length) {
     return term.composition
       .map((part) => compositionPartLabel(locale, part))
-      .map((label, index) => index === 0 ? label : lowerFirst(label))
+      .map((label, index) => (index === 0 ? label : lowerFirst(label)))
       .join(" ");
   }
 
   const before = modifierLabels(locale, term, "before");
   const after = modifierLabels(locale, term, "after");
-  const great = term.key === "aunt_uncle" || term.key === "niece_nephew"
-    ? greatPrefix(locale, term.parameters.great_count)
-    : "";
+  const great =
+    term.key === "aunt_uncle" || term.key === "niece_nephew"
+      ? greatPrefix(locale, term.parameters.great_count)
+      : "";
   let base = `${great}${baseTermLabel(locale, term)}`;
   if (great) base = `${great}${lowerFirst(baseTermLabel(locale, term))}`;
   if (before.length) base = lowerFirst(base);

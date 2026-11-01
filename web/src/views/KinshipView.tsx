@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
-import { api } from '../lib/api';
-import type { KinshipResult } from '../lib/types';
-import { Icons } from '../components/ui/Icons';
-import { PersonSearchSelect } from '../components/ui/PersonSearchSelect';
-import { useToast } from '../components/ui/Toast';
-import { useI18n } from '../lib/i18nContext';
-import { kinshipTermLabel, kinshipConfidenceLabel } from '../lib/kinshipTerms';
+import React, { useState } from "react";
+import { api } from "../lib/api";
+import type { KinshipResult } from "../lib/types";
+import { Icons } from "../components/ui/Icons";
+import { PersonSearchSelect } from "../components/ui/PersonSearchSelect";
+import { useToast } from "../components/ui/Toast";
+import { useI18n } from "../lib/i18nContext";
+import { kinshipTermLabel, kinshipConfidenceLabel } from "../lib/kinshipTerms";
 
 interface KinshipViewProps {
   treeId: string;
@@ -30,7 +30,7 @@ export const KinshipView: React.FC<KinshipViewProps> = ({
 
   const handleCalculate = async () => {
     if (!personAId || !personBId) {
-      toast.error('Please select both individuals');
+      toast.error("Please select both individuals");
       return;
     }
 
@@ -40,7 +40,7 @@ export const KinshipView: React.FC<KinshipViewProps> = ({
       const res = await api.getKinship(treeId, personAId, personBId);
       setResult(res);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : t('kinship.none');
+      const msg = err instanceof Error ? err.message : t("kinship.none");
       toast.error(msg);
       setResult(null);
     } finally {
@@ -61,11 +61,9 @@ export const KinshipView: React.FC<KinshipViewProps> = ({
       <div className="bg-white rounded-2xl border border-stone-200/80 p-6 sm:p-8 shadow-xs space-y-5">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight flex items-center gap-2">
-            {t('kinship.title')}
+            {t("kinship.title")}
           </h1>
-          <p className="text-xs text-stone-500 mt-0.5">
-            {t('kinship.description')}
-          </p>
+          <p className="text-xs text-stone-500 mt-0.5">{t("kinship.description")}</p>
         </div>
 
         {/* Inputs row */}
@@ -73,7 +71,7 @@ export const KinshipView: React.FC<KinshipViewProps> = ({
           <div>
             <PersonSearchSelect
               treeId={treeId}
-              label={t('kinship.personA')}
+              label={t("kinship.personA")}
               value={personAId}
               excludeId={personBId}
               onSelect={(p) => setPersonAId(p?.id)}
@@ -83,7 +81,7 @@ export const KinshipView: React.FC<KinshipViewProps> = ({
           <div>
             <PersonSearchSelect
               treeId={treeId}
-              label={t('kinship.personB')}
+              label={t("kinship.personB")}
               value={personBId}
               excludeId={personAId}
               onSelect={(p) => setPersonBId(p?.id)}
@@ -98,7 +96,7 @@ export const KinshipView: React.FC<KinshipViewProps> = ({
             disabled={!personAId && !personBId}
             className="text-xs text-stone-600 hover:text-stone-900 disabled:opacity-40 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 hover:bg-stone-50 cursor-pointer disabled:cursor-not-allowed transition-colors"
           >
-            <Icons.Reset size={13} /> {t('kinship.swap')}
+            <Icons.Reset size={13} /> {t("kinship.swap")}
           </button>
 
           <button
@@ -109,11 +107,11 @@ export const KinshipView: React.FC<KinshipViewProps> = ({
             {loading ? (
               <>
                 <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                {t('common.loading')}
+                {t("common.loading")}
               </>
             ) : (
               <>
-                <Icons.Kinship size={16} /> {t('kinship.find')}
+                <Icons.Kinship size={16} /> {t("kinship.find")}
               </>
             )}
           </button>
@@ -127,7 +125,7 @@ export const KinshipView: React.FC<KinshipViewProps> = ({
           <div className="p-6 rounded-2xl bg-amber-50/70 border border-amber-200/60 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="space-y-1">
               <div className="text-xs font-bold uppercase tracking-wider text-amber-800">
-                {t('kinship.title')}
+                {t("kinship.title")}
               </div>
               <div className="text-2xl font-bold text-stone-950 capitalize">
                 {kinshipTermLabel(locale, result.term)}
@@ -140,7 +138,7 @@ export const KinshipView: React.FC<KinshipViewProps> = ({
             </div>
 
             <div className="text-right">
-              <div className="text-xs text-stone-500 font-medium">{t('kinship.degrees')}</div>
+              <div className="text-xs text-stone-500 font-medium">{t("kinship.degrees")}</div>
               <div className="text-3xl font-extrabold text-stone-900 font-mono">
                 {result.degrees_of_sep}
               </div>
@@ -150,28 +148,28 @@ export const KinshipView: React.FC<KinshipViewProps> = ({
           {/* Step-by-Step Chain Visualization */}
           <div className="space-y-4">
             <h3 className="text-sm font-bold uppercase tracking-wider text-stone-800">
-              {t('kinship.steps')}
+              {t("kinship.steps")}
             </h3>
 
             <div className="relative pl-6 sm:pl-8 space-y-6 before:absolute before:left-2.5 sm:before:left-3.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-stone-200">
               {result.segments.length === 0 ? (
-                <div className="text-sm text-stone-600">{t('kinship.selfHint')}</div>
+                <div className="text-sm text-stone-600">{t("kinship.selfHint")}</div>
               ) : (
                 result.segments.map((seg, idx) => {
                   const fromPerson = result.individuals[seg.from_id];
                   const toPerson = result.individuals[seg.to_id];
 
                   const relType = seg.relationship_type?.toLowerCase();
-                  const localizedRel = relType ? t(`edge.${relType}`) : t('edge.biological');
+                  const localizedRel = relType ? t(`edge.${relType}`) : t("edge.biological");
                   const unionType = seg.union_type?.toLowerCase();
-                  const localizedUnion = unionType ? t(`edge.${unionType}`) : t('edge.traditional');
+                  const localizedUnion = unionType ? t(`edge.${unionType}`) : t("edge.traditional");
 
                   const hopLabel =
-                    seg.relation === 'PARENT'
-                      ? `${t('kinship.parent')} (${localizedRel})`
-                      : seg.relation === 'CHILD'
-                      ? `${t('kinship.child')} (${localizedRel})`
-                      : `${t('kinship.spouse')} (${localizedUnion})`;
+                    seg.relation === "PARENT"
+                      ? `${t("kinship.parent")} (${localizedRel})`
+                      : seg.relation === "CHILD"
+                        ? `${t("kinship.child")} (${localizedRel})`
+                        : `${t("kinship.spouse")} (${localizedUnion})`;
 
                   return (
                     <div key={idx} className="relative space-y-2">
@@ -225,9 +223,9 @@ export const KinshipView: React.FC<KinshipViewProps> = ({
 
       {hasSearched && !loading && !result && (
         <div className="bg-white rounded-2xl border border-stone-200/80 p-12 text-center space-y-2">
-          <div className="text-base font-semibold text-stone-800">{t('kinship.none')}</div>
+          <div className="text-base font-semibold text-stone-800">{t("kinship.none")}</div>
           <p className="text-xs text-stone-500 max-w-md mx-auto">
-            {t('kinship.noPathDescription')}
+            {t("kinship.noPathDescription")}
           </p>
         </div>
       )}

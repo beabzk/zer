@@ -1,11 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
-import type { Tree } from '../lib/types';
-import { Icons } from '../components/ui/Icons';
-import { formatRole } from '../lib/utils';
-import { TreeForm } from '../components/forms/TreeForm';
-import { authClient } from '../lib/auth';
-import { useI18n } from '../lib/i18nContext';
-import type { Locale } from '../lib/i18n';
+import React, { useState, useRef, useEffect } from "react";
+import type { Tree } from "../lib/types";
+import { Icons } from "../components/ui/Icons";
+import { formatRole } from "../lib/utils";
+import { TreeForm } from "../components/forms/TreeForm";
+import { authClient } from "../lib/auth";
+import { useI18n } from "../lib/i18nContext";
+import type { Locale } from "../lib/i18n";
 
 interface TreeSelectPageProps {
   trees: Tree[];
@@ -39,8 +39,8 @@ export const TreeSelectPage: React.FC<TreeSelectPageProps> = ({
         setLangMenuOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleOutside);
-    return () => document.removeEventListener('mousedown', handleOutside);
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
   }, []);
 
   return (
@@ -64,7 +64,7 @@ export const TreeSelectPage: React.FC<TreeSelectPageProps> = ({
                 type="button"
                 onClick={() => setLangMenuOpen(!langMenuOpen)}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs font-semibold transition-colors cursor-pointer"
-                title={t('trees.language')}
+                title={t("trees.language")}
               >
                 <Icons.Globe size={14} className="text-stone-500" />
                 <span className="hidden sm:inline">{localeNames[locale]}</span>
@@ -82,7 +82,9 @@ export const TreeSelectPage: React.FC<TreeSelectPageProps> = ({
                         setLangMenuOpen(false);
                       }}
                       className={`w-full text-left px-3.5 py-2 text-xs flex items-center justify-between hover:bg-amber-50/70 transition-colors cursor-pointer ${
-                        locale === loc ? 'font-bold text-amber-900 bg-amber-50/90' : 'text-stone-700'
+                        locale === loc
+                          ? "font-bold text-amber-900 bg-amber-50/90"
+                          : "text-stone-700"
                       }`}
                     >
                       <span>{localeNames[loc]}</span>
@@ -98,14 +100,14 @@ export const TreeSelectPage: React.FC<TreeSelectPageProps> = ({
                 onClick={onNavigateAdmin}
                 className="px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-100 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
               >
-                <Icons.Shield size={15} /> {t('admin.panel')}
+                <Icons.Shield size={15} /> {t("admin.panel")}
               </button>
             )}
             <div className="text-xs text-stone-500 hidden sm:inline">{session?.user?.email}</div>
             <button
               onClick={handleSignOut}
               className="text-xs text-stone-500 hover:text-stone-900 p-1.5 rounded-lg hover:bg-stone-100 transition-colors cursor-pointer"
-              title={t('auth.signOut')}
+              title={t("auth.signOut")}
             >
               <Icons.LogOut size={16} />
             </button>
@@ -117,17 +119,17 @@ export const TreeSelectPage: React.FC<TreeSelectPageProps> = ({
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold text-stone-900 tracking-tight">{t('trees.title')}</h1>
-            <p className="text-sm text-stone-500 mt-1">
-              {t('trees.switchHint')}
-            </p>
+            <h1 className="text-3xl font-extrabold text-stone-900 tracking-tight">
+              {t("trees.title")}
+            </h1>
+            <p className="text-sm text-stone-500 mt-1">{t("trees.switchHint")}</p>
           </div>
 
           <button
             onClick={() => setCreateTreeOpen(true)}
             className="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-sm font-semibold transition-colors shadow-xs flex items-center gap-2 cursor-pointer self-start sm:self-auto"
           >
-            <Icons.Plus size={16} /> {t('trees.create')}
+            <Icons.Plus size={16} /> {t("trees.create")}
           </button>
         </div>
 
@@ -137,16 +139,16 @@ export const TreeSelectPage: React.FC<TreeSelectPageProps> = ({
               <Icons.Tree size={32} />
             </div>
             <div className="space-y-1">
-              <h2 className="text-lg font-bold text-stone-900">{t('trees.empty')}</h2>
+              <h2 className="text-lg font-bold text-stone-900">{t("trees.empty")}</h2>
               <p className="text-xs text-stone-500 max-w-sm mx-auto">
-                {t('dashboard.welcomeDescription')}
+                {t("dashboard.welcomeDescription")}
               </p>
             </div>
             <button
               onClick={() => setCreateTreeOpen(true)}
               className="px-5 py-2.5 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-sm font-semibold transition-colors shadow-xs cursor-pointer inline-flex items-center gap-2"
             >
-              <Icons.Plus size={16} /> {t('trees.create')}
+              <Icons.Plus size={16} /> {t("trees.create")}
             </button>
           </div>
         ) : (
@@ -179,7 +181,7 @@ export const TreeSelectPage: React.FC<TreeSelectPageProps> = ({
                 <div className="pt-4 border-t border-stone-100 flex items-center justify-between text-xs text-stone-400">
                   <span>SQLite</span>
                   <span className="text-amber-800 font-semibold group-hover:translate-x-1 transition-transform flex items-center gap-1">
-                    {t('treeInvite.openTree')} <Icons.ArrowRight size={13} />
+                    {t("treeInvite.openTree")} <Icons.ArrowRight size={13} />
                   </span>
                 </div>
               </div>

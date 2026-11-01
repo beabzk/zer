@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { api } from '../lib/api';
-import type { AdminUser, AdminTree, AdminSignupInvite } from '../lib/types';
-import { Icons } from '../components/ui/Icons';
-import { useToast } from '../components/ui/Toast';
-import { useI18n } from '../lib/i18nContext';
-import type { Locale } from '../lib/i18n';
+import React, { useState, useEffect } from "react";
+import { api } from "../lib/api";
+import type { AdminUser, AdminTree, AdminSignupInvite } from "../lib/types";
+import { Icons } from "../components/ui/Icons";
+import { useToast } from "../components/ui/Toast";
+import { useI18n } from "../lib/i18nContext";
+import type { Locale } from "../lib/i18n";
 
 interface AdminPageProps {
   onBack: () => void;
@@ -14,16 +14,18 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   const toast = useToast();
   const { t, locale, setLocale, localeNames } = useI18n();
   const [langMenuOpen, setLangMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'settings' | 'invites' | 'users' | 'trees'>('settings');
+  const [activeTab, setActiveTab] = useState<"settings" | "invites" | "users" | "trees">(
+    "settings",
+  );
 
   // Settings state
-  const [signupMode, setSignupMode] = useState('INVITE');
+  const [signupMode, setSignupMode] = useState("INVITE");
   const [expiryHours, setExpiryHours] = useState(168);
   const [savingSettings, setSavingSettings] = useState(false);
 
   // Invites state
   const [invites, setInvites] = useState<AdminSignupInvite[]>([]);
-  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteEmail, setInviteEmail] = useState("");
   const [inviteExpiry, setInviteExpiry] = useState(168);
   const [creatingInvite, setCreatingInvite] = useState(false);
   const [newInviteUrl, setNewInviteUrl] = useState<string | null>(null);
@@ -36,13 +38,25 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   const loadData = () => {
     setLoading(true);
     Promise.all([
-      api.getSignupSettings().then((s) => {
-        setSignupMode(s.signup_mode);
-        setExpiryHours(s.default_invite_expiry_hours);
-      }).catch(() => {}),
-      api.listAdminInvites().then(setInvites).catch(() => {}),
-      api.listAdminUsers().then(setUsers).catch(() => {}),
-      api.listAdminTrees().then(setTrees).catch(() => {}),
+      api
+        .getSignupSettings()
+        .then((s) => {
+          setSignupMode(s.signup_mode);
+          setExpiryHours(s.default_invite_expiry_hours);
+        })
+        .catch(() => {}),
+      api
+        .listAdminInvites()
+        .then(setInvites)
+        .catch(() => {}),
+      api
+        .listAdminUsers()
+        .then(setUsers)
+        .catch(() => {}),
+      api
+        .listAdminTrees()
+        .then(setTrees)
+        .catch(() => {}),
     ]).finally(() => setLoading(false));
   };
 
@@ -58,9 +72,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
         signupMode,
         defaultInviteExpiryHours: expiryHours,
       });
-      toast.success('Instance registration policy updated');
+      toast.success("Instance registration policy updated");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to update settings';
+      const msg = err instanceof Error ? err.message : "Failed to update settings";
       toast.error(msg);
     } finally {
       setSavingSettings(false);
@@ -77,12 +91,12 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
         email: inviteEmail.trim(),
         expiresInHours: inviteExpiry,
       });
-      toast.success('Registration invite issued');
+      toast.success("Registration invite issued");
       setNewInviteUrl(res.invite_url || null);
-      setInviteEmail('');
+      setInviteEmail("");
       api.listAdminInvites().then(setInvites);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to issue invite';
+      const msg = err instanceof Error ? err.message : "Failed to issue invite";
       toast.error(msg);
     } finally {
       setCreatingInvite(false);
@@ -92,24 +106,28 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
   const handleRevokeInvite = async (id: string) => {
     try {
       await api.revokeAdminInvite(id);
-      toast.success('Invite revoked');
+      toast.success("Invite revoked");
       api.listAdminInvites().then(setInvites);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to revoke invite';
+      const msg = err instanceof Error ? err.message : "Failed to revoke invite";
       toast.error(msg);
     }
   };
 
   const handleDeleteUser = async (userId: number, email: string) => {
-    if (!window.confirm(`Permanently remove user ${email}? This will revoke all their memberships and sessions.`)) {
+    if (
+      !window.confirm(
+        `Permanently remove user ${email}? This will revoke all their memberships and sessions.`,
+      )
+    ) {
       return;
     }
     try {
       await api.deleteAdminUser(userId);
-      toast.success('User removed');
+      toast.success("User removed");
       api.listAdminUsers().then(setUsers);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to delete user';
+      const msg = err instanceof Error ? err.message : "Failed to delete user";
       toast.error(msg);
     }
   };
@@ -120,17 +138,17 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
     }
     try {
       await api.deleteAdminTree(treeId);
-      toast.success('Tree database dropped');
+      toast.success("Tree database dropped");
       api.listAdminTrees().then(setTrees);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to delete tree';
+      const msg = err instanceof Error ? err.message : "Failed to delete tree";
       toast.error(msg);
     }
   };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast.success('Link copied to clipboard');
+    toast.success("Link copied to clipboard");
   };
 
   return (
@@ -149,7 +167,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
               <span className="p-1 rounded bg-amber-100 text-amber-900 font-bold">
                 <Icons.Shield size={16} />
               </span>
-              <h1 className="text-base font-bold text-stone-900">{t('admin.title')}</h1>
+              <h1 className="text-base font-bold text-stone-900">{t("admin.title")}</h1>
             </div>
           </div>
 
@@ -175,7 +193,9 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                         setLangMenuOpen(false);
                       }}
                       className={`w-full text-left px-3.5 py-1.5 text-xs flex items-center justify-between hover:bg-amber-50 cursor-pointer ${
-                        locale === loc ? 'font-bold text-amber-900 bg-amber-50/80' : 'text-stone-700'
+                        locale === loc
+                          ? "font-bold text-amber-900 bg-amber-50/80"
+                          : "text-stone-700"
                       }`}
                     >
                       <span>{localeNames[loc]}</span>
@@ -190,7 +210,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
               onClick={onBack}
               className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-stone-200 hover:bg-stone-50 text-stone-700 transition-colors cursor-pointer"
             >
-              {t('admin.exit')}
+              {t("admin.exit")}
             </button>
           </div>
         </div>
@@ -201,50 +221,58 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
         {/* Navigation Tabs */}
         <div className="flex items-center gap-2 border-b border-stone-200 pb-3 text-xs font-semibold overflow-x-auto">
           <button
-            onClick={() => setActiveTab('settings')}
+            onClick={() => setActiveTab("settings")}
             className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer shrink-0 ${
-              activeTab === 'settings' ? 'bg-stone-900 text-white' : 'text-stone-600 hover:bg-stone-200/60'
+              activeTab === "settings"
+                ? "bg-stone-900 text-white"
+                : "text-stone-600 hover:bg-stone-200/60"
             }`}
           >
-            {t('admin.settingsTab')}
+            {t("admin.settingsTab")}
           </button>
           <button
-            onClick={() => setActiveTab('invites')}
+            onClick={() => setActiveTab("invites")}
             className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer shrink-0 ${
-              activeTab === 'invites' ? 'bg-stone-900 text-white' : 'text-stone-600 hover:bg-stone-200/60'
+              activeTab === "invites"
+                ? "bg-stone-900 text-white"
+                : "text-stone-600 hover:bg-stone-200/60"
             }`}
           >
-            {t('admin.invitesTab')} ({invites.filter((i) => i.status === 'PENDING').length})
+            {t("admin.invitesTab")} ({invites.filter((i) => i.status === "PENDING").length})
           </button>
           <button
-            onClick={() => setActiveTab('users')}
+            onClick={() => setActiveTab("users")}
             className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer shrink-0 ${
-              activeTab === 'users' ? 'bg-stone-900 text-white' : 'text-stone-600 hover:bg-stone-200/60'
+              activeTab === "users"
+                ? "bg-stone-900 text-white"
+                : "text-stone-600 hover:bg-stone-200/60"
             }`}
           >
-            {t('admin.usersTab')} ({users.length})
+            {t("admin.usersTab")} ({users.length})
           </button>
           <button
-            onClick={() => setActiveTab('trees')}
+            onClick={() => setActiveTab("trees")}
             className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer shrink-0 ${
-              activeTab === 'trees' ? 'bg-stone-900 text-white' : 'text-stone-600 hover:bg-stone-200/60'
+              activeTab === "trees"
+                ? "bg-stone-900 text-white"
+                : "text-stone-600 hover:bg-stone-200/60"
             }`}
           >
-            {t('admin.treesTab')} ({trees.length})
+            {t("admin.treesTab")} ({trees.length})
           </button>
         </div>
 
         {loading ? (
           <div className="py-20 text-center">
             <div className="w-8 h-8 border-2 border-stone-300 border-t-amber-700 rounded-full animate-spin mx-auto mb-2" />
-            <p className="text-xs text-stone-500">{t('common.loading')}</p>
+            <p className="text-xs text-stone-500">{t("common.loading")}</p>
           </div>
-        ) : activeTab === 'settings' ? (
+        ) : activeTab === "settings" ? (
           /* Signup Settings */
           <div className="bg-white rounded-2xl border border-stone-200 p-6 sm:p-8 max-w-xl space-y-6 shadow-xs">
             <div>
-              <h2 className="text-lg font-bold text-stone-900">{t('admin.signupAccess')}</h2>
-              <p className="text-xs text-stone-500 mt-0.5">{t('admin.signupAccessDescription')}</p>
+              <h2 className="text-lg font-bold text-stone-900">{t("admin.signupAccess")}</h2>
+              <p className="text-xs text-stone-500 mt-0.5">{t("admin.signupAccessDescription")}</p>
             </div>
 
             <form onSubmit={handleSaveSettings} className="space-y-5">
@@ -258,13 +286,15 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                       type="radio"
                       name="admin_mode"
                       value="INVITE"
-                      checked={signupMode === 'INVITE'}
-                      onChange={() => setSignupMode('INVITE')}
+                      checked={signupMode === "INVITE"}
+                      onChange={() => setSignupMode("INVITE")}
                       className="mt-0.5 text-amber-600"
                     />
                     <div>
                       <span className="font-semibold text-stone-900">Invite Only (INVITE)</span>
-                      <p className="text-stone-500 mt-0.5">Requires an admin invite link to register.</p>
+                      <p className="text-stone-500 mt-0.5">
+                        Requires an admin invite link to register.
+                      </p>
                     </div>
                   </label>
 
@@ -273,8 +303,8 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                       type="radio"
                       name="admin_mode"
                       value="OPEN"
-                      checked={signupMode === 'OPEN'}
-                      onChange={() => setSignupMode('OPEN')}
+                      checked={signupMode === "OPEN"}
+                      onChange={() => setSignupMode("OPEN")}
                       className="mt-0.5 text-amber-600"
                     />
                     <div>
@@ -288,12 +318,14 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                       type="radio"
                       name="admin_mode"
                       value="CLOSED"
-                      checked={signupMode === 'CLOSED'}
-                      onChange={() => setSignupMode('CLOSED')}
+                      checked={signupMode === "CLOSED"}
+                      onChange={() => setSignupMode("CLOSED")}
                       className="mt-0.5 text-amber-600"
                     />
                     <div>
-                      <span className="font-semibold text-stone-900">Registration Closed (CLOSED)</span>
+                      <span className="font-semibold text-stone-900">
+                        Registration Closed (CLOSED)
+                      </span>
                       <p className="text-stone-500 mt-0.5">No new accounts can be created.</p>
                     </div>
                   </label>
@@ -302,7 +334,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
 
               <div>
                 <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1.5">
-                  {t('admin.defaultExpiry')}
+                  {t("admin.defaultExpiry")}
                 </label>
                 <input
                   type="number"
@@ -319,11 +351,11 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                 disabled={savingSettings}
                 className="px-5 py-2.5 bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer"
               >
-                {savingSettings ? t('common.loading') : t('admin.saveAccess')}
+                {savingSettings ? t("common.loading") : t("admin.saveAccess")}
               </button>
             </form>
           </div>
-        ) : activeTab === 'invites' ? (
+        ) : activeTab === "invites" ? (
           /* Invites Manager */
           <div className="space-y-6">
             <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-xs space-y-4">
@@ -354,14 +386,16 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                     disabled={creatingInvite}
                     className="flex-1 py-2 bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white rounded-lg text-xs font-semibold transition-colors cursor-pointer"
                   >
-                    {creatingInvite ? 'Generating...' : 'Issue Invite'}
+                    {creatingInvite ? "Generating..." : "Issue Invite"}
                   </button>
                 </div>
               </form>
 
               {newInviteUrl && (
                 <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1.5">
-                  <div className="text-xs font-bold text-emerald-800">Registration Link Generated</div>
+                  <div className="text-xs font-bold text-emerald-800">
+                    Registration Link Generated
+                  </div>
                   <div className="flex items-center gap-2">
                     <input
                       type="text"
@@ -373,7 +407,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                       onClick={() => copyToClipboard(newInviteUrl)}
                       className="px-3 py-1 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-xs font-semibold cursor-pointer shrink-0"
                     >
-                      {t('common.copy')}
+                      {t("common.copy")}
                     </button>
                   </div>
                 </div>
@@ -386,24 +420,29 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
               </div>
               <div className="divide-y divide-stone-100">
                 {invites.map((inv) => (
-                  <div key={inv.id} className="px-6 py-3.5 flex items-center justify-between text-xs">
+                  <div
+                    key={inv.id}
+                    className="px-6 py-3.5 flex items-center justify-between text-xs"
+                  >
                     <div>
                       <div className="font-semibold text-stone-900">{inv.email}</div>
-                      <div className="text-stone-400 font-mono mt-0.5">Expires: {inv.expires_at.split('T')[0]}</div>
+                      <div className="text-stone-400 font-mono mt-0.5">
+                        Expires: {inv.expires_at.split("T")[0]}
+                      </div>
                     </div>
                     <div className="flex items-center gap-2">
                       <span
                         className={`px-2 py-0.5 rounded-full font-medium ${
-                          inv.status === 'PENDING'
-                            ? 'bg-amber-50 text-amber-800'
-                            : inv.status === 'ACCEPTED'
-                            ? 'bg-emerald-50 text-emerald-800'
-                            : 'bg-stone-100 text-stone-500'
+                          inv.status === "PENDING"
+                            ? "bg-amber-50 text-amber-800"
+                            : inv.status === "ACCEPTED"
+                              ? "bg-emerald-50 text-emerald-800"
+                              : "bg-stone-100 text-stone-500"
                         }`}
                       >
                         {inv.status}
                       </span>
-                      {inv.status === 'PENDING' && (
+                      {inv.status === "PENDING" && (
                         <button
                           onClick={() => handleRevokeInvite(inv.id)}
                           className="px-2 py-1 text-red-600 hover:bg-red-50 rounded border border-red-200 cursor-pointer"
@@ -417,11 +456,11 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
               </div>
             </div>
           </div>
-        ) : activeTab === 'users' ? (
+        ) : activeTab === "users" ? (
           /* Users Directory */
           <div className="bg-white rounded-2xl border border-stone-200 shadow-xs overflow-hidden">
             <div className="px-6 py-4 border-b border-stone-100 font-semibold text-sm text-stone-900">
-              {t('admin.users')}
+              {t("admin.users")}
             </div>
             <div className="divide-y divide-stone-100">
               {users.map((u) => (
@@ -431,11 +470,13 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                       <span>{u.email}</span>
                       {u.is_admin && (
                         <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-mono font-bold text-[10px]">
-                          {t('admin.roleAdmin')}
+                          {t("admin.roleAdmin")}
                         </span>
                       )}
                     </div>
-                    <div className="text-stone-400 font-mono mt-0.5">{t('admin.joined')}: {u.created_at.split('T')[0]}</div>
+                    <div className="text-stone-400 font-mono mt-0.5">
+                      {t("admin.joined")}: {u.created_at.split("T")[0]}
+                    </div>
                   </div>
                   <div>
                     {!u.is_admin && (
@@ -443,7 +484,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
                         onClick={() => handleDeleteUser(u.id, u.email)}
                         className="px-2 py-1 text-red-600 hover:bg-red-50 rounded border border-red-200 cursor-pointer"
                       >
-                        {t('admin.delete')}
+                        {t("admin.delete")}
                       </button>
                     )}
                   </div>
@@ -455,11 +496,14 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
           /* Trees Directory */
           <div className="bg-white rounded-2xl border border-stone-200 shadow-xs overflow-hidden">
             <div className="px-6 py-4 border-b border-stone-100 font-semibold text-sm text-stone-900">
-              {t('admin.allTrees')}
+              {t("admin.allTrees")}
             </div>
             <div className="divide-y divide-stone-100">
               {trees.map((treeItem) => (
-                <div key={treeItem.id} className="px-6 py-3.5 flex items-center justify-between text-xs">
+                <div
+                  key={treeItem.id}
+                  className="px-6 py-3.5 flex items-center justify-between text-xs"
+                >
                   <div>
                     <div className="font-semibold text-stone-900">{treeItem.name}</div>
                     <div className="text-stone-400 font-mono mt-0.5">

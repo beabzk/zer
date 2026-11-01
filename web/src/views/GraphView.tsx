@@ -1,17 +1,17 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { select } from 'd3-selection';
-import { zoom, zoomIdentity, type ZoomBehavior } from 'd3-zoom';
-import { api } from '../lib/api';
-import type { SubgraphResponse } from '../lib/types';
-import { Icons } from '../components/ui/Icons';
-import { PersonSearchSelect } from '../components/ui/PersonSearchSelect';
-import { formatLifespan } from '../lib/utils';
-import { useToast } from '../components/ui/Toast';
-import { useI18n } from '../lib/i18nContext';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { select } from "d3-selection";
+import { zoom, zoomIdentity, type ZoomBehavior } from "d3-zoom";
+import { api } from "../lib/api";
+import type { SubgraphResponse } from "../lib/types";
+import { Icons } from "../components/ui/Icons";
+import { PersonSearchSelect } from "../components/ui/PersonSearchSelect";
+import { formatLifespan } from "../lib/utils";
+import { useToast } from "../components/ui/Toast";
+import { useI18n } from "../lib/i18nContext";
 import {
   buildFamilyTreeLayout,
   type FamilyTreeLayoutResult,
-} from '../components/visualization/familyTreeLayout';
+} from "../components/visualization/familyTreeLayout";
 
 interface GraphViewProps {
   treeId: string;
@@ -83,14 +83,14 @@ export const GraphView: React.FC<GraphViewProps> = ({
   const usedLegendItems = useMemo(() => {
     const items = new Set<string>();
     layout.connectors.forEach((c) => {
-      if (c.type === 'union_bridge') {
-        if (c.unionStatus === 'DISSOLVED') items.add('union_dissolved');
-        else if (c.unionStatus === 'WIDOWED') items.add('union_widowed');
-        else items.add('union_active');
+      if (c.type === "union_bridge") {
+        if (c.unionStatus === "DISSOLVED") items.add("union_dissolved");
+        else if (c.unionStatus === "WIDOWED") items.add("union_widowed");
+        else items.add("union_active");
       } else {
-        if (c.relationshipType === 'ADOPTIVE') items.add('rel_adoptive');
-        else if (c.relationshipType === 'FOSTER') items.add('rel_foster');
-        else items.add('rel_biological');
+        if (c.relationshipType === "ADOPTIVE") items.add("rel_adoptive");
+        else if (c.relationshipType === "FOSTER") items.add("rel_foster");
+        else items.add("rel_biological");
       }
     });
     return items;
@@ -111,8 +111,8 @@ export const GraphView: React.FC<GraphViewProps> = ({
 
     const zoomBehavior = zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.15, 2.5])
-      .on('zoom', (event) => {
-        container.attr('transform', event.transform.toString());
+      .on("zoom", (event) => {
+        container.attr("transform", event.transform.toString());
       });
 
     svg.call(zoomBehavior);
@@ -142,7 +142,7 @@ export const GraphView: React.FC<GraphViewProps> = ({
 
     select(svgRef.current).call(
       zoomBehaviorRef.current.transform,
-      zoomIdentity.translate(tx, ty).scale(fitScale)
+      zoomIdentity.translate(tx, ty).scale(fitScale),
     );
   }, [layout]);
 
@@ -162,7 +162,7 @@ export const GraphView: React.FC<GraphViewProps> = ({
 
     select(svgRef.current).call(
       zoomBehaviorRef.current.transform,
-      zoomIdentity.translate(tx, ty).scale(scale)
+      zoomIdentity.translate(tx, ty).scale(scale),
     );
   }, [layout]);
 
@@ -187,8 +187,8 @@ export const GraphView: React.FC<GraphViewProps> = ({
     <div
       className="relative flex-1 w-full flex flex-col bg-stone-50/60 overflow-hidden select-none"
       style={{
-        backgroundImage: 'radial-gradient(#e2e8f0 1.25px, transparent 1.25px)',
-        backgroundSize: '24px 24px',
+        backgroundImage: "radial-gradient(#e2e8f0 1.25px, transparent 1.25px)",
+        backgroundSize: "24px 24px",
       }}
     >
       {/* Top Floating Control Bar */}
@@ -216,11 +216,11 @@ export const GraphView: React.FC<GraphViewProps> = ({
               onChange={(e) => setDepth(parseInt(e.target.value, 10))}
               className="px-2 py-1 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 font-semibold focus:outline-none cursor-pointer"
             >
-              <option value="1">1 {t('lineage.generation')}</option>
-              <option value="2">2 {t('lineage.generation')}</option>
-              <option value="3">3 {t('lineage.generation')}</option>
-              <option value="4">4 {t('lineage.generation')}</option>
-              <option value="5">5 {t('lineage.generation')}</option>
+              <option value="1">1 {t("lineage.generation")}</option>
+              <option value="2">2 {t("lineage.generation")}</option>
+              <option value="3">3 {t("lineage.generation")}</option>
+              <option value="4">4 {t("lineage.generation")}</option>
+              <option value="5">5 {t("lineage.generation")}</option>
             </select>
           </div>
         </div>
@@ -229,45 +229,45 @@ export const GraphView: React.FC<GraphViewProps> = ({
         <div className="flex items-center gap-2 pointer-events-auto">
           {/* Dynamic Legend */}
           <div className="hidden lg:flex items-center gap-4 bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-xl border border-stone-200/90 shadow-sm text-xs text-stone-600 flex-wrap">
-            {usedLegendItems.has('rel_biological') && (
+            {usedLegendItems.has("rel_biological") && (
               <div className="flex items-center gap-2">
                 <span className="w-5 h-0.5 bg-stone-700 rounded-full" />
-                <span>{t('edge.biological')}</span>
+                <span>{t("edge.biological")}</span>
               </div>
             )}
-            {usedLegendItems.has('rel_adoptive') && (
+            {usedLegendItems.has("rel_adoptive") && (
               <div className="flex items-center gap-2">
                 <span className="w-5 h-0.5 border-t-2 border-dashed border-teal-600" />
-                <span className="text-teal-700 font-medium">{t('edge.adoptive')}</span>
+                <span className="text-teal-700 font-medium">{t("edge.adoptive")}</span>
               </div>
             )}
-            {usedLegendItems.has('rel_foster') && (
+            {usedLegendItems.has("rel_foster") && (
               <div className="flex items-center gap-2">
                 <span className="w-5 h-0.5 border-t-2 border-dotted border-purple-600" />
-                <span className="text-purple-700 font-medium">{t('edge.foster')}</span>
+                <span className="text-purple-700 font-medium">{t("edge.foster")}</span>
               </div>
             )}
-            {usedLegendItems.has('union_active') && (
+            {usedLegendItems.has("union_active") && (
               <div className="flex items-center gap-2">
                 <span className="w-5 h-0.5 border-t-2 border-dashed border-amber-600" />
-                <span>{t('edge.active')}</span>
+                <span>{t("edge.active")}</span>
               </div>
             )}
-            {usedLegendItems.has('union_dissolved') && (
+            {usedLegendItems.has("union_dissolved") && (
               <div className="flex items-center gap-2">
                 <span className="w-5 h-0.5 border-t-2 border-dashed border-slate-400" />
-                <span className="text-slate-500">{t('edge.dissolved')}</span>
+                <span className="text-slate-500">{t("edge.dissolved")}</span>
               </div>
             )}
-            {usedLegendItems.has('union_widowed') && (
+            {usedLegendItems.has("union_widowed") && (
               <div className="flex items-center gap-2">
                 <span className="w-5 h-0.5 border-t-2 border-dashed border-rose-600" />
-                <span className="text-rose-700">{t('edge.widowed')}</span>
+                <span className="text-rose-700">{t("edge.widowed")}</span>
               </div>
             )}
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-amber-200" />
-              <span>{t('canvas.focus')}</span>
+              <span>{t("canvas.focus")}</span>
             </div>
           </div>
 
@@ -290,21 +290,21 @@ export const GraphView: React.FC<GraphViewProps> = ({
             <button
               onClick={handleFitView}
               className="p-2 hover:bg-stone-100 rounded-lg text-stone-700 transition-colors cursor-pointer"
-              title={t('canvas.fit')}
+              title={t("canvas.fit")}
             >
               <Icons.Layers size={16} />
             </button>
             <button
               onClick={handleCenterRoot}
               className="p-2 hover:bg-stone-100 rounded-lg text-stone-700 transition-colors cursor-pointer"
-              title={t('canvas.focus')}
+              title={t("canvas.focus")}
             >
               <Icons.Crosshair size={16} />
             </button>
             <button
               onClick={handleResetZoom}
               className="p-2 hover:bg-stone-100 rounded-lg text-stone-700 transition-colors cursor-pointer"
-              title={t('canvas.reset')}
+              title={t("canvas.reset")}
             >
               <Icons.Reset size={16} />
             </button>
@@ -326,7 +326,13 @@ export const GraphView: React.FC<GraphViewProps> = ({
               <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.06" />
             </filter>
             <filter id="focusGlow" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="0" dy="0" stdDeviation="4" floodColor="#d97706" floodOpacity="0.25" />
+              <feDropShadow
+                dx="0"
+                dy="0"
+                stdDeviation="4"
+                floodColor="#d97706"
+                floodOpacity="0.25"
+              />
             </filter>
           </defs>
 
@@ -334,14 +340,14 @@ export const GraphView: React.FC<GraphViewProps> = ({
             {/* 1. Connectors (Orthogonal lines) */}
             <g className="connectors-layer">
               {layout.connectors.map((connector) => {
-                const isUnion = connector.type === 'union_bridge';
+                const isUnion = connector.type === "union_bridge";
 
                 if (isUnion) {
-                  const isDissolved = connector.unionStatus === 'DISSOLVED';
-                  const isWidowed = connector.unionStatus === 'WIDOWED';
-                  const stroke = isDissolved ? '#94a3b8' : isWidowed ? '#be123c' : '#d97706';
-                  const strokeDasharray = isDissolved ? '9 4 2 4' : isWidowed ? '6 3 2 3' : '5 4';
-                  const strokeWidth = isDissolved ? '2' : '2.5';
+                  const isDissolved = connector.unionStatus === "DISSOLVED";
+                  const isWidowed = connector.unionStatus === "WIDOWED";
+                  const stroke = isDissolved ? "#94a3b8" : isWidowed ? "#be123c" : "#d97706";
+                  const strokeDasharray = isDissolved ? "9 4 2 4" : isWidowed ? "6 3 2 3" : "5 4";
+                  const strokeWidth = isDissolved ? "2" : "2.5";
 
                   return (
                     <path
@@ -356,11 +362,11 @@ export const GraphView: React.FC<GraphViewProps> = ({
                   );
                 }
 
-                const isAdoptive = connector.relationshipType === 'ADOPTIVE';
-                const isFoster = connector.relationshipType === 'FOSTER';
-                const stroke = isAdoptive ? '#0d9488' : isFoster ? '#7c3aed' : '#57534e';
-                const strokeDasharray = isAdoptive ? '7 4' : isFoster ? '3 4' : undefined;
-                const strokeWidth = isAdoptive || isFoster ? '2.5' : '2';
+                const isAdoptive = connector.relationshipType === "ADOPTIVE";
+                const isFoster = connector.relationshipType === "FOSTER";
+                const stroke = isAdoptive ? "#0d9488" : isFoster ? "#7c3aed" : "#57534e";
+                const strokeDasharray = isAdoptive ? "7 4" : isFoster ? "3 4" : undefined;
+                const strokeWidth = isAdoptive || isFoster ? "2.5" : "2";
 
                 return (
                   <path
@@ -380,9 +386,9 @@ export const GraphView: React.FC<GraphViewProps> = ({
             {/* 2. Union Junction Tees */}
             <g className="junctions-layer">
               {layout.unions.map((u) => {
-                const isDissolved = u.status === 'DISSOLVED';
-                const isWidowed = u.status === 'WIDOWED';
-                const fill = isDissolved ? '#94a3b8' : isWidowed ? '#be123c' : '#d97706';
+                const isDissolved = u.status === "DISSOLVED";
+                const isWidowed = u.status === "WIDOWED";
+                const fill = isDissolved ? "#94a3b8" : isWidowed ? "#be123c" : "#d97706";
 
                 return (
                   <g key={`junction-group-${u.id}`}>
@@ -404,7 +410,7 @@ export const GraphView: React.FC<GraphViewProps> = ({
               {layout.cards.map((card) => {
                 const isSelected = selectedNodeId === card.id;
                 const isRoot = card.isRoot;
-                const isFemale = card.data.gender === 'FEMALE';
+                const isFemale = card.data.gender === "FEMALE";
 
                 return (
                   <g
@@ -437,9 +443,9 @@ export const GraphView: React.FC<GraphViewProps> = ({
                       rx="10"
                       ry="10"
                       fill="#ffffff"
-                      stroke={isRoot ? '#d97706' : isSelected ? '#b45309' : '#e7e5e4'}
-                      strokeWidth={isRoot ? '2.5' : isSelected ? '2' : '1'}
-                      filter={isRoot ? 'url(#focusGlow)' : 'url(#cardShadow)'}
+                      stroke={isRoot ? "#d97706" : isSelected ? "#b45309" : "#e7e5e4"}
+                      strokeWidth={isRoot ? "2.5" : isSelected ? "2" : "1"}
+                      filter={isRoot ? "url(#focusGlow)" : "url(#cardShadow)"}
                       className="transition-all duration-150 group-hover:stroke-stone-400"
                     />
 
@@ -450,7 +456,7 @@ export const GraphView: React.FC<GraphViewProps> = ({
                       width="4.5"
                       height={card.height}
                       rx="2"
-                      fill={isFemale ? '#f43f5e' : '#3b82f6'}
+                      fill={isFemale ? "#f43f5e" : "#3b82f6"}
                     />
 
                     {/* Role Pill Badge */}
@@ -494,7 +500,7 @@ export const GraphView: React.FC<GraphViewProps> = ({
                       y="26"
                       fontSize="14.5"
                       fontWeight="700"
-                      fill={isRoot ? '#92400e' : '#1c1917'}
+                      fill={isRoot ? "#92400e" : "#1c1917"}
                       className="font-sans pointer-events-none"
                     >
                       {card.data.given_name_native}
@@ -525,7 +531,7 @@ export const GraphView: React.FC<GraphViewProps> = ({
                         card.data.birth_year_ec,
                         card.data.death_year_ec,
                         card.data.is_deceased,
-                        t('calendar.eraEC')
+                        t("calendar.eraEC"),
                       )}
                     </text>
                   </g>
@@ -543,12 +549,12 @@ export const GraphView: React.FC<GraphViewProps> = ({
             <div>
               <span
                 className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                  selectedNode.data.gender === 'FEMALE'
-                    ? 'bg-rose-50 text-rose-700'
-                    : 'bg-stone-100 text-stone-700'
+                  selectedNode.data.gender === "FEMALE"
+                    ? "bg-rose-50 text-rose-700"
+                    : "bg-stone-100 text-stone-700"
                 }`}
               >
-                {selectedNode.data.gender === 'FEMALE' ? t('person.female') : t('person.male')}
+                {selectedNode.data.gender === "FEMALE" ? t("person.female") : t("person.male")}
               </span>
               <h3 className="text-xl font-bold text-stone-900 mt-1">
                 {selectedNode.data.full_native}
@@ -567,16 +573,16 @@ export const GraphView: React.FC<GraphViewProps> = ({
           {Boolean(
             selectedNode.data.birth_year_ec ||
             selectedNode.data.death_year_ec ||
-            selectedNode.data.is_deceased
+            selectedNode.data.is_deceased,
           ) && (
             <div className="text-xs text-stone-600">
-              {t('common.lifespan')}:{' '}
+              {t("common.lifespan")}:{" "}
               <span className="font-medium text-stone-900">
                 {formatLifespan(
                   selectedNode.data.birth_year_ec,
                   selectedNode.data.death_year_ec,
                   selectedNode.data.is_deceased,
-                  t('calendar.eraEC')
+                  t("calendar.eraEC"),
                 )}
               </span>
             </div>
@@ -587,7 +593,7 @@ export const GraphView: React.FC<GraphViewProps> = ({
               onClick={() => onNavigatePerson(selectedNode.id)}
               className="w-full py-2 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
             >
-              <Icons.User size={13} /> {t('workspace.profile')}
+              <Icons.User size={13} /> {t("workspace.profile")}
             </button>
             <button
               onClick={() => {
@@ -595,7 +601,7 @@ export const GraphView: React.FC<GraphViewProps> = ({
               }}
               className="w-full py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
             >
-              <Icons.Network size={13} /> {t('canvas.focus')}
+              <Icons.Network size={13} /> {t("canvas.focus")}
             </button>
           </div>
         </div>

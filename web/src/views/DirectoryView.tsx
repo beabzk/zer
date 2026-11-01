@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { api } from '../lib/api';
-import type { PersonSummary, Gender } from '../lib/types';
-import { Icons } from '../components/ui/Icons';
-import { formatLifespan } from '../lib/utils';
-import { useToast } from '../components/ui/Toast';
-import { useI18n } from '../lib/i18nContext';
+import React, { useState, useEffect } from "react";
+import { api } from "../lib/api";
+import type { PersonSummary, Gender } from "../lib/types";
+import { Icons } from "../components/ui/Icons";
+import { formatLifespan } from "../lib/utils";
+import { useToast } from "../components/ui/Toast";
+import { useI18n } from "../lib/i18nContext";
 
 interface DirectoryViewProps {
   treeId: string;
@@ -28,10 +28,10 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
   const [loading, setLoading] = useState(true);
 
   // Filters
-  const [search, setSearch] = useState('');
-  const [genderFilter, setGenderFilter] = useState<Gender | ''>('');
-  const [deceasedFilter, setDeceasedFilter] = useState<'true' | 'false' | ''>('');
-  const [order, setOrder] = useState<'created' | 'recent' | 'name'>('recent');
+  const [search, setSearch] = useState("");
+  const [genderFilter, setGenderFilter] = useState<Gender | "">("");
+  const [deceasedFilter, setDeceasedFilter] = useState<"true" | "false" | "">("");
+  const [order, setOrder] = useState<"created" | "recent" | "name">("recent");
 
   // Pagination
   const [limit] = useState(25);
@@ -74,18 +74,17 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-stone-900 tracking-tight flex items-center gap-2">
-            {t('people.directory')} <span className="text-sm font-normal text-stone-400">({total})</span>
+            {t("people.directory")}{" "}
+            <span className="text-sm font-normal text-stone-400">({total})</span>
           </h1>
-          <p className="text-xs text-stone-500 mt-0.5">
-            {t('people.description')}
-          </p>
+          <p className="text-xs text-stone-500 mt-0.5">{t("people.description")}</p>
         </div>
 
         <button
           onClick={onOpenAddPerson}
           className="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-sm font-medium transition-colors shadow-xs flex items-center gap-2 cursor-pointer self-start sm:self-auto"
         >
-          <Icons.Plus size={16} /> {t('person.add')}
+          <Icons.Plus size={16} /> {t("person.add")}
         </button>
       </div>
 
@@ -96,7 +95,7 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
           <div className="sm:col-span-2 relative">
             <input
               type="text"
-              placeholder={t('people.searchDescription')}
+              placeholder={t("people.searchDescription")}
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
@@ -109,7 +108,7 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
             </div>
             {search && (
               <button
-                onClick={() => setSearch('')}
+                onClick={() => setSearch("")}
                 className="absolute right-3 top-2.5 text-stone-400 hover:text-stone-700 cursor-pointer"
               >
                 <Icons.X size={14} />
@@ -122,14 +121,16 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
             <select
               value={genderFilter}
               onChange={(e) => {
-                setGenderFilter(e.target.value as Gender | '');
+                setGenderFilter(e.target.value as Gender | "");
                 handleFilterChange();
               }}
               className="w-full px-3 py-2 text-sm bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:bg-white focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
             >
-              <option value="">{t('people.all')} ({t('person.gender')})</option>
-              <option value="MALE">{t('person.male')}</option>
-              <option value="FEMALE">{t('person.female')}</option>
+              <option value="">
+                {t("people.all")} ({t("person.gender")})
+              </option>
+              <option value="MALE">{t("person.male")}</option>
+              <option value="FEMALE">{t("person.female")}</option>
             </select>
           </div>
 
@@ -138,56 +139,62 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
             <select
               value={order}
               onChange={(e) => {
-                setOrder(e.target.value as 'created' | 'recent' | 'name');
+                setOrder(e.target.value as "created" | "recent" | "name");
                 handleFilterChange();
               }}
               className="w-full px-3 py-2 text-sm bg-stone-50 border border-stone-200 rounded-xl text-stone-900 focus:outline-none focus:bg-white focus:border-amber-600 focus:ring-1 focus:ring-amber-600"
             >
-              <option value="recent">{t('people.order_recent')}</option>
-              <option value="name">{t('people.order_name')}</option>
-              <option value="created">{t('people.order_created')}</option>
+              <option value="recent">{t("people.order_recent")}</option>
+              <option value="name">{t("people.order_name")}</option>
+              <option value="created">{t("people.order_created")}</option>
             </select>
           </div>
         </div>
 
         {/* Secondary filter chips */}
         <div className="flex items-center gap-2 pt-1 border-t border-stone-100 text-xs">
-          <span className="text-stone-400">{t('people.status')}:</span>
+          <span className="text-stone-400">{t("people.status")}:</span>
           <button
             type="button"
             onClick={() => {
-              setDeceasedFilter('');
+              setDeceasedFilter("");
               handleFilterChange();
             }}
             className={`px-2.5 py-1 rounded-lg font-medium cursor-pointer transition-colors ${
-              deceasedFilter === '' ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+              deceasedFilter === ""
+                ? "bg-stone-900 text-white"
+                : "bg-stone-100 text-stone-600 hover:bg-stone-200"
             }`}
           >
-            {t('people.all')}
+            {t("people.all")}
           </button>
           <button
             type="button"
             onClick={() => {
-              setDeceasedFilter('false');
+              setDeceasedFilter("false");
               handleFilterChange();
             }}
             className={`px-2.5 py-1 rounded-lg font-medium cursor-pointer transition-colors ${
-              deceasedFilter === 'false' ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+              deceasedFilter === "false"
+                ? "bg-stone-900 text-white"
+                : "bg-stone-100 text-stone-600 hover:bg-stone-200"
             }`}
           >
-            {t('person.living')}
+            {t("person.living")}
           </button>
           <button
             type="button"
             onClick={() => {
-              setDeceasedFilter('true');
+              setDeceasedFilter("true");
               handleFilterChange();
             }}
             className={`px-2.5 py-1 rounded-lg font-medium cursor-pointer transition-colors ${
-              deceasedFilter === 'true' ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+              deceasedFilter === "true"
+                ? "bg-stone-900 text-white"
+                : "bg-stone-100 text-stone-600 hover:bg-stone-200"
             }`}
           >
-            {t('person.deceased')}
+            {t("person.deceased")}
           </button>
         </div>
       </div>
@@ -197,16 +204,16 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
         {loading ? (
           <div className="py-20 text-center">
             <div className="w-8 h-8 border-2 border-stone-300 border-t-amber-700 rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-sm text-stone-500">{t('common.loading')}</p>
+            <p className="text-sm text-stone-500">{t("common.loading")}</p>
           </div>
         ) : people.length === 0 ? (
           <div className="py-20 text-center space-y-3">
             <div className="w-12 h-12 rounded-full bg-stone-100 text-stone-400 flex items-center justify-center mx-auto">
               <Icons.Users size={24} />
             </div>
-            <div className="text-base font-semibold text-stone-800">{t('people.empty')}</div>
+            <div className="text-base font-semibold text-stone-800">{t("people.empty")}</div>
             <p className="text-xs text-stone-500 max-w-sm mx-auto">
-              {t('people.emptyDescription')}
+              {t("people.emptyDescription")}
             </p>
           </div>
         ) : (
@@ -225,22 +232,27 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
                     <h3 className="font-bold text-stone-950 text-base group-hover:text-amber-900 transition-colors">
                       {person.full_native}
                     </h3>
-                    <span className="text-sm text-stone-500 font-normal">
-                      {person.full_latin}
-                    </span>
+                    <span className="text-sm text-stone-500 font-normal">{person.full_latin}</span>
                   </div>
 
                   <div className="flex items-center gap-3 mt-1 text-xs text-stone-500">
                     <span
                       className={`px-2 py-0.5 rounded-md text-[11px] font-medium ${
-                        person.gender === 'FEMALE' ? 'bg-rose-50 text-rose-700 border border-rose-100' : 'bg-stone-100 text-stone-700 border border-stone-200'
+                        person.gender === "FEMALE"
+                          ? "bg-rose-50 text-rose-700 border border-rose-100"
+                          : "bg-stone-100 text-stone-700 border border-stone-200"
                       }`}
                     >
-                      {person.gender === 'FEMALE' ? t('person.female') : t('person.male')}
+                      {person.gender === "FEMALE" ? t("person.female") : t("person.male")}
                     </span>
 
                     <span>
-                      {formatLifespan(person.birth_year_ec, person.death_year_ec, person.is_deceased, t('calendar.eraEC'))}
+                      {formatLifespan(
+                        person.birth_year_ec,
+                        person.death_year_ec,
+                        person.is_deceased,
+                        t("calendar.eraEC"),
+                      )}
                     </span>
                   </div>
                 </div>
@@ -251,7 +263,7 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
                     onClick={() => onNavigatePerson(person.id)}
                     className="px-3 py-1.5 rounded-lg border border-stone-200 hover:bg-white text-stone-700 text-xs font-medium transition-colors shadow-2xs cursor-pointer"
                   >
-                    {t('workspace.profile')}
+                    {t("workspace.profile")}
                   </button>
                   <button
                     onClick={() => onNavigateGraph(person.id)}
@@ -277,9 +289,9 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
         {total > limit && (
           <div className="p-4 bg-stone-50/50 border-t border-stone-100 flex items-center justify-between text-xs text-stone-600">
             <div>
-              <span className="font-medium text-stone-900">{offset + 1}</span> -{' '}
-              <span className="font-medium text-stone-900">{Math.min(offset + limit, total)}</span> /{' '}
-              <span className="font-medium text-stone-900">{total}</span>
+              <span className="font-medium text-stone-900">{offset + 1}</span> -{" "}
+              <span className="font-medium text-stone-900">{Math.min(offset + limit, total)}</span>{" "}
+              / <span className="font-medium text-stone-900">{total}</span>
             </div>
 
             <div className="flex items-center gap-2">
@@ -288,14 +300,14 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
                 onClick={() => setOffset(Math.max(0, offset - limit))}
                 className="px-3 py-1.5 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 disabled:opacity-40 transition-colors cursor-pointer disabled:cursor-not-allowed font-medium"
               >
-                {t('common.previous')}
+                {t("common.previous")}
               </button>
               <button
                 disabled={offset + limit >= total}
                 onClick={() => setOffset(offset + limit)}
                 className="px-3 py-1.5 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 disabled:opacity-40 transition-colors cursor-pointer disabled:cursor-not-allowed font-medium"
               >
-                {t('common.next')}
+                {t("common.next")}
               </button>
             </div>
           </div>

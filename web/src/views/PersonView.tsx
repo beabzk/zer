@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { api } from '../lib/api';
-import type { DetailResponse, IndividualRecord, OverviewEvent } from '../lib/types';
-import { Icons } from '../components/ui/Icons';
-import { formatFullDateEC } from '../lib/utils';
-import { useToast } from '../components/ui/Toast';
-import { useI18n } from '../lib/i18nContext';
-import { IndividualForm } from '../components/forms/IndividualForm';
-import { RelationshipForm } from '../components/forms/RelationshipForm';
-import { EventForm } from '../components/forms/EventForm';
+import React, { useState, useEffect } from "react";
+import { api } from "../lib/api";
+import type { DetailResponse, IndividualRecord, OverviewEvent } from "../lib/types";
+import { Icons } from "../components/ui/Icons";
+import { formatFullDateEC } from "../lib/utils";
+import { useToast } from "../components/ui/Toast";
+import { useI18n } from "../lib/i18nContext";
+import { IndividualForm } from "../components/forms/IndividualForm";
+import { RelationshipForm } from "../components/forms/RelationshipForm";
+import { EventForm } from "../components/forms/EventForm";
 
 interface PersonViewProps {
   treeId: string;
@@ -36,8 +36,8 @@ export const PersonView: React.FC<PersonViewProps> = ({
   // Modals
   const [editPersonOpen, setEditPersonOpen] = useState(false);
   const [relModalOpen, setRelModalOpen] = useState(false);
-  const [relMode, setRelMode] = useState<'parent_child' | 'union'>('parent_child');
-  const [relDefaultRole, setRelDefaultRole] = useState<'parent' | 'child' | 'partner'>('parent');
+  const [relMode, setRelMode] = useState<"parent_child" | "union">("parent_child");
+  const [relDefaultRole, setRelDefaultRole] = useState<"parent" | "child" | "partner">("parent");
 
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<OverviewEvent | null>(null);
@@ -62,10 +62,10 @@ export const PersonView: React.FC<PersonViewProps> = ({
     setDeleting(true);
     try {
       await api.deleteIndividual(treeId, personId);
-      toast.success('Individual deleted');
+      toast.success("Individual deleted");
       onBack();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to delete individual';
+      const msg = err instanceof Error ? err.message : "Failed to delete individual";
       toast.error(msg);
       setDeleting(false);
     }
@@ -78,22 +78,22 @@ export const PersonView: React.FC<PersonViewProps> = ({
         child_id: personId,
         is_name_source: !currentFlag,
       });
-      toast.success('Name source updated');
+      toast.success("Name source updated");
       loadPerson();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to update name source';
+      const msg = err instanceof Error ? err.message : "Failed to update name source";
       toast.error(msg);
     }
   };
 
   const handleDeleteEvent = async (eventId: string) => {
-    if (!window.confirm('Delete this life event record?')) return;
+    if (!window.confirm("Delete this life event record?")) return;
     try {
       await api.deleteEvent(treeId, personId, eventId);
-      toast.success('Event deleted');
+      toast.success("Event deleted");
       loadPerson();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to delete event';
+      const msg = err instanceof Error ? err.message : "Failed to delete event";
       toast.error(msg);
     }
   };
@@ -141,12 +141,12 @@ export const PersonView: React.FC<PersonViewProps> = ({
               ) : (
                 <div
                   className={`w-20 h-20 sm:w-24 sm:h-24 rounded-2xl flex items-center justify-center font-bold text-2xl sm:text-3xl border ${
-                    individual.gender === 'FEMALE'
-                      ? 'bg-rose-50 text-rose-800 border-rose-100'
-                      : 'bg-stone-100 text-stone-800 border-stone-200'
+                    individual.gender === "FEMALE"
+                      ? "bg-rose-50 text-rose-800 border-rose-100"
+                      : "bg-stone-100 text-stone-800 border-stone-200"
                   }`}
                 >
-                  {individual.given_name_native ? individual.given_name_native[0] : 'ዘ'}
+                  {individual.given_name_native ? individual.given_name_native[0] : "ዘ"}
                 </div>
               )}
             </div>
@@ -156,17 +156,17 @@ export const PersonView: React.FC<PersonViewProps> = ({
               <div className="flex flex-wrap items-center gap-2">
                 <span
                   className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${
-                    individual.gender === 'FEMALE'
-                      ? 'bg-rose-50 text-rose-700 border border-rose-200/50'
-                      : 'bg-stone-100 text-stone-700 border border-stone-200'
+                    individual.gender === "FEMALE"
+                      ? "bg-rose-50 text-rose-700 border border-rose-200/50"
+                      : "bg-stone-100 text-stone-700 border border-stone-200"
                   }`}
                 >
-                  {individual.gender === 'FEMALE' ? t('person.female') : t('person.male')}
+                  {individual.gender === "FEMALE" ? t("person.female") : t("person.male")}
                 </span>
 
                 {Boolean(individual.is_deceased) && (
                   <span className="text-xs px-2 py-0.5 rounded-full bg-stone-200/70 text-stone-700 font-medium">
-                    {t('person.deceased')}
+                    {t("person.deceased")}
                   </span>
                 )}
 
@@ -190,35 +190,40 @@ export const PersonView: React.FC<PersonViewProps> = ({
               <div className="text-xs text-stone-500 pt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
                 {(individual.birth_year_ec || individual.birth_date_gc) && (
                   <span>
-                    <strong>{t('person.birth')}:</strong>{' '}
+                    <strong>{t("person.birth")}:</strong>{" "}
                     {individual.birth_year_ec
                       ? formatFullDateEC(
                           individual.birth_year_ec,
                           individual.birth_month_ec,
                           individual.birth_day_ec,
-                          individual.birth_month_ec ? months[individual.birth_month_ec - 1] : undefined,
-                          t('calendar.eraEC')
+                          individual.birth_month_ec
+                            ? months[individual.birth_month_ec - 1]
+                            : undefined,
+                          t("calendar.eraEC"),
                         )
                       : individual.birth_date_gc}
-                    {individual.birth_place ? ` (${individual.birth_place})` : ''}
+                    {individual.birth_place ? ` (${individual.birth_place})` : ""}
                   </span>
                 )}
 
-                {Boolean(individual.is_deceased) && (individual.death_year_ec || individual.death_date_gc) && (
-                  <span>
-                    <strong>{t('person.death')}:</strong>{' '}
-                    {individual.death_year_ec
-                      ? formatFullDateEC(
-                          individual.death_year_ec,
-                          individual.death_month_ec,
-                          individual.death_day_ec,
-                          individual.death_month_ec ? months[individual.death_month_ec - 1] : undefined,
-                          t('calendar.eraEC')
-                        )
-                      : individual.death_date_gc}
-                    {individual.death_place ? ` (${individual.death_place})` : ''}
-                  </span>
-                )}
+                {Boolean(individual.is_deceased) &&
+                  (individual.death_year_ec || individual.death_date_gc) && (
+                    <span>
+                      <strong>{t("person.death")}:</strong>{" "}
+                      {individual.death_year_ec
+                        ? formatFullDateEC(
+                            individual.death_year_ec,
+                            individual.death_month_ec,
+                            individual.death_day_ec,
+                            individual.death_month_ec
+                              ? months[individual.death_month_ec - 1]
+                              : undefined,
+                            t("calendar.eraEC"),
+                          )
+                        : individual.death_date_gc}
+                      {individual.death_place ? ` (${individual.death_place})` : ""}
+                    </span>
+                  )}
               </div>
             </div>
           </div>
@@ -230,7 +235,7 @@ export const PersonView: React.FC<PersonViewProps> = ({
                 onClick={() => setEditPersonOpen(true)}
                 className="flex-1 sm:flex-initial px-3.5 py-1.5 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-medium transition-colors shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <Icons.Edit size={14} /> {t('person.edit')}
+                <Icons.Edit size={14} /> {t("person.edit")}
               </button>
             )}
 
@@ -238,7 +243,7 @@ export const PersonView: React.FC<PersonViewProps> = ({
               <button
                 onClick={() => setConfirmDeleteOpen(true)}
                 className="p-1.5 rounded-xl border border-stone-200 text-stone-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                title={t('person.delete')}
+                title={t("person.delete")}
               >
                 <Icons.Trash size={16} />
               </button>
@@ -250,16 +255,17 @@ export const PersonView: React.FC<PersonViewProps> = ({
         {nameSourceParent && (
           <div className="p-3 bg-amber-50/70 rounded-xl border border-amber-200/60 text-xs text-amber-900 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="font-semibold">{t('workspace.nameSource')}:</span>
+              <span className="font-semibold">{t("workspace.nameSource")}:</span>
               <span>
-                {t('workspace.nameSourceDesc')} <strong>{nameSourceParent.full_native}</strong> ({nameSourceParent.full_latin})
+                {t("workspace.nameSourceDesc")} <strong>{nameSourceParent.full_native}</strong> (
+                {nameSourceParent.full_latin})
               </span>
             </div>
             <button
               onClick={() => onNavigatePerson(nameSourceParent.id)}
               className="text-amber-800 hover:text-amber-950 font-medium underline cursor-pointer"
             >
-              {t('common.view') || 'View'}
+              {t("common.view") || "View"}
             </button>
           </div>
         )}
@@ -270,19 +276,19 @@ export const PersonView: React.FC<PersonViewProps> = ({
             onClick={() => onNavigateGraph(personId)}
             className="px-3 py-1.5 rounded-lg border border-stone-200 hover:bg-stone-50 text-stone-700 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
           >
-            <Icons.Network size={14} className="text-amber-700" /> {t('views.canvas')}
+            <Icons.Network size={14} className="text-amber-700" /> {t("views.canvas")}
           </button>
           <button
             onClick={() => onNavigateLineage(personId)}
             className="px-3 py-1.5 rounded-lg border border-stone-200 hover:bg-stone-50 text-stone-700 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
           >
-            <Icons.Lineage size={14} className="text-amber-700" /> {t('workspace.lineage')}
+            <Icons.Lineage size={14} className="text-amber-700" /> {t("workspace.lineage")}
           </button>
           <button
             onClick={() => onNavigateKinshipWith(personId)}
             className="px-3 py-1.5 rounded-lg border border-stone-200 hover:bg-stone-50 text-stone-700 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
           >
-            <Icons.Kinship size={14} className="text-amber-700" /> {t('views.kinship')}
+            <Icons.Kinship size={14} className="text-amber-700" /> {t("views.kinship")}
           </button>
         </div>
       </div>
@@ -294,25 +300,27 @@ export const PersonView: React.FC<PersonViewProps> = ({
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-stone-100">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-stone-700">
-                {t('workspace.parents')} ({parents.length})
+                {t("workspace.parents")} ({parents.length})
               </h3>
               {permissions.can_edit && (
                 <button
                   onClick={() => {
-                    setRelMode('parent_child');
-                    setRelDefaultRole('child');
+                    setRelMode("parent_child");
+                    setRelDefaultRole("child");
                     setRelModalOpen(true);
                   }}
                   className="text-xs font-medium text-amber-800 hover:text-amber-950 flex items-center gap-1 cursor-pointer"
                 >
-                  <Icons.Plus size={14} /> {t('edge.addParent')}
+                  <Icons.Plus size={14} /> {t("edge.addParent")}
                 </button>
               )}
             </div>
 
             <div className="divide-y divide-stone-100 mt-2">
               {parents.length === 0 ? (
-                <div className="py-6 text-center text-xs text-stone-400">{t('workspace.noParents')}</div>
+                <div className="py-6 text-center text-xs text-stone-400">
+                  {t("workspace.noParents")}
+                </div>
               ) : (
                 parents.map((p) => (
                   <div key={p.id} className="py-2.5 flex items-start justify-between gap-2">
@@ -324,13 +332,15 @@ export const PersonView: React.FC<PersonViewProps> = ({
                         {p.full_native}
                       </div>
                       <div className="text-xs text-stone-500 truncate">({p.full_latin})</div>
-                      <div className="text-[11px] text-stone-400 mt-0.5">{p.relationship_type.toLowerCase()}</div>
+                      <div className="text-[11px] text-stone-400 mt-0.5">
+                        {p.relationship_type.toLowerCase()}
+                      </div>
                     </div>
 
                     <div className="shrink-0 text-right">
                       {p.is_name_source ? (
                         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 block">
-                          {t('workspace.nameSource')}
+                          {t("workspace.nameSource")}
                         </span>
                       ) : (
                         permissions.can_edit && (
@@ -338,7 +348,7 @@ export const PersonView: React.FC<PersonViewProps> = ({
                             onClick={() => handleToggleNameSource(p.id, false)}
                             className="text-[10px] text-stone-400 hover:text-amber-800 underline cursor-pointer"
                           >
-                            {t('workspace.setNameSource')}
+                            {t("workspace.setNameSource")}
                           </button>
                         )
                       )}
@@ -355,24 +365,26 @@ export const PersonView: React.FC<PersonViewProps> = ({
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-stone-100">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-stone-700">
-                {t('workspace.unions')} ({unions.length})
+                {t("workspace.unions")} ({unions.length})
               </h3>
               {permissions.can_edit && (
                 <button
                   onClick={() => {
-                    setRelMode('union');
+                    setRelMode("union");
                     setRelModalOpen(true);
                   }}
                   className="text-xs font-medium text-amber-800 hover:text-amber-950 flex items-center gap-1 cursor-pointer"
                 >
-                  <Icons.Plus size={14} /> {t('edge.addUnion')}
+                  <Icons.Plus size={14} /> {t("edge.addUnion")}
                 </button>
               )}
             </div>
 
             <div className="divide-y divide-stone-100 mt-2">
               {unions.length === 0 ? (
-                <div className="py-6 text-center text-xs text-stone-400">{t('workspace.noUnions')}</div>
+                <div className="py-6 text-center text-xs text-stone-400">
+                  {t("workspace.noUnions")}
+                </div>
               ) : (
                 unions.map((u) => (
                   <div key={u.id} className="py-2.5 flex items-start justify-between gap-2">
@@ -383,7 +395,9 @@ export const PersonView: React.FC<PersonViewProps> = ({
                       <div className="text-sm font-semibold text-stone-900 group-hover:text-amber-900 truncate">
                         {u.partner.full_native}
                       </div>
-                      <div className="text-xs text-stone-500 truncate">({u.partner.full_latin})</div>
+                      <div className="text-xs text-stone-500 truncate">
+                        ({u.partner.full_latin})
+                      </div>
                       <div className="text-[11px] text-stone-400 mt-0.5">
                         {u.union_type.toLowerCase()} • {u.status.toLowerCase()}
                       </div>
@@ -400,25 +414,27 @@ export const PersonView: React.FC<PersonViewProps> = ({
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-stone-100">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-stone-700">
-                {t('workspace.children')} ({children.length})
+                {t("workspace.children")} ({children.length})
               </h3>
               {permissions.can_edit && (
                 <button
                   onClick={() => {
-                    setRelMode('parent_child');
-                    setRelDefaultRole('parent');
+                    setRelMode("parent_child");
+                    setRelDefaultRole("parent");
                     setRelModalOpen(true);
                   }}
                   className="text-xs font-medium text-amber-800 hover:text-amber-950 flex items-center gap-1 cursor-pointer"
                 >
-                  <Icons.Plus size={14} /> {t('edge.addChild')}
+                  <Icons.Plus size={14} /> {t("edge.addChild")}
                 </button>
               )}
             </div>
 
             <div className="divide-y divide-stone-100 mt-2">
               {children.length === 0 ? (
-                <div className="py-6 text-center text-xs text-stone-400">{t('workspace.noChildren')}</div>
+                <div className="py-6 text-center text-xs text-stone-400">
+                  {t("workspace.noChildren")}
+                </div>
               ) : (
                 children.map((c) => (
                   <div key={c.id} className="py-2.5 flex items-start justify-between gap-2">
@@ -430,13 +446,15 @@ export const PersonView: React.FC<PersonViewProps> = ({
                         {c.full_native}
                       </div>
                       <div className="text-xs text-stone-500 truncate">({c.full_latin})</div>
-                      <div className="text-[11px] text-stone-400 mt-0.5">{c.relationship_type.toLowerCase()}</div>
+                      <div className="text-[11px] text-stone-400 mt-0.5">
+                        {c.relationship_type.toLowerCase()}
+                      </div>
                     </div>
 
                     <div className="shrink-0 text-right">
                       {c.is_name_source && (
                         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-stone-100 text-stone-700">
-                          {t('workspace.nameSource')}
+                          {t("workspace.nameSource")}
                         </span>
                       )}
                     </div>
@@ -452,8 +470,8 @@ export const PersonView: React.FC<PersonViewProps> = ({
       <div className="bg-white rounded-2xl border border-stone-200/80 p-6 sm:p-8 shadow-xs space-y-4">
         <div className="flex items-center justify-between pb-4 border-b border-stone-100">
           <div>
-            <h2 className="text-base font-semibold text-stone-900">{t('event.title')}</h2>
-            <p className="text-xs text-stone-500">{t('event.descriptionHeader')}</p>
+            <h2 className="text-base font-semibold text-stone-900">{t("event.title")}</h2>
+            <p className="text-xs text-stone-500">{t("event.descriptionHeader")}</p>
           </div>
           {permissions.can_edit && (
             <button
@@ -463,15 +481,13 @@ export const PersonView: React.FC<PersonViewProps> = ({
               }}
               className="px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-white rounded-lg text-xs font-medium transition-colors shadow-xs flex items-center gap-1 cursor-pointer"
             >
-              <Icons.Plus size={14} /> {t('event.add')}
+              <Icons.Plus size={14} /> {t("event.add")}
             </button>
           )}
         </div>
 
         {events.length === 0 ? (
-          <div className="py-8 text-center text-xs text-stone-400">
-            {t('event.empty')}
-          </div>
+          <div className="py-8 text-center text-xs text-stone-400">{t("event.empty")}</div>
         ) : (
           <div className="space-y-3">
             {events.map((ev) => (
@@ -483,7 +499,9 @@ export const PersonView: React.FC<PersonViewProps> = ({
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-stone-900 text-sm">{ev.event_type}</span>
                     <span className="text-xs font-medium text-amber-800 bg-amber-50 px-2 py-0.5 rounded">
-                      {ev.event_year_ec ? `${ev.event_year_ec} ${t('calendar.eraEC')}` : ev.event_date_gc || 'Dated'}
+                      {ev.event_year_ec
+                        ? `${ev.event_year_ec} ${t("calendar.eraEC")}`
+                        : ev.event_date_gc || "Dated"}
                     </span>
                   </div>
 
@@ -492,7 +510,9 @@ export const PersonView: React.FC<PersonViewProps> = ({
                   )}
 
                   {ev.description && (
-                    <p className="text-xs text-stone-500 leading-relaxed pt-0.5">{ev.description}</p>
+                    <p className="text-xs text-stone-500 leading-relaxed pt-0.5">
+                      {ev.description}
+                    </p>
                   )}
                 </div>
 
@@ -560,8 +580,9 @@ export const PersonView: React.FC<PersonViewProps> = ({
           <div className="bg-white rounded-2xl border border-stone-200 p-6 max-w-sm w-full space-y-4 shadow-xl">
             <h3 className="text-base font-bold text-stone-900">Delete Individual</h3>
             <p className="text-xs text-stone-600 leading-relaxed">
-              Are you sure you want to permanently delete <strong>{individual.full_native}</strong> from this family tree?
-              All relationship links and life events associated with this person will also be removed.
+              Are you sure you want to permanently delete <strong>{individual.full_native}</strong>{" "}
+              from this family tree? All relationship links and life events associated with this
+              person will also be removed.
             </p>
             <div className="flex items-center justify-end gap-2 pt-2">
               <button
@@ -576,7 +597,7 @@ export const PersonView: React.FC<PersonViewProps> = ({
                 onClick={handleDeletePerson}
                 className="px-3.5 py-1.5 text-xs font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-lg cursor-pointer"
               >
-                {deleting ? 'Deleting...' : 'Delete Permanently'}
+                {deleting ? "Deleting..." : "Delete Permanently"}
               </button>
             </div>
           </div>

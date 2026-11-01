@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { api } from '../lib/api';
-import type { TreeOverviewResponse, PersonSummary } from '../lib/types';
-import { Icons } from '../components/ui/Icons';
-import { formatLifespan } from '../lib/utils';
-import { useToast } from '../components/ui/Toast';
-import { useI18n } from '../lib/i18nContext';
+import React, { useState, useEffect } from "react";
+import { api } from "../lib/api";
+import type { TreeOverviewResponse, PersonSummary } from "../lib/types";
+import { Icons } from "../components/ui/Icons";
+import { formatLifespan } from "../lib/utils";
+import { useToast } from "../components/ui/Toast";
+import { useI18n } from "../lib/i18nContext";
 
 interface OverviewViewProps {
   treeId: string;
@@ -43,7 +43,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
     return (
       <div className="py-20 text-center">
         <div className="w-8 h-8 border-2 border-stone-300 border-t-amber-700 rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-sm text-stone-500">{t('common.loading')}</p>
+        <p className="text-sm text-stone-500">{t("common.loading")}</p>
       </div>
     );
   }
@@ -59,10 +59,14 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-1.5">
             <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-amber-800 bg-amber-50 px-2.5 py-1 rounded-md">
-              <Icons.Tree size={14} /> {t('trees.title')}
+              <Icons.Tree size={14} /> {t("trees.title")}
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-stone-950 tracking-tight">{tree.name}</h1>
-            {tree.description && <p className="text-sm text-stone-600 max-w-2xl">{tree.description}</p>}
+            <h1 className="text-2xl sm:text-3xl font-bold text-stone-950 tracking-tight">
+              {tree.name}
+            </h1>
+            {tree.description && (
+              <p className="text-sm text-stone-600 max-w-2xl">{tree.description}</p>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -70,13 +74,13 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               onClick={onOpenAddPerson}
               className="px-4 py-2 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-sm font-medium transition-colors shadow-xs flex items-center gap-2 cursor-pointer"
             >
-              <Icons.Plus size={16} /> {t('person.add')}
+              <Icons.Plus size={16} /> {t("person.add")}
             </button>
             <button
               onClick={onOpenAddRelationship}
               className="px-4 py-2 bg-white hover:bg-stone-50 text-stone-800 border border-stone-200 rounded-xl text-sm font-medium transition-colors shadow-xs flex items-center gap-2 cursor-pointer"
             >
-              <Icons.Link size={16} /> {t('edge.editRelationship')}
+              <Icons.Link size={16} /> {t("edge.editRelationship")}
             </button>
           </div>
         </div>
@@ -84,23 +88,29 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         {/* Stats Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-6 mt-6 border-t border-stone-100">
           <div className="p-4 rounded-xl bg-stone-50 border border-stone-100">
-            <div className="text-xs text-stone-500 font-medium capitalize">{t('trees.individuals')}</div>
+            <div className="text-xs text-stone-500 font-medium capitalize">
+              {t("trees.individuals")}
+            </div>
             <div className="text-2xl font-bold text-stone-900 mt-1">{counts.individuals}</div>
           </div>
           <div className="p-4 rounded-xl bg-stone-50 border border-stone-100">
-            <div className="text-xs text-stone-500 font-medium capitalize">{t('trees.edges')}</div>
+            <div className="text-xs text-stone-500 font-medium capitalize">{t("trees.edges")}</div>
             <div className="text-2xl font-bold text-stone-900 mt-1">{counts.edges}</div>
           </div>
           <div className="p-4 rounded-xl bg-stone-50 border border-stone-100">
-            <div className="text-xs text-stone-500 font-medium capitalize">{t('trees.unions')}</div>
+            <div className="text-xs text-stone-500 font-medium capitalize">{t("trees.unions")}</div>
             <div className="text-2xl font-bold text-stone-900 mt-1">{counts.unions}</div>
           </div>
           <div className="p-4 rounded-xl bg-stone-50 border border-stone-100">
-            <div className="text-xs text-stone-500 font-medium capitalize">{t('dashboard.events')}</div>
+            <div className="text-xs text-stone-500 font-medium capitalize">
+              {t("dashboard.events")}
+            </div>
             <div className="text-2xl font-bold text-stone-900 mt-1">{counts.events}</div>
           </div>
           <div className="p-4 rounded-xl bg-stone-50 border border-stone-100">
-            <div className="text-xs text-stone-500 font-medium capitalize">{t('trees.members')}</div>
+            <div className="text-xs text-stone-500 font-medium capitalize">
+              {t("trees.members")}
+            </div>
             <div className="text-2xl font-bold text-stone-900 mt-1">{counts.members}</div>
           </div>
         </div>
@@ -114,20 +124,22 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             <div className="flex items-center justify-between pb-4 border-b border-stone-100">
               <div className="flex items-center gap-2">
                 <Icons.Users size={18} className="text-amber-800" />
-                <h2 className="text-base font-semibold text-stone-900">{t('dashboard.recentPeople')}</h2>
+                <h2 className="text-base font-semibold text-stone-900">
+                  {t("dashboard.recentPeople")}
+                </h2>
               </div>
               <button
-                onClick={() => onNavigateTab('people')}
+                onClick={() => onNavigateTab("people")}
                 className="text-xs font-medium text-amber-800 hover:text-amber-950 flex items-center gap-1 cursor-pointer transition-colors"
               >
-                {t('people.all')} ({counts.individuals}) <Icons.ArrowRight size={13} />
+                {t("people.all")} ({counts.individuals}) <Icons.ArrowRight size={13} />
               </button>
             </div>
 
             <div className="divide-y divide-stone-100 mt-2">
               {recent_individuals.length === 0 ? (
                 <div className="py-8 text-center text-sm text-stone-400">
-                  {t('dashboard.emptyPeople')}
+                  {t("dashboard.emptyPeople")}
                 </div>
               ) : (
                 recent_individuals.map((p: PersonSummary) => (
@@ -144,15 +156,22 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                         <span className="text-xs text-stone-500 truncate">({p.full_latin})</span>
                       </div>
                       <div className="text-xs text-stone-400 mt-0.5">
-                        {formatLifespan(p.birth_year_ec, p.death_year_ec, p.is_deceased, t('calendar.eraEC'))}
+                        {formatLifespan(
+                          p.birth_year_ec,
+                          p.death_year_ec,
+                          p.is_deceased,
+                          t("calendar.eraEC"),
+                        )}
                       </div>
                     </div>
                     <span
                       className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${
-                        p.gender === 'FEMALE' ? 'bg-rose-50 text-rose-700' : 'bg-stone-100 text-stone-700'
+                        p.gender === "FEMALE"
+                          ? "bg-rose-50 text-rose-700"
+                          : "bg-stone-100 text-stone-700"
                       }`}
                     >
-                      {p.gender === 'FEMALE' ? t('person.female') : t('person.male')}
+                      {p.gender === "FEMALE" ? t("person.female") : t("person.male")}
                     </span>
                   </div>
                 ))
@@ -162,10 +181,10 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
           <div className="pt-4 border-t border-stone-100 mt-4">
             <button
-              onClick={() => onNavigateTab('graph')}
+              onClick={() => onNavigateTab("graph")}
               className="w-full py-2.5 px-4 bg-stone-50 hover:bg-stone-100 text-stone-800 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
             >
-              <Icons.Network size={15} /> {t('dashboard.openGraph')}
+              <Icons.Network size={15} /> {t("dashboard.openGraph")}
             </button>
           </div>
         </div>
@@ -176,7 +195,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             <div className="flex items-center justify-between pb-4 border-b border-stone-100">
               <div className="flex items-center gap-2">
                 <Icons.Calendar size={18} className="text-amber-800" />
-                <h2 className="text-base font-semibold text-stone-900">{t('dashboard.latestEvents')}</h2>
+                <h2 className="text-base font-semibold text-stone-900">
+                  {t("dashboard.latestEvents")}
+                </h2>
               </div>
               <span className="text-xs text-stone-400 font-mono">{counts.events} total</span>
             </div>
@@ -184,7 +205,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             <div className="divide-y divide-stone-100 mt-2">
               {recent_events.length === 0 ? (
                 <div className="py-8 text-center text-sm text-stone-400">
-                  {t('dashboard.noEvents')}
+                  {t("dashboard.noEvents")}
                 </div>
               ) : (
                 recent_events.map((ev) => (
@@ -206,7 +227,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                     </div>
                     <div className="text-right shrink-0">
                       <span className="text-xs font-medium text-amber-800 bg-amber-50 px-2 py-0.5 rounded">
-                        {ev.event_year_ec ? `${ev.event_year_ec} ${t('calendar.eraEC')}` : ev.event_date_gc || 'Dated'}
+                        {ev.event_year_ec
+                          ? `${ev.event_year_ec} ${t("calendar.eraEC")}`
+                          : ev.event_date_gc || "Dated"}
                       </span>
                     </div>
                   </div>
@@ -217,10 +240,10 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
           <div className="pt-4 border-t border-stone-100 mt-4">
             <button
-              onClick={() => onNavigateTab('kinship')}
+              onClick={() => onNavigateTab("kinship")}
               className="w-full py-2.5 px-4 bg-stone-50 hover:bg-stone-100 text-stone-800 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
             >
-              <Icons.Kinship size={15} /> {t('kinship.title')}
+              <Icons.Kinship size={15} /> {t("kinship.title")}
             </button>
           </div>
         </div>

@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { api } from '../lib/api';
-import { Icons } from '../components/ui/Icons';
-import { formatRole } from '../lib/utils';
-import { useToast } from '../components/ui/Toast';
+import React, { useState, useEffect } from "react";
+import { api } from "../lib/api";
+import { Icons } from "../components/ui/Icons";
+import { formatRole } from "../lib/utils";
+import { useToast } from "../components/ui/Toast";
 
 interface TreeInvitationPageProps {
   token: string;
@@ -32,7 +32,7 @@ export const TreeInvitationPage: React.FC<TreeInvitationPageProps> = ({
     api
       .validateTreeInvitation(token)
       .then(setInvitation)
-      .catch((err) => setError(err.message || 'Invalid or expired invitation'))
+      .catch((err) => setError(err.message || "Invalid or expired invitation"))
       .finally(() => setLoading(false));
   }, [token]);
 
@@ -44,7 +44,7 @@ export const TreeInvitationPage: React.FC<TreeInvitationPageProps> = ({
       toast.success(`Joined "${invitation.tree_name}" as ${formatRole(invitation.role)}`);
       onAccepted(invitation.tree_id);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to accept invitation';
+      const msg = err instanceof Error ? err.message : "Failed to accept invitation";
       toast.error(msg);
       setAccepting(false);
     }
@@ -110,7 +110,7 @@ export const TreeInvitationPage: React.FC<TreeInvitationPageProps> = ({
                   onClick={handleAccept}
                   className="flex-1 py-2.5 bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors shadow-xs cursor-pointer"
                 >
-                  {accepting ? 'Joining...' : 'Accept & Open'}
+                  {accepting ? "Joining..." : "Accept & Open"}
                 </button>
               </div>
             </div>

@@ -1,5 +1,5 @@
-import { createAuthClient } from 'limen-auth/react';
-import { credentialPasswordPlugin, oauthClientPlugin } from 'limen-auth/plugins';
+import { createAuthClient } from "limen-auth/react";
+import { credentialPasswordPlugin, oauthClientPlugin } from "limen-auth/plugins";
 
 export const authClient = createAuthClient({
   baseURL: window.location.origin,

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { authClient } from '../lib/auth';
-import { useToast } from '../components/ui/Toast';
+import React, { useState } from "react";
+import { authClient } from "../lib/auth";
+import { useToast } from "../components/ui/Toast";
 
 interface SetupPageProps {
   onSuccess: () => void;
@@ -8,9 +8,9 @@ interface SetupPageProps {
 
 export const SetupPage: React.FC<SetupPageProps> = ({ onSuccess }) => {
   const toast = useToast();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [signupMode, setSignupMode] = useState<'INVITE' | 'OPEN' | 'CLOSED'>('INVITE');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [signupMode, setSignupMode] = useState<"INVITE" | "OPEN" | "CLOSED">("INVITE");
   const [submitting, setSubmitting] = useState(false);
 
   const handleSetup = async (e: React.FormEvent) => {
@@ -23,14 +23,14 @@ export const SetupPage: React.FC<SetupPageProps> = ({ onSuccess }) => {
         email: email.trim(),
         password,
         additionalFields: {
-          purpose: 'instance-setup',
+          purpose: "instance-setup",
           signupMode,
         },
       });
-      toast.success('Instance setup complete. Administrator account initialized.');
+      toast.success("Instance setup complete. Administrator account initialized.");
       onSuccess();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Setup failed';
+      const msg = err instanceof Error ? err.message : "Setup failed";
       toast.error(msg);
     } finally {
       setSubmitting(false);
@@ -43,7 +43,9 @@ export const SetupPage: React.FC<SetupPageProps> = ({ onSuccess }) => {
         <div className="w-12 h-12 rounded-2xl bg-amber-800 text-amber-200 font-bold text-2xl flex items-center justify-center mx-auto shadow-md">
           ዘ
         </div>
-        <h1 className="text-2xl font-bold text-stone-900 tracking-tight">Zer Instance Initialization</h1>
+        <h1 className="text-2xl font-bold text-stone-900 tracking-tight">
+          Zer Instance Initialization
+        </h1>
         <p className="text-xs text-stone-500 max-w-sm mx-auto">
           Create the root instance administrator account and establish registration access policy.
         </p>
@@ -91,13 +93,15 @@ export const SetupPage: React.FC<SetupPageProps> = ({ onSuccess }) => {
                     type="radio"
                     name="signup_mode"
                     value="INVITE"
-                    checked={signupMode === 'INVITE'}
-                    onChange={() => setSignupMode('INVITE')}
+                    checked={signupMode === "INVITE"}
+                    onChange={() => setSignupMode("INVITE")}
                     className="mt-0.5 text-amber-600"
                   />
                   <div>
                     <span className="font-semibold text-stone-900">Invite Only (Recommended)</span>
-                    <p className="text-stone-500 mt-0.5">Registration requires an invitation link issued by an admin.</p>
+                    <p className="text-stone-500 mt-0.5">
+                      Registration requires an invitation link issued by an admin.
+                    </p>
                   </div>
                 </label>
 
@@ -106,13 +110,15 @@ export const SetupPage: React.FC<SetupPageProps> = ({ onSuccess }) => {
                     type="radio"
                     name="signup_mode"
                     value="OPEN"
-                    checked={signupMode === 'OPEN'}
-                    onChange={() => setSignupMode('OPEN')}
+                    checked={signupMode === "OPEN"}
+                    onChange={() => setSignupMode("OPEN")}
                     className="mt-0.5 text-amber-600"
                   />
                   <div>
                     <span className="font-semibold text-stone-900">Open Registration</span>
-                    <p className="text-stone-500 mt-0.5">Anyone can create an account and start new family trees.</p>
+                    <p className="text-stone-500 mt-0.5">
+                      Anyone can create an account and start new family trees.
+                    </p>
                   </div>
                 </label>
               </div>
@@ -123,7 +129,7 @@ export const SetupPage: React.FC<SetupPageProps> = ({ onSuccess }) => {
               disabled={submitting}
               className="w-full py-2.5 bg-amber-800 hover:bg-amber-900 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition-colors shadow-xs cursor-pointer mt-4"
             >
-              {submitting ? 'Initializing...' : 'Initialize Instance'}
+              {submitting ? "Initializing..." : "Initialize Instance"}
             </button>
           </form>
         </div>

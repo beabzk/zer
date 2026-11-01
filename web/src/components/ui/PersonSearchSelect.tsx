@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { api } from '../../lib/api';
-import type { PersonSummary } from '../../lib/types';
-import { Icons } from './Icons';
-import { formatLifespan } from '../../lib/utils';
-import { useI18n } from '../../lib/i18nContext';
+import React, { useState, useEffect, useRef } from "react";
+import { api } from "../../lib/api";
+import type { PersonSummary } from "../../lib/types";
+import { Icons } from "./Icons";
+import { formatLifespan } from "../../lib/utils";
+import { useI18n } from "../../lib/i18nContext";
 
 interface PersonSearchSelectProps {
   treeId: string;
@@ -23,8 +23,8 @@ export const PersonSearchSelect: React.FC<PersonSearchSelectProps> = ({
   excludeId,
 }) => {
   const { t } = useI18n();
-  const resolvedPlaceholder = placeholder || t('common.searchPlaceholder');
-  const [query, setQuery] = useState('');
+  const resolvedPlaceholder = placeholder || t("common.searchPlaceholder");
+  const [query, setQuery] = useState("");
   const [results, setResults] = useState<PersonSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
@@ -34,17 +34,20 @@ export const PersonSearchSelect: React.FC<PersonSearchSelectProps> = ({
   // If initial value is provided, fetch person detail to populate
   useEffect(() => {
     if (value && (!selectedPerson || selectedPerson.id !== value)) {
-      api.getIndividual(treeId, value).then((p) => {
-        setSelectedPerson({
-          id: p.id,
-          full_native: p.full_native,
-          full_latin: p.full_latin,
-          gender: p.gender,
-          birth_year_ec: p.birth_year_ec,
-          death_year_ec: p.death_year_ec,
-          is_deceased: typeof p.is_deceased === 'number' ? p.is_deceased === 1 : !!p.is_deceased,
-        });
-      }).catch(() => {});
+      api
+        .getIndividual(treeId, value)
+        .then((p) => {
+          setSelectedPerson({
+            id: p.id,
+            full_native: p.full_native,
+            full_latin: p.full_latin,
+            gender: p.gender,
+            birth_year_ec: p.birth_year_ec,
+            death_year_ec: p.death_year_ec,
+            is_deceased: typeof p.is_deceased === "number" ? p.is_deceased === 1 : !!p.is_deceased,
+          });
+        })
+        .catch(() => {});
     }
   }, [value, treeId]);
 
@@ -54,8 +57,8 @@ export const PersonSearchSelect: React.FC<PersonSearchSelectProps> = ({
         setIsOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
   useEffect(() => {
@@ -65,7 +68,9 @@ export const PersonSearchSelect: React.FC<PersonSearchSelectProps> = ({
       api
         .listIndividuals(treeId, { q: query.trim(), limit: 12 })
         .then((res) => {
-          const filtered = excludeId ? res.individuals.filter((p) => p.id !== excludeId) : res.individuals;
+          const filtered = excludeId
+            ? res.individuals.filter((p) => p.id !== excludeId)
+            : res.individuals;
           setResults(filtered);
         })
         .catch(() => setResults([]))
@@ -77,17 +82,30 @@ export const PersonSearchSelect: React.FC<PersonSearchSelectProps> = ({
 
   return (
     <div className="relative" ref={containerRef}>
-      {label && <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1.5">{label}</label>}
+      {label && (
+        <label className="block text-xs font-semibold text-stone-700 uppercase tracking-wider mb-1.5">
+          {label}
+        </label>
+      )}
 
       {selectedPerson ? (
         <div className="flex items-center justify-between p-2.5 rounded-lg border border-stone-200 bg-stone-50">
           <div className="min-w-0 pr-2">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-stone-900 truncate text-[15px]">{selectedPerson.full_native}</span>
-              <span className="text-xs text-stone-500 truncate font-normal">({selectedPerson.full_latin})</span>
+              <span className="font-semibold text-stone-900 truncate text-[15px]">
+                {selectedPerson.full_native}
+              </span>
+              <span className="text-xs text-stone-500 truncate font-normal">
+                ({selectedPerson.full_latin})
+              </span>
             </div>
             <div className="text-xs text-stone-400 mt-0.5">
-              {formatLifespan(selectedPerson.birth_year_ec, selectedPerson.death_year_ec, selectedPerson.is_deceased, t('calendar.eraEC'))}
+              {formatLifespan(
+                selectedPerson.birth_year_ec,
+                selectedPerson.death_year_ec,
+                selectedPerson.is_deceased,
+                t("calendar.eraEC"),
+              )}
             </div>
           </div>
           <button
@@ -95,7 +113,7 @@ export const PersonSearchSelect: React.FC<PersonSearchSelectProps> = ({
             onClick={() => {
               setSelectedPerson(null);
               onSelect(null);
-              setQuery('');
+              setQuery("");
             }}
             className="text-stone-400 hover:text-stone-700 p-1 rounded-md hover:bg-stone-200/60 transition-colors cursor-pointer"
           >
@@ -123,10 +141,12 @@ export const PersonSearchSelect: React.FC<PersonSearchSelectProps> = ({
 
       {isOpen && !selectedPerson && (
         <div className="absolute z-30 mt-1 w-full bg-white border border-stone-200 rounded-xl shadow-xl max-h-60 overflow-y-auto divide-y divide-stone-100">
-          {loading && <div className="p-3 text-xs text-stone-400 text-center">{t('common.loading')}</div>}
+          {loading && (
+            <div className="p-3 text-xs text-stone-400 text-center">{t("common.loading")}</div>
+          )}
           {!loading && results.length === 0 && (
             <div className="p-3 text-xs text-stone-400 text-center">
-              {query ? t('common.noResults') : resolvedPlaceholder}
+              {query ? t("common.noResults") : resolvedPlaceholder}
             </div>
           )}
           {!loading &&
@@ -143,19 +163,28 @@ export const PersonSearchSelect: React.FC<PersonSearchSelectProps> = ({
               >
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-stone-900 group-hover:text-amber-900 text-sm">{person.full_native}</span>
+                    <span className="font-semibold text-stone-900 group-hover:text-amber-900 text-sm">
+                      {person.full_native}
+                    </span>
                     <span className="text-xs text-stone-500">({person.full_latin})</span>
                   </div>
                   <div className="text-xs text-stone-400 mt-0.5">
-                    {formatLifespan(person.birth_year_ec, person.death_year_ec, person.is_deceased, t('calendar.eraEC'))}
+                    {formatLifespan(
+                      person.birth_year_ec,
+                      person.death_year_ec,
+                      person.is_deceased,
+                      t("calendar.eraEC"),
+                    )}
                   </div>
                 </div>
                 <span
                   className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                    person.gender === 'FEMALE' ? 'bg-rose-50 text-rose-700' : 'bg-stone-100 text-stone-700'
+                    person.gender === "FEMALE"
+                      ? "bg-rose-50 text-rose-700"
+                      : "bg-stone-100 text-stone-700"
                   }`}
                 >
-                  {person.gender === 'FEMALE' ? t('person.female') : t('person.male')}
+                  {person.gender === "FEMALE" ? t("person.female") : t("person.male")}
                 </span>
               </button>
             ))}

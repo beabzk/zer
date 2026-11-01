@@ -1,10 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Icons } from './ui/Icons';
-import type { Tree } from '../lib/types';
-import { formatRole } from '../lib/utils';
-import { authClient } from '../lib/auth';
-import { useI18n } from '../lib/i18nContext';
-import type { Locale } from '../lib/i18n';
+import React, { useState, useRef, useEffect } from "react";
+import { Icons } from "./ui/Icons";
+import type { Tree } from "../lib/types";
+import { formatRole } from "../lib/utils";
+import { authClient } from "../lib/auth";
+import { useI18n } from "../lib/i18nContext";
+import type { Locale } from "../lib/i18n";
 
 interface HeaderProps {
   currentTree?: Tree | null;
@@ -18,7 +18,7 @@ interface HeaderProps {
 
 const handleSignOut = async () => {
   await authClient.signout();
-  window.location.hash = '';
+  window.location.hash = "";
   window.location.reload();
 };
 
@@ -54,17 +54,17 @@ export const Header: React.FC<HeaderProps> = ({
         setLangMenuOpen(false);
       }
     };
-    document.addEventListener('mousedown', handleOutside);
-    return () => document.removeEventListener('mousedown', handleOutside);
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
   }, []);
 
   const navItems = [
-    { id: 'overview', label: t('views.overview'), icon: Icons.Activity },
-    { id: 'people', label: t('views.people'), icon: Icons.Users },
-    { id: 'graph', label: t('views.canvas'), icon: Icons.Network },
-    { id: 'lineage', label: t('workspace.lineage'), icon: Icons.Lineage },
-    { id: 'kinship', label: t('views.kinship'), icon: Icons.Kinship },
-    { id: 'members', label: t('views.members'), icon: Icons.User },
+    { id: "overview", label: t("views.overview"), icon: Icons.Activity },
+    { id: "people", label: t("views.people"), icon: Icons.Users },
+    { id: "graph", label: t("views.canvas"), icon: Icons.Network },
+    { id: "lineage", label: t("workspace.lineage"), icon: Icons.Lineage },
+    { id: "kinship", label: t("views.kinship"), icon: Icons.Kinship },
+    { id: "members", label: t("views.members"), icon: Icons.User },
   ];
 
   return (
@@ -74,7 +74,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Logo & Tree Selector */}
           <div className="flex items-center gap-6">
             <button
-              onClick={() => onNavigateTab('overview')}
+              onClick={() => onNavigateTab("overview")}
               className="flex items-center gap-2.5 text-stone-900 group cursor-pointer text-left"
             >
               <div className="w-8 h-8 rounded-lg bg-stone-900 text-amber-400 flex items-center justify-center font-bold text-lg leading-none shadow-xs group-hover:bg-amber-800 transition-colors">
@@ -96,17 +96,19 @@ export const Header: React.FC<HeaderProps> = ({
                   className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-800 text-sm font-medium transition-colors cursor-pointer"
                 >
                   <Icons.Tree size={16} className="text-amber-700 shrink-0" />
-                  <span className="max-w-[85px] sm:max-w-[160px] md:max-w-[200px] truncate">{currentTree.name}</span>
+                  <span className="max-w-[85px] sm:max-w-[160px] md:max-w-[200px] truncate">
+                    {currentTree.name}
+                  </span>
                   <span className="hidden sm:inline-block text-[10px] px-1.5 py-0.5 rounded bg-stone-200 text-stone-600 font-mono">
-                    {currentTree.role === 'OWNER'
-                      ? t('admin.roleOwner')
-                      : currentTree.role === 'ADMIN'
-                      ? t('admin.roleAdmin')
-                      : currentTree.role === 'EDITOR'
-                      ? t('admin.roleEditor')
-                      : currentTree.role === 'VIEWER'
-                      ? t('admin.roleViewer')
-                      : formatRole(currentTree.role)}
+                    {currentTree.role === "OWNER"
+                      ? t("admin.roleOwner")
+                      : currentTree.role === "ADMIN"
+                        ? t("admin.roleAdmin")
+                        : currentTree.role === "EDITOR"
+                          ? t("admin.roleEditor")
+                          : currentTree.role === "VIEWER"
+                            ? t("admin.roleViewer")
+                            : formatRole(currentTree.role)}
                   </span>
                   <Icons.ChevronDown size={14} className="text-stone-400" />
                 </button>
@@ -114,7 +116,7 @@ export const Header: React.FC<HeaderProps> = ({
                 {treeMenuOpen && (
                   <div className="absolute left-0 mt-1.5 w-64 bg-white rounded-xl border border-stone-200 shadow-xl py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
                     <div className="px-3 py-1.5 text-[11px] font-semibold text-stone-400 uppercase tracking-wider">
-                      {t('trees.title')}
+                      {t("trees.title")}
                     </div>
                     <div className="max-h-56 overflow-y-auto divide-y divide-stone-50">
                       {trees.map((tItem) => (
@@ -125,11 +127,15 @@ export const Header: React.FC<HeaderProps> = ({
                             setTreeMenuOpen(false);
                           }}
                           className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between hover:bg-amber-50/60 transition-colors cursor-pointer ${
-                            tItem.id === currentTree.id ? 'bg-amber-50/80 font-semibold text-amber-900' : 'text-stone-700'
+                            tItem.id === currentTree.id
+                              ? "bg-amber-50/80 font-semibold text-amber-900"
+                              : "text-stone-700"
                           }`}
                         >
                           <span className="truncate">{tItem.name}</span>
-                          <span className="text-[10px] text-stone-400 font-mono">{formatRole(tItem.role)}</span>
+                          <span className="text-[10px] text-stone-400 font-mono">
+                            {formatRole(tItem.role)}
+                          </span>
                         </button>
                       ))}
                     </div>
@@ -141,7 +147,7 @@ export const Header: React.FC<HeaderProps> = ({
                         }}
                         className="w-full text-left px-2 py-1.5 text-xs text-amber-800 hover:bg-amber-50 rounded-lg flex items-center gap-2 font-medium transition-colors cursor-pointer"
                       >
-                        <Icons.Plus size={14} /> {t('trees.create')}
+                        <Icons.Plus size={14} /> {t("trees.create")}
                       </button>
                     </div>
                   </div>
@@ -162,8 +168,8 @@ export const Header: React.FC<HeaderProps> = ({
                     onClick={() => onNavigateTab(item.id)}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all cursor-pointer ${
                       isActive
-                        ? 'bg-stone-900 text-white shadow-xs'
-                        : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
+                        ? "bg-stone-900 text-white shadow-xs"
+                        : "text-stone-600 hover:text-stone-900 hover:bg-stone-100"
                     }`}
                   >
                     <Icon size={15} />
@@ -182,7 +188,7 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 onClick={() => setLangMenuOpen(!langMenuOpen)}
                 className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs font-semibold transition-colors cursor-pointer"
-                title={t('trees.language')}
+                title={t("trees.language")}
               >
                 <Icons.Globe size={14} className="text-stone-500" />
                 <span className="hidden sm:inline">{localeNames[locale]}</span>
@@ -200,7 +206,9 @@ export const Header: React.FC<HeaderProps> = ({
                         setLangMenuOpen(false);
                       }}
                       className={`w-full text-left px-3.5 py-2 text-xs flex items-center justify-between hover:bg-amber-50/70 transition-colors cursor-pointer ${
-                        locale === loc ? 'font-bold text-amber-900 bg-amber-50/90' : 'text-stone-700'
+                        locale === loc
+                          ? "font-bold text-amber-900 bg-amber-50/90"
+                          : "text-stone-700"
                       }`}
                     >
                       <span>{localeNames[loc]}</span>
@@ -213,16 +221,16 @@ export const Header: React.FC<HeaderProps> = ({
 
             {isAdmin && (
               <button
-                onClick={() => onNavigateTab('admin')}
+                onClick={() => onNavigateTab("admin")}
                 className={`p-2 rounded-lg text-sm font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
-                  activeTab === 'admin'
-                    ? 'bg-amber-100 text-amber-900'
-                    : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'
+                  activeTab === "admin"
+                    ? "bg-amber-100 text-amber-900"
+                    : "text-stone-600 hover:text-stone-900 hover:bg-stone-100"
                 }`}
-                title={t('admin.title')}
+                title={t("admin.title")}
               >
                 <Icons.Shield size={17} />
-                <span className="hidden sm:inline text-xs font-semibold">{t('admin.panel')}</span>
+                <span className="hidden sm:inline text-xs font-semibold">{t("admin.panel")}</span>
               </button>
             )}
 
@@ -232,7 +240,7 @@ export const Header: React.FC<HeaderProps> = ({
                 className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-stone-100 transition-colors text-stone-700 cursor-pointer"
               >
                 <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-900 flex items-center justify-center font-semibold text-xs border border-amber-200">
-                  {session?.user?.email ? session.user.email[0].toUpperCase() : 'U'}
+                  {session?.user?.email ? session.user.email[0].toUpperCase() : "U"}
                 </div>
               </button>
 
@@ -240,7 +248,9 @@ export const Header: React.FC<HeaderProps> = ({
                 <div className="absolute right-0 mt-1.5 w-56 bg-white rounded-xl border border-stone-200 shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
                   <div className="px-4 py-2 border-b border-stone-100">
                     <p className="text-xs text-stone-400">Signed in as</p>
-                    <p className="text-sm font-semibold text-stone-900 truncate mt-0.5">{session?.user?.email}</p>
+                    <p className="text-sm font-semibold text-stone-900 truncate mt-0.5">
+                      {session?.user?.email}
+                    </p>
                   </div>
 
                   <div className="pt-1">
@@ -248,7 +258,7 @@ export const Header: React.FC<HeaderProps> = ({
                       onClick={handleSignOut}
                       className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 font-medium transition-colors cursor-pointer"
                     >
-                      <Icons.LogOut size={16} /> {t('auth.signOut')}
+                      <Icons.LogOut size={16} /> {t("auth.signOut")}
                     </button>
                   </div>
                 </div>
@@ -269,7 +279,7 @@ export const Header: React.FC<HeaderProps> = ({
                 key={item.id}
                 onClick={() => onNavigateTab(item.id)}
                 className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-md text-xs font-medium transition-colors shrink-0 ${
-                  isActive ? 'text-amber-800 font-bold' : 'text-stone-500 hover:text-stone-900'
+                  isActive ? "text-amber-800 font-bold" : "text-stone-500 hover:text-stone-900"
                 }`}
               >
                 <Icon size={16} />

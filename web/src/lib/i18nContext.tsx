@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
 import {
   type Locale,
   localeNames,
@@ -6,7 +6,7 @@ import {
   t as translate,
   tf as translateFormatted,
   months as getMonths,
-} from './i18n';
+} from "./i18n";
 
 export interface I18nContextType {
   locale: Locale;
@@ -19,19 +19,19 @@ export interface I18nContextType {
 
 const I18nContext = createContext<I18nContextType | null>(null);
 
-const STORAGE_KEY = 'zer_locale';
+const STORAGE_KEY = "zer_locale";
 
 export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [locale, setLocaleState] = useState<Locale>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved && (saved === 'en' || saved === 'am' || saved === 'om' || saved === 'ti')) {
+      if (saved && (saved === "en" || saved === "am" || saved === "om" || saved === "ti")) {
         return saved;
       }
     } catch {
       // ignore local storage errors in private mode
     }
-    return 'en';
+    return "en";
   });
 
   const setLocale = useCallback((newLocale: Locale) => {
@@ -41,13 +41,13 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {
       // ignore
     }
-    if (typeof document !== 'undefined') {
+    if (typeof document !== "undefined") {
       document.documentElement.lang = localeTag(newLocale);
     }
   }, []);
 
   useEffect(() => {
-    if (typeof document !== 'undefined') {
+    if (typeof document !== "undefined") {
       document.documentElement.lang = localeTag(locale);
     }
   }, [locale]);
@@ -56,7 +56,7 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const tf = useCallback(
     (key: string, values: Record<string, string | number>) =>
       translateFormatted(locale, key, values),
-    [locale]
+    [locale],
   );
   const months = useMemo(() => getMonths(locale), [locale]);
 
@@ -69,7 +69,7 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
       months,
       localeNames,
     }),
-    [locale, setLocale, t, tf, months]
+    [locale, setLocale, t, tf, months],
   );
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
@@ -78,7 +78,7 @@ export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children
 export const useI18n = (): I18nContextType => {
   const ctx = useContext(I18nContext);
   if (!ctx) {
-    throw new Error('useI18n must be used within an I18nProvider');
+    throw new Error("useI18n must be used within an I18nProvider");
   }
   return ctx;
 };

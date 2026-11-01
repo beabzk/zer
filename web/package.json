@@ -1,15 +1,16 @@
 {
   "name": "zer-web",
-  "private": true,
   "version": "0.1.0",
+  "private": true,
   "type": "module",
-  "packageManager": "pnpm@12.17.0+sha512.b8d223ebec04b580a89ed206daa71d1bccb6a1ee1d52efa95cc3b0db75271561df8f0d8e2c43add39c5ec08018af7a8a95108e7090f95a29f88727b7a40fd53d",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "lint": "oxlint"
+    "lint": "oxlint",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check"
   },
   "dependencies": {
     "d3-selection": "^3.0.0",
@@ -26,11 +27,13 @@
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.1.0",
     "jsdom": "^26.1.0",
+    "oxfmt": "^0.75.0",
     "oxlint": "^1.81.0",
     "playwright": "^1.64.1",
     "tailwindcss": "^4.3.0",
     "typescript": "^7.0.0",
     "vite": "^8.2.0",
     "vitest": "^5.0.0"
-  }
+  },
+  "packageManager": "pnpm@12.17.0+sha512.b8d223ebec04b580a89ed206daa71d1bccb6a1ee1d52efa95cc3b0db75271561df8f0d8e2c43add39c5ec08018af7a8a95108e7090f95a29f88727b7a40fd53d"
 }

@@ -139,6 +139,14 @@ Run frontend static analysis:
 pnpm --dir web lint
 ```
 
+### Code Formatting
+
+Format frontend code with oxfmt:
+
+```bash
+pnpm --dir web format
+```
+
 ### Compiling Production Binary
 
 ```bash

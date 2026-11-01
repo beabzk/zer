@@ -1,24 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { useSession } from './lib/auth';
-import { api } from './lib/api';
-import type { AuthConfig, Tree } from './lib/types';
-import { ToastProvider, useToast } from './components/ui/Toast';
-import { Header } from './components/Header';
-import { LoginPage } from './pages/LoginPage';
-import { SetupPage } from './pages/SetupPage';
-import { TreeSelectPage } from './pages/TreeSelectPage';
-import { TreeInvitationPage } from './pages/TreeInvitationPage';
-import { AdminPage } from './pages/AdminPage';
-import { OverviewView } from './views/OverviewView';
-import { DirectoryView } from './views/DirectoryView';
-import { PersonView } from './views/PersonView';
-import { GraphView } from './views/GraphView';
-import { LineageView } from './views/LineageView';
-import { KinshipView } from './views/KinshipView';
-import { MembersView } from './views/MembersView';
-import { IndividualForm } from './components/forms/IndividualForm';
-import { RelationshipForm } from './components/forms/RelationshipForm';
-import { TreeForm } from './components/forms/TreeForm';
+import React, { useState, useEffect } from "react";
+import { useSession } from "./lib/auth";
+import { api } from "./lib/api";
+import type { AuthConfig, Tree } from "./lib/types";
+import { ToastProvider, useToast } from "./components/ui/Toast";
+import { Header } from "./components/Header";
+import { LoginPage } from "./pages/LoginPage";
+import { SetupPage } from "./pages/SetupPage";
+import { TreeSelectPage } from "./pages/TreeSelectPage";
+import { TreeInvitationPage } from "./pages/TreeInvitationPage";
+import { AdminPage } from "./pages/AdminPage";
+import { OverviewView } from "./views/OverviewView";
+import { DirectoryView } from "./views/DirectoryView";
+import { PersonView } from "./views/PersonView";
+import { GraphView } from "./views/GraphView";
+import { LineageView } from "./views/LineageView";
+import { KinshipView } from "./views/KinshipView";
+import { MembersView } from "./views/MembersView";
+import { IndividualForm } from "./components/forms/IndividualForm";
+import { RelationshipForm } from "./components/forms/RelationshipForm";
+import { TreeForm } from "./components/forms/TreeForm";
 
 export const AppContent: React.FC = () => {
   const toast = useToast();
@@ -34,7 +34,7 @@ export const AppContent: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
 
   // Navigation state
-  const [activeTab, setActiveTab] = useState<string>('overview');
+  const [activeTab, setActiveTab] = useState<string>("overview");
   const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null);
   const [graphRootId, setGraphRootId] = useState<string | undefined>(undefined);
   const [lineageRootId, setLineageRootId] = useState<string | undefined>(undefined);
@@ -65,10 +65,10 @@ export const AppContent: React.FC = () => {
 
   // Parse Hash on mount & popstate
   const parseHash = () => {
-    const hash = window.location.hash.replace(/^#/, '');
+    const hash = window.location.hash.replace(/^#/, "");
 
     // Check for tree invite in hash: #tree-invite=TOKEN or #tree-invite?invite=TOKEN
-    if (hash.startsWith('tree-invite')) {
+    if (hash.startsWith("tree-invite")) {
       const match = hash.match(/invite=([a-zA-Z0-9_-]+)/);
       if (match && match[1]) {
         setInviteToken(match[1]);
@@ -77,60 +77,60 @@ export const AppContent: React.FC = () => {
     }
 
     if (!hash) {
-      setActiveTab('overview');
+      setActiveTab("overview");
       return;
     }
 
-    const parts = hash.split('/');
+    const parts = hash.split("/");
     const main = parts[0];
     const sub = parts[1];
 
-    if (main === 'person' && sub) {
+    if (main === "person" && sub) {
       setSelectedPersonId(sub);
-      setActiveTab('person');
-    } else if (main === 'graph') {
+      setActiveTab("person");
+    } else if (main === "graph") {
       if (sub) setGraphRootId(sub);
-      setActiveTab('graph');
-    } else if (main === 'lineage') {
+      setActiveTab("graph");
+    } else if (main === "lineage") {
       if (sub) setLineageRootId(sub);
-      setActiveTab('lineage');
-    } else if (main === 'kinship') {
+      setActiveTab("lineage");
+    } else if (main === "kinship") {
       if (sub) setKinshipAId(sub);
       if (parts[2]) setKinshipBId(parts[2]);
-      setActiveTab('kinship');
-    } else if (['overview', 'people', 'members', 'admin'].includes(main)) {
+      setActiveTab("kinship");
+    } else if (["overview", "people", "members", "admin"].includes(main)) {
       setActiveTab(main);
     }
   };
 
   useEffect(() => {
     parseHash();
-    window.addEventListener('hashchange', parseHash);
-    return () => window.removeEventListener('hashchange', parseHash);
+    window.addEventListener("hashchange", parseHash);
+    return () => window.removeEventListener("hashchange", parseHash);
   }, []);
 
   // Sync hash when active tab or person changes
   const navigateTo = (tab: string, personId?: string) => {
     setActiveTab(tab);
-    if (tab === 'person' && personId) {
+    if (tab === "person" && personId) {
       setSelectedPersonId(personId);
       window.location.hash = `person/${personId}`;
-    } else if (tab === 'graph') {
+    } else if (tab === "graph") {
       if (personId) {
         setGraphRootId(personId);
         window.location.hash = `graph/${personId}`;
       } else {
-        window.location.hash = 'graph';
+        window.location.hash = "graph";
       }
-    } else if (tab === 'lineage') {
+    } else if (tab === "lineage") {
       if (personId) {
         setLineageRootId(personId);
         window.location.hash = `lineage/${personId}`;
       } else {
-        window.location.hash = 'lineage';
+        window.location.hash = "lineage";
       }
-    } else if (tab === 'kinship') {
-      window.location.hash = 'kinship';
+    } else if (tab === "kinship") {
+      window.location.hash = "kinship";
     } else {
       window.location.hash = tab;
     }
@@ -145,13 +145,13 @@ export const AppContent: React.FC = () => {
       .then((treeList) => {
         setTrees(treeList);
         // If stored active tree exists in sessionStorage, re-select it
-        const savedTreeId = sessionStorage.getItem('zer_active_tree_id');
+        const savedTreeId = sessionStorage.getItem("zer_active_tree_id");
         const found = treeList.find((t) => t.id === savedTreeId);
         if (found) {
           setCurrentTree(found);
         } else if (treeList.length > 0 && !currentTree) {
           setCurrentTree(treeList[0]);
-          sessionStorage.setItem('zer_active_tree_id', treeList[0].id);
+          sessionStorage.setItem("zer_active_tree_id", treeList[0].id);
         }
       })
       .catch((err) => toast.error(err.message));
@@ -170,8 +170,8 @@ export const AppContent: React.FC = () => {
 
   const handleSelectTree = (tree: Tree) => {
     setCurrentTree(tree);
-    sessionStorage.setItem('zer_active_tree_id', tree.id);
-    navigateTo('overview');
+    sessionStorage.setItem("zer_active_tree_id", tree.id);
+    navigateTo("overview");
   };
 
   if (configLoading || sessionPending) {
@@ -215,7 +215,7 @@ export const AppContent: React.FC = () => {
         token={inviteToken}
         onAccepted={(treeId) => {
           setInviteToken(null);
-          window.location.hash = '';
+          window.location.hash = "";
           loadTrees();
           api.listTrees().then((ts) => {
             const found = ts.find((t) => t.id === treeId);
@@ -224,15 +224,15 @@ export const AppContent: React.FC = () => {
         }}
         onCancel={() => {
           setInviteToken(null);
-          window.location.hash = '';
+          window.location.hash = "";
         }}
       />
     );
   }
 
   // Instance Admin Console View
-  if (activeTab === 'admin' && isAdmin) {
-    return <AdminPage onBack={() => navigateTo('overview')} />;
+  if (activeTab === "admin" && isAdmin) {
+    return <AdminPage onBack={() => navigateTo("overview")} />;
   }
 
   // If no tree is selected or user has 0 trees, show Tree Select Page
@@ -243,14 +243,16 @@ export const AppContent: React.FC = () => {
         onSelectTree={handleSelectTree}
         onRefreshTrees={loadTrees}
         isAdmin={isAdmin}
-        onNavigateAdmin={() => navigateTo('admin')}
+        onNavigateAdmin={() => navigateTo("admin")}
       />
     );
   }
 
   // Main Tree Workspace
   return (
-    <div className={`min-h-screen bg-stone-100/60 flex flex-col ${activeTab === 'graph' ? 'h-screen overflow-hidden' : ''}`}>
+    <div
+      className={`min-h-screen bg-stone-100/60 flex flex-col ${activeTab === "graph" ? "h-screen overflow-hidden" : ""}`}
+    >
       <Header
         currentTree={currentTree}
         trees={trees}
@@ -261,68 +263,70 @@ export const AppContent: React.FC = () => {
         isAdmin={isAdmin}
       />
 
-      <main className={`flex-1 ${activeTab === 'graph' ? 'overflow-hidden flex flex-col min-h-0' : 'pb-16'}`}>
-        {activeTab === 'overview' && (
+      <main
+        className={`flex-1 ${activeTab === "graph" ? "overflow-hidden flex flex-col min-h-0" : "pb-16"}`}
+      >
+        {activeTab === "overview" && (
           <OverviewView
             treeId={currentTree.id}
-            onNavigatePerson={(id) => navigateTo('person', id)}
+            onNavigatePerson={(id) => navigateTo("person", id)}
             onNavigateTab={(tab) => navigateTo(tab)}
             onOpenAddPerson={() => setAddPersonModalOpen(true)}
             onOpenAddRelationship={() => setAddRelationshipModalOpen(true)}
           />
         )}
 
-        {activeTab === 'people' && (
+        {activeTab === "people" && (
           <DirectoryView
             treeId={currentTree.id}
-            onNavigatePerson={(id) => navigateTo('person', id)}
-            onNavigateGraph={(id) => navigateTo('graph', id)}
-            onNavigateLineage={(id) => navigateTo('lineage', id)}
+            onNavigatePerson={(id) => navigateTo("person", id)}
+            onNavigateGraph={(id) => navigateTo("graph", id)}
+            onNavigateLineage={(id) => navigateTo("lineage", id)}
             onOpenAddPerson={() => setAddPersonModalOpen(true)}
           />
         )}
 
-        {activeTab === 'person' && selectedPersonId && (
+        {activeTab === "person" && selectedPersonId && (
           <PersonView
             treeId={currentTree.id}
             personId={selectedPersonId}
-            onBack={() => navigateTo('people')}
-            onNavigatePerson={(id) => navigateTo('person', id)}
-            onNavigateGraph={(id) => navigateTo('graph', id)}
-            onNavigateLineage={(id) => navigateTo('lineage', id)}
+            onBack={() => navigateTo("people")}
+            onNavigatePerson={(id) => navigateTo("person", id)}
+            onNavigateGraph={(id) => navigateTo("graph", id)}
+            onNavigateLineage={(id) => navigateTo("lineage", id)}
             onNavigateKinshipWith={(id) => {
               setKinshipAId(id);
-              navigateTo('kinship');
+              navigateTo("kinship");
             }}
           />
         )}
 
-        {activeTab === 'graph' && (
+        {activeTab === "graph" && (
           <GraphView
             treeId={currentTree.id}
             initialRootId={graphRootId || selectedPersonId || undefined}
-            onNavigatePerson={(id) => navigateTo('person', id)}
+            onNavigatePerson={(id) => navigateTo("person", id)}
           />
         )}
 
-        {activeTab === 'lineage' && (
+        {activeTab === "lineage" && (
           <LineageView
             treeId={currentTree.id}
             initialRootId={lineageRootId || selectedPersonId || undefined}
-            onNavigatePerson={(id) => navigateTo('person', id)}
+            onNavigatePerson={(id) => navigateTo("person", id)}
           />
         )}
 
-        {activeTab === 'kinship' && (
+        {activeTab === "kinship" && (
           <KinshipView
             treeId={currentTree.id}
             initialPersonAId={kinshipAId}
             initialPersonBId={kinshipBId}
-            onNavigatePerson={(id) => navigateTo('person', id)}
+            onNavigatePerson={(id) => navigateTo("person", id)}
           />
         )}
 
-        {activeTab === 'members' && (
+        {activeTab === "members" && (
           <MembersView treeId={currentTree.id} userRole={currentTree.role} />
         )}
       </main>
@@ -333,7 +337,7 @@ export const AppContent: React.FC = () => {
         onClose={() => setAddPersonModalOpen(false)}
         treeId={currentTree.id}
         onSuccess={(person) => {
-          navigateTo('person', person.id);
+          navigateTo("person", person.id);
         }}
       />
 

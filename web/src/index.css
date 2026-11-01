@@ -2,7 +2,9 @@
 
 @layer base {
   :root {
-    --font-sans: "Nyala", "Abyssinica SIL", "Noto Sans Ethiopic", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-sans:
+      "Nyala", "Abyssinica SIL", "Noto Sans Ethiopic", -apple-system, BlinkMacSystemFont,
+      "Segoe UI", Roboto, sans-serif;
     --color-bg: #faf9f6;
     --color-surface: #ffffff;
     --color-border: #e7e4dc;
