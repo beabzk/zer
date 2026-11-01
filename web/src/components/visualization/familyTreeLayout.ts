@@ -65,6 +65,25 @@ const SPOUSE_GAP = 56;     // Gap between married / union partners
 const V_TIER_GAP = 110;    // Vertical distance between generational levels
 const BRANCH_GAP = 72;     // Minimum clearance between maternal and paternal subtrees
 
+function distributeSpouses(allSpouseIds: string[]) {
+  const left: string[] = [];
+  const right: string[] = [];
+
+  allSpouseIds.forEach((sid, idx) => {
+    if (idx === 0) {
+      right.push(sid);
+    } else if (idx === 1) {
+      left.push(sid);
+    } else if (idx % 2 === 0) {
+      left.unshift(sid);
+    } else {
+      right.push(sid);
+    }
+  });
+
+  return { left, right };
+}
+
 export function buildFamilyTreeLayout(
   rootId: string,
   nodes: SubgraphNode[],
@@ -254,25 +273,6 @@ export function buildFamilyTreeLayout(
   const layoutUnions: LayoutUnion[] = [];
   const connectors: LayoutConnector[] = [];
   let overpassCount = 0;
-
-  const distributeSpouses = (allSpouseIds: string[]) => {
-    const left: string[] = [];
-    const right: string[] = [];
-
-    allSpouseIds.forEach((sid, idx) => {
-      if (idx === 0) {
-        right.push(sid);
-      } else if (idx === 1) {
-        left.push(sid);
-      } else if (idx % 2 === 0) {
-        left.unshift(sid);
-      } else {
-        right.push(sid);
-      }
-    });
-
-    return { left, right };
-  };
 
   const processCoupleUnion = (
     unionKey: string,
@@ -546,15 +546,15 @@ export function buildFamilyTreeLayout(
     }
 
     // In-law parents of spouse not yet visited or placed
-    const spouseParentIds = spouseId
+    const inLawParentIds = spouseId
       ? parentsOf.get(spouseId)?.filter((pid) => !visited.has(pid) && !cardMap.has(pid)) || []
       : [];
-    spouseParentIds.forEach((pid) => visited.add(pid));
+    inLawParentIds.forEach((pid) => visited.add(pid));
 
     // Siblings of spouse (other children of spouseParentIds in subgraph)
     const spouseSiblingSet = new Set<string>();
-    if (spouseId && spouseParentIds.length > 0) {
-      spouseParentIds.forEach((pid) => {
+    if (spouseId && inLawParentIds.length > 0) {
+      inLawParentIds.forEach((pid) => {
         childrenOf.get(pid)?.forEach((cid) => {
           if (cid !== spouseId && !visited.has(cid) && !cardMap.has(cid)) {
             spouseSiblingSet.add(cid);
@@ -572,9 +572,9 @@ export function buildFamilyTreeLayout(
     const coupleWidth = spouseId ? CARD_WIDTH + SPOUSE_GAP + spouseGroupWidth : CARD_WIDTH;
 
     const inLawParentsWidth =
-      spouseParentIds.length >= 2
+      inLawParentIds.length >= 2
         ? 2 * CARD_WIDTH + SPOUSE_GAP
-        : spouseParentIds.length === 1
+        : inLawParentIds.length === 1
         ? CARD_WIDTH
         : 0;
 
@@ -603,7 +603,7 @@ export function buildFamilyTreeLayout(
     return {
       childId,
       spouseId,
-      spouseParentIds,
+      spouseParentIds: inLawParentIds,
       spouseSiblingIds,
       childrenIds: nextChildren,
       width,
@@ -1289,9 +1289,9 @@ export function buildFamilyTreeLayout(
     if (childrenList.length > 0) {
       if (primarySpouseId) {
         const u = layoutUnions.find(
-          (u) =>
-            (u.partnerAId === effectiveRootId && u.partnerBId === primarySpouseId) ||
-            (u.partnerBId === effectiveRootId && u.partnerAId === primarySpouseId)
+          (union) =>
+            (union.partnerAId === effectiveRootId && union.partnerBId === primarySpouseId) ||
+            (union.partnerBId === effectiveRootId && union.partnerAId === primarySpouseId)
         ) || processCoupleUnion('root-spouse', effectiveRootId, primarySpouseId);
 
         const rCard = cardMap.get(effectiveRootId);

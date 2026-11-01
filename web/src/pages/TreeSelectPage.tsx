@@ -15,6 +15,11 @@ interface TreeSelectPageProps {
   onNavigateAdmin?: () => void;
 }
 
+const handleSignOut = async () => {
+  await authClient.signout();
+  window.location.reload();
+};
+
 export const TreeSelectPage: React.FC<TreeSelectPageProps> = ({
   trees,
   onSelectTree,
@@ -37,11 +42,6 @@ export const TreeSelectPage: React.FC<TreeSelectPageProps> = ({
     document.addEventListener('mousedown', handleOutside);
     return () => document.removeEventListener('mousedown', handleOutside);
   }, []);
-
-  const handleSignOut = async () => {
-    await authClient.signout();
-    window.location.reload();
-  };
 
   return (
     <div className="min-h-screen bg-stone-100/60 flex flex-col">

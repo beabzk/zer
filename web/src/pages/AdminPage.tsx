@@ -458,17 +458,17 @@ export const AdminPage: React.FC<AdminPageProps> = ({ onBack }) => {
               {t('admin.allTrees')}
             </div>
             <div className="divide-y divide-stone-100">
-              {trees.map((t) => (
-                <div key={t.id} className="px-6 py-3.5 flex items-center justify-between text-xs">
+              {trees.map((treeItem) => (
+                <div key={treeItem.id} className="px-6 py-3.5 flex items-center justify-between text-xs">
                   <div>
-                    <div className="font-semibold text-stone-900">{t.name}</div>
+                    <div className="font-semibold text-stone-900">{treeItem.name}</div>
                     <div className="text-stone-400 font-mono mt-0.5">
-                      Slug: /{t.slug} • {t.members} members
+                      Slug: /{treeItem.slug} • {treeItem.members} members
                     </div>
                   </div>
                   <div>
                     <button
-                      onClick={() => handleDeleteTree(t.id, t.name)}
+                      onClick={() => handleDeleteTree(treeItem.id, treeItem.name)}
                       className="px-2.5 py-1 text-red-600 hover:bg-red-50 rounded border border-red-200 cursor-pointer"
                     >
                       Drop Database

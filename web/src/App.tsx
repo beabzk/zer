@@ -69,7 +69,7 @@ export const AppContent: React.FC = () => {
 
     // Check for tree invite in hash: #tree-invite=TOKEN or #tree-invite?invite=TOKEN
     if (hash.startsWith('tree-invite')) {
-      const match = hash.match(/invite=([a-zA-Z0-9_\-]+)/);
+      const match = hash.match(/invite=([a-zA-Z0-9_-]+)/);
       if (match && match[1]) {
         setInviteToken(match[1]);
         return;

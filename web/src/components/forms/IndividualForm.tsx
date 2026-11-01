@@ -106,7 +106,7 @@ export const IndividualForm: React.FC<IndividualFormProps> = ({
         given_name_native: givenNameNative.trim(),
         given_name_latin: givenNameLatin.trim(),
         gender,
-        titles: titles ? titles.split(',').map((t) => t.trim()).filter(Boolean) : [],
+        titles: titles ? titles.split(',').map((item) => item.trim()).filter(Boolean) : [],
         profile_photo_url: profilePhotoUrl.trim(),
         birth_year_ec: birthYearEC,
         birth_month_ec: birthMonthEC,

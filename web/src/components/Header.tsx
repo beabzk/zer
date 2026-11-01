@@ -16,6 +16,12 @@ interface HeaderProps {
   isAdmin?: boolean;
 }
 
+const handleSignOut = async () => {
+  await authClient.signout();
+  window.location.hash = '';
+  window.location.reload();
+};
+
 export const Header: React.FC<HeaderProps> = ({
   currentTree,
   trees,
@@ -51,12 +57,6 @@ export const Header: React.FC<HeaderProps> = ({
     document.addEventListener('mousedown', handleOutside);
     return () => document.removeEventListener('mousedown', handleOutside);
   }, []);
-
-  const handleSignOut = async () => {
-    await authClient.signout();
-    window.location.hash = '';
-    window.location.reload();
-  };
 
   const navItems = [
     { id: 'overview', label: t('views.overview'), icon: Icons.Activity },

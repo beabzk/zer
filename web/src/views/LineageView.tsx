@@ -54,7 +54,7 @@ export const LineageView: React.FC<LineageViewProps> = ({
     nodesByDepth.set(node.depth, list);
   });
 
-  const sortedDepths = Array.from(nodesByDepth.keys()).sort((a, b) => a - b);
+  const sortedDepths = Array.from(nodesByDepth.keys()).toSorted((a, b) => a - b);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">

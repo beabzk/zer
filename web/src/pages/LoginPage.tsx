@@ -42,7 +42,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   useEffect(() => {
     const hash = window.location.hash;
     if (hash.includes('invite=')) {
-      const match = hash.match(/invite=([a-zA-Z0-9_\-]+)/);
+      const match = hash.match(/invite=([a-zA-Z0-9_-]+)/);
       if (match && match[1]) {
         setInviteToken(match[1]);
         setTab('signup');
