@@ -359,6 +359,17 @@ export function buildFamilyTreeLayout(
     return unionItem;
   };
 
+  const getChildRelType = (childId: string): "BIOLOGICAL" | "ADOPTIVE" | "FOSTER" => {
+    const pIds = parentsOf.get(childId) || [];
+    for (const pid of pIds) {
+      const info = edgeInfoMap.get(`${pid}->${childId}`);
+      if (info?.relType && info.relType !== "BIOLOGICAL") {
+        return info.relType;
+      }
+    }
+    return "BIOLOGICAL";
+  };
+
   const processDescentBranch = (
     descentKey: string,
     junctionX: number,
@@ -374,17 +385,6 @@ export function buildFamilyTreeLayout(
     const firstChild = validChildren[0];
     const parentBottomY = firstChild.y - V_TIER_GAP;
     const busY = parentBottomY + V_TIER_GAP * 0.45;
-
-    const getChildRelType = (childId: string): "BIOLOGICAL" | "ADOPTIVE" | "FOSTER" => {
-      const pIds = parentsOf.get(childId) || [];
-      for (const pid of pIds) {
-        const info = edgeInfoMap.get(`${pid}->${childId}`);
-        if (info?.relType && info.relType !== "BIOLOGICAL") {
-          return info.relType;
-        }
-      }
-      return "BIOLOGICAL";
-    };
 
     if (validChildren.length === 1) {
       const c = validChildren[0];
