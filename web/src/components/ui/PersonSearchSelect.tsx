@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from "react";
 import { api } from "../../lib/api";
 import type { PersonSummary } from "../../lib/types";
 import { Icons } from "./Icons";
-import { formatLifespan } from "../../lib/utils";
 import { useI18n } from "../../lib/i18nContext";
+import { PersonSelectedCard } from "./PersonSelectedCard";
+import { PersonSelectRow } from "./PersonSelectRow";
 
 interface PersonSearchSelectProps {
   treeId: string;
@@ -12,6 +13,7 @@ interface PersonSearchSelectProps {
   label?: string;
   placeholder?: string;
   excludeId?: string;
+  showLifespan?: boolean;
 }
 
 export const PersonSearchSelect: React.FC<PersonSearchSelectProps> = ({
@@ -21,6 +23,7 @@ export const PersonSearchSelect: React.FC<PersonSearchSelectProps> = ({
   label,
   placeholder,
   excludeId,
+  showLifespan = false,
 }) => {
   const { t } = useI18n();
   const resolvedPlaceholder = placeholder || t("common.searchPlaceholder");
@@ -89,37 +92,16 @@ export const PersonSearchSelect: React.FC<PersonSearchSelectProps> = ({
       )}
 
       {selectedPerson ? (
-        <div className="flex items-center justify-between p-2.5 rounded-lg border border-stone-200 bg-stone-50">
-          <div className="min-w-0 pr-2">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-stone-900 truncate text-[15px]">
-                {selectedPerson.full_native}
-              </span>
-              <span className="text-xs text-stone-500 truncate font-normal">
-                ({selectedPerson.full_latin})
-              </span>
-            </div>
-            <div className="text-xs text-stone-400 mt-0.5">
-              {formatLifespan(
-                selectedPerson.birth_year_ec,
-                selectedPerson.death_year_ec,
-                selectedPerson.is_deceased,
-                t("calendar.eraEC"),
-              )}
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedPerson(null);
-              onSelect(null);
-              setQuery("");
-            }}
-            className="text-stone-400 hover:text-stone-700 p-1 rounded-md hover:bg-stone-200/60 transition-colors cursor-pointer"
-          >
-            <Icons.X size={15} />
-          </button>
-        </div>
+        <PersonSelectedCard
+          person={selectedPerson}
+          onClear={() => {
+            setSelectedPerson(null);
+            onSelect(null);
+            setQuery("");
+          }}
+          showLifespan={showLifespan}
+          era={t("calendar.eraEC")}
+        />
       ) : (
         <div className="relative">
           <input
@@ -151,42 +133,17 @@ export const PersonSearchSelect: React.FC<PersonSearchSelectProps> = ({
           )}
           {!loading &&
             results.map((person) => (
-              <button
+              <PersonSelectRow
                 key={person.id}
-                type="button"
+                person={person}
                 onClick={() => {
                   setSelectedPerson(person);
                   onSelect(person);
                   setIsOpen(false);
                 }}
-                className="w-full text-left p-3 hover:bg-amber-50/60 transition-colors flex items-center justify-between cursor-pointer group"
-              >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-stone-900 group-hover:text-amber-900 text-sm">
-                      {person.full_native}
-                    </span>
-                    <span className="text-xs text-stone-500">({person.full_latin})</span>
-                  </div>
-                  <div className="text-xs text-stone-400 mt-0.5">
-                    {formatLifespan(
-                      person.birth_year_ec,
-                      person.death_year_ec,
-                      person.is_deceased,
-                      t("calendar.eraEC"),
-                    )}
-                  </div>
-                </div>
-                <span
-                  className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                    person.gender === "FEMALE"
-                      ? "bg-rose-50 text-rose-700"
-                      : "bg-stone-100 text-stone-700"
-                  }`}
-                >
-                  {person.gender === "FEMALE" ? t("person.female") : t("person.male")}
-                </span>
-              </button>
+                showLifespan={showLifespan}
+                era={t("calendar.eraEC")}
+              />
             ))}
         </div>
       )}

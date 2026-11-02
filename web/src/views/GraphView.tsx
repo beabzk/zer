@@ -5,13 +5,14 @@ import { api } from "../lib/api";
 import type { SubgraphResponse } from "../lib/types";
 import { Icons } from "../components/ui/Icons";
 import { PersonSearchSelect } from "../components/ui/PersonSearchSelect";
-import { formatLifespan } from "../lib/utils";
 import { useToast } from "../components/ui/Toast";
 import { useI18n } from "../lib/i18nContext";
 import {
   buildFamilyTreeLayout,
   type FamilyTreeLayoutResult,
 } from "../components/visualization/familyTreeLayout";
+import { CanvasPersonCard } from "../components/visualization/CanvasPersonCard";
+import { CanvasInspectorCard } from "../components/visualization/CanvasInspectorCard";
 
 interface GraphViewProps {
   treeId: string;
@@ -407,136 +408,16 @@ export const GraphView: React.FC<GraphViewProps> = ({
 
             {/* 3. Person Cards */}
             <g className="cards-layer">
-              {layout.cards.map((card) => {
-                const isSelected = selectedNodeId === card.id;
-                const isRoot = card.isRoot;
-                const isFemale = card.data.gender === "FEMALE";
-
-                return (
-                  <g
-                    key={card.id}
-                    transform={`translate(${card.x}, ${card.y})`}
-                    onClick={() => setSelectedNodeId(card.id)}
-                    onDoubleClick={() => setRootId(card.id)}
-                    className="cursor-pointer group"
-                  >
-                    {/* Active Selection Glow Ring */}
-                    {isSelected && (
-                      <rect
-                        x="-4"
-                        y="-4"
-                        width={card.width + 8}
-                        height={card.height + 8}
-                        rx="14"
-                        ry="14"
-                        fill="none"
-                        stroke="#d97706"
-                        strokeWidth="2"
-                        strokeDasharray="4 2"
-                      />
-                    )}
-
-                    {/* Card Body */}
-                    <rect
-                      width={card.width}
-                      height={card.height}
-                      rx="10"
-                      ry="10"
-                      fill="#ffffff"
-                      stroke={isRoot ? "#d97706" : isSelected ? "#b45309" : "#e7e5e4"}
-                      strokeWidth={isRoot ? "2.5" : isSelected ? "2" : "1"}
-                      filter={isRoot ? "url(#focusGlow)" : "url(#cardShadow)"}
-                      className="transition-all duration-150 group-hover:stroke-stone-400"
-                    />
-
-                    {/* Gender Color Accent Left Bar */}
-                    <rect
-                      x="0"
-                      y="0"
-                      width="4.5"
-                      height={card.height}
-                      rx="2"
-                      fill={isFemale ? "#f43f5e" : "#3b82f6"}
-                    />
-
-                    {/* Role Pill Badge */}
-                    {isRoot && (
-                      <g transform={`translate(${card.width - 54}, 8)`}>
-                        <rect width="46" height="18" rx="9" fill="#fef3c7" />
-                        <text
-                          x="23"
-                          y="12"
-                          textAnchor="middle"
-                          fontSize="9"
-                          fontWeight="700"
-                          fill="#92400e"
-                          className="font-sans pointer-events-none"
-                        >
-                          FOCUS
-                        </text>
-                      </g>
-                    )}
-
-                    {card.isSpouse && !isRoot && (
-                      <g transform={`translate(${card.width - 60}, 8)`}>
-                        <rect width="52" height="18" rx="9" fill="#f1f5f9" />
-                        <text
-                          x="26"
-                          y="12"
-                          textAnchor="middle"
-                          fontSize="9"
-                          fontWeight="600"
-                          fill="#475569"
-                          className="font-sans pointer-events-none"
-                        >
-                          SPOUSE
-                        </text>
-                      </g>
-                    )}
-
-                    {/* Primary Name (Native Script) */}
-                    <text
-                      x="14"
-                      y="26"
-                      fontSize="14.5"
-                      fontWeight="700"
-                      fill={isRoot ? "#92400e" : "#1c1917"}
-                      className="font-sans pointer-events-none"
-                    >
-                      {card.data.given_name_native}
-                    </text>
-
-                    {/* Secondary Name (Latin Transliteration) */}
-                    <text
-                      x="14"
-                      y="44"
-                      fontSize="11.5"
-                      fontWeight="500"
-                      fill="#57534e"
-                      className="font-sans pointer-events-none"
-                    >
-                      {card.data.given_name_latin}
-                    </text>
-
-                    {/* Lifespan */}
-                    <text
-                      x="14"
-                      y="61"
-                      fontSize="10"
-                      fontWeight="400"
-                      fill="#a8a29e"
-                      className="font-sans pointer-events-none"
-                    >
-                      {formatLifespan(
-                        card.data.birth_year_ec,
-                        card.data.death_year_ec,
-                        card.data.is_deceased,
-                        t("calendar.eraEC"),
-                      )}
-                    </text>
-                  </g>
-                );
-              })}
+              {layout.cards.map((card) => (
+                <CanvasPersonCard
+                  key={card.id}
+                  card={card}
+                  isSelected={selectedNodeId === card.id}
+                  era={t("calendar.eraEC")}
+                  onClick={() => setSelectedNodeId(card.id)}
+                  onDoubleClick={() => setRootId(card.id)}
+                />
+              ))}
             </g>
           </g>
         </svg>
@@ -544,67 +425,12 @@ export const GraphView: React.FC<GraphViewProps> = ({
 
       {/* Slide-out Inspector Drawer for Selected Node */}
       {selectedNode && (
-        <div className="absolute bottom-4 left-4 right-4 sm:right-auto sm:w-96 z-20 bg-white/95 backdrop-blur-md rounded-2xl border border-stone-200/90 p-5 shadow-2xl animate-in slide-in-from-bottom-3 duration-150 space-y-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <span
-                className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                  selectedNode.data.gender === "FEMALE"
-                    ? "bg-rose-50 text-rose-700"
-                    : "bg-stone-100 text-stone-700"
-                }`}
-              >
-                {selectedNode.data.gender === "FEMALE" ? t("person.female") : t("person.male")}
-              </span>
-              <h3 className="text-xl font-bold text-stone-900 mt-1">
-                {selectedNode.data.full_native}
-              </h3>
-              <p className="text-xs text-stone-500 font-normal">{selectedNode.data.full_latin}</p>
-            </div>
-            <button
-              onClick={() => setSelectedNodeId(null)}
-              className="text-stone-400 hover:text-stone-700 p-1 cursor-pointer rounded-md"
-              title="Close drawer"
-            >
-              <Icons.X size={15} />
-            </button>
-          </div>
-
-          {Boolean(
-            selectedNode.data.birth_year_ec ||
-            selectedNode.data.death_year_ec ||
-            selectedNode.data.is_deceased,
-          ) && (
-            <div className="text-xs text-stone-600">
-              {t("common.lifespan")}:{" "}
-              <span className="font-medium text-stone-900">
-                {formatLifespan(
-                  selectedNode.data.birth_year_ec,
-                  selectedNode.data.death_year_ec,
-                  selectedNode.data.is_deceased,
-                  t("calendar.eraEC"),
-                )}
-              </span>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-stone-100">
-            <button
-              onClick={() => onNavigatePerson(selectedNode.id)}
-              className="w-full py-2 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <Icons.User size={13} /> {t("workspace.profile")}
-            </button>
-            <button
-              onClick={() => {
-                setRootId(selectedNode.id);
-              }}
-              className="w-full py-2 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <Icons.Network size={13} /> {t("canvas.focus")}
-            </button>
-          </div>
-        </div>
+        <CanvasInspectorCard
+          node={selectedNode}
+          onClose={() => setSelectedNodeId(null)}
+          onNavigatePerson={onNavigatePerson}
+          onFocusPerson={(id) => setRootId(id)}
+        />
       )}
     </div>
   );

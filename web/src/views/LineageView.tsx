@@ -186,18 +186,12 @@ export const LineageView: React.FC<LineageViewProps> = ({
                                 : "bg-stone-50/70 hover:bg-white border-stone-200 shadow-2xs hover:shadow-md"
                             }`}
                           >
-                            <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center justify-between gap-2">
                               <span
-                                className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
-                                  isRoot
-                                    ? "bg-amber-400 text-stone-900"
-                                    : isFemale
-                                      ? "bg-rose-50 text-rose-700 border border-rose-100"
-                                      : "bg-stone-100 text-stone-700 border border-stone-200"
+                                className={`w-1.5 h-4 rounded-full ${
+                                  isRoot ? "bg-amber-400" : isFemale ? "bg-rose-400" : "bg-blue-400"
                                 }`}
-                              >
-                                {isFemale ? t("person.female") : t("person.male")}
-                              </span>
+                              />
 
                               <button
                                 onClick={() => onNavigatePerson(node.id)}

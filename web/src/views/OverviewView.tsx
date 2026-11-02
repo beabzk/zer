@@ -146,33 +146,31 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                   <div
                     key={p.id}
                     onClick={() => onNavigatePerson(p.id)}
-                    className="py-3 px-2 flex items-center justify-between hover:bg-amber-50/50 rounded-xl transition-colors cursor-pointer group"
+                    className="py-3 px-2 flex items-center justify-between hover:bg-stone-50 rounded-xl transition-colors cursor-pointer group"
                   >
-                    <div className="min-w-0 pr-3">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-stone-900 text-sm group-hover:text-amber-950 truncate">
-                          {p.full_native}
-                        </span>
-                        <span className="text-xs text-stone-500 truncate">({p.full_latin})</span>
-                      </div>
-                      <div className="text-xs text-stone-400 mt-0.5">
-                        {formatLifespan(
-                          p.birth_year_ec,
-                          p.death_year_ec,
-                          p.is_deceased,
-                          t("calendar.eraEC"),
-                        )}
+                    <div className="flex items-center gap-2.5 min-w-0 pr-3">
+                      <span
+                        className={`w-1 h-7 rounded-full shrink-0 ${
+                          p.gender === "FEMALE" ? "bg-rose-400" : "bg-blue-400"
+                        }`}
+                      />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-stone-900 text-sm group-hover:text-stone-950 truncate">
+                            {p.full_native}
+                          </span>
+                          <span className="text-xs text-stone-500 truncate">({p.full_latin})</span>
+                        </div>
+                        <div className="text-xs text-stone-400 mt-0.5">
+                          {formatLifespan(
+                            p.birth_year_ec,
+                            p.death_year_ec,
+                            p.is_deceased,
+                            t("calendar.eraEC"),
+                          )}
+                        </div>
                       </div>
                     </div>
-                    <span
-                      className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ${
-                        p.gender === "FEMALE"
-                          ? "bg-rose-50 text-rose-700"
-                          : "bg-stone-100 text-stone-700"
-                      }`}
-                    >
-                      {p.gender === "FEMALE" ? t("person.female") : t("person.male")}
-                    </span>
                   </div>
                 ))
               )}

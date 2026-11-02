@@ -228,24 +228,23 @@ export const DirectoryView: React.FC<DirectoryViewProps> = ({
                   onClick={() => onNavigatePerson(person.id)}
                   className="cursor-pointer min-w-0 flex-1 pr-4"
                 >
-                  <div className="flex items-baseline gap-2.5">
-                    <h3 className="font-bold text-stone-950 text-base group-hover:text-amber-900 transition-colors">
-                      {person.full_native}
-                    </h3>
-                    <span className="text-sm text-stone-500 font-normal">{person.full_latin}</span>
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      className={`w-1 h-5 rounded-full shrink-0 ${
+                        person.gender === "FEMALE" ? "bg-rose-400" : "bg-blue-400"
+                      }`}
+                    />
+                    <div className="flex items-baseline gap-2.5 min-w-0">
+                      <h3 className="font-bold text-stone-950 text-base group-hover:text-amber-900 transition-colors truncate">
+                        {person.full_native}
+                      </h3>
+                      <span className="text-sm text-stone-500 font-normal truncate">
+                        {person.full_latin}
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-3 mt-1 text-xs text-stone-500">
-                    <span
-                      className={`px-2 py-0.5 rounded-md text-[11px] font-medium ${
-                        person.gender === "FEMALE"
-                          ? "bg-rose-50 text-rose-700 border border-rose-100"
-                          : "bg-stone-100 text-stone-700 border border-stone-200"
-                      }`}
-                    >
-                      {person.gender === "FEMALE" ? t("person.female") : t("person.male")}
-                    </span>
-
+                  <div className="flex items-center gap-3 mt-1 pl-3.5 text-xs text-stone-500">
                     <span>
                       {formatLifespan(
                         person.birth_year_ec,
