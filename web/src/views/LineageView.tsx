@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { api } from "../lib/api";
-import type { LineageResponse, LineageNode } from "../lib/types";
+import type { LineageResponse } from "../lib/types";
 import { PersonSearchSelect } from "../components/ui/PersonSearchSelect";
-import { formatLifespan } from "../lib/utils";
 import { useToast } from "../components/ui/Toast";
 import { useI18n } from "../lib/i18nContext";
+import { buildLineageTreeLayout } from "../components/visualization/lineageTreeLayout";
+import { LineagePersonCard } from "../components/visualization/LineagePersonCard";
 
 interface LineageViewProps {
   treeId: string;
@@ -49,15 +50,21 @@ export const LineageView: React.FC<LineageViewProps> = ({
       .finally(() => setLoading(false));
   }, [treeId, rootId, direction, depth]);
 
-  // Group nodes by depth
-  const nodesByDepth = new Map<number, LineageNode[]>();
-  data?.nodes.forEach((node) => {
-    const list = nodesByDepth.get(node.depth) || [];
-    list.push(node);
-    nodesByDepth.set(node.depth, list);
-  });
-
-  const sortedDepths = Array.from(nodesByDepth.keys()).toSorted((a, b) => a - b);
+  // Build tree layout with centered root and bifurcation branches
+  const layout = useMemo(() => {
+    if (!data || data.nodes.length === 0) {
+      return {
+        nodes: [],
+        connectors: [],
+        tierHeaders: [],
+        width: 0,
+        height: 0,
+      };
+    }
+    return buildLineageTreeLayout(data.nodes, direction, {
+      paddingY: 48, // clearance for tier header labels at top
+    });
+  }, [data, direction]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -125,7 +132,7 @@ export const LineageView: React.FC<LineageViewProps> = ({
       </div>
 
       {/* Lineage Tree Grid / Horizontal Canvas */}
-      <div className="bg-white rounded-2xl border border-stone-200/80 p-6 sm:p-8 shadow-xs min-h-[500px] overflow-x-auto">
+      <div className="bg-white rounded-2xl border border-stone-200/80 p-6 sm:p-8 shadow-xs min-h-[500px] overflow-auto">
         {loading ? (
           <div className="py-24 text-center">
             <div className="w-8 h-8 border-2 border-stone-300 border-t-amber-700 rounded-full animate-spin mx-auto mb-3" />
@@ -137,115 +144,90 @@ export const LineageView: React.FC<LineageViewProps> = ({
             <p className="text-xs text-stone-500">{t("lineage.emptyDescription")}</p>
           </div>
         ) : (
-          <div className="space-y-6">
+          <div className="space-y-4">
             {data.truncated && (
               <div className="p-3 bg-amber-50 border border-amber-200/80 rounded-xl text-xs text-amber-900 flex items-center gap-2">
                 <span className="font-semibold">Notice:</span> {t("lineage.truncated")}
               </div>
             )}
 
-            {/* Generational Column Cards */}
-            <div className="flex items-start gap-8 min-w-max pb-4">
-              {sortedDepths.map((lvl) => {
-                const nodes = nodesByDepth.get(lvl) || [];
+            {/* Pedigree Horizontal Flow Canvas */}
+            <div
+              className="relative select-none pb-8"
+              style={{
+                minWidth: layout.width,
+                minHeight: layout.height,
+              }}
+            >
+              {/* Sticky-like Generational Column Tier Headers */}
+              {layout.tierHeaders.map((header) => {
                 const tierLabel =
-                  lvl === 0
+                  header.depth === 0
                     ? t("lineage.root")
                     : direction === "ancestors"
-                      ? lvl === 1
+                      ? header.depth === 1
                         ? t("workspace.parents")
-                        : `${t("workspace.ancestors")} +${lvl}`
-                      : lvl === 1
+                        : `${t("workspace.ancestors")} +${header.depth}`
+                      : header.depth === 1
                         ? t("workspace.children")
-                        : `${t("workspace.descendants")} -${lvl}`;
+                        : `${t("workspace.descendants")} -${header.depth}`;
 
                 return (
-                  <div key={lvl} className="w-64 flex flex-col space-y-3 shrink-0">
-                    {/* Header for this generational tier */}
-                    <div className="sticky top-0 bg-white/95 backdrop-blur-xs py-2 border-b border-stone-200 z-10 flex items-center justify-between">
-                      <span className="text-xs font-bold uppercase tracking-wider text-stone-800">
-                        {tierLabel}
-                      </span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-stone-100 text-stone-600 font-mono font-medium">
-                        {nodes.length}
-                      </span>
-                    </div>
-
-                    {/* Nodes in this tier */}
-                    <div className="space-y-3">
-                      {nodes.map((node, idx) => {
-                        const isRoot = node.id === rootId && lvl === 0;
-                        const isFemale = node.gender === "FEMALE";
-
-                        return (
-                          <div
-                            key={`${node.id}-${idx}`}
-                            className={`p-4 rounded-xl border transition-all duration-150 group ${
-                              isRoot
-                                ? "bg-stone-900 text-white border-stone-900 shadow-md ring-2 ring-amber-500/50"
-                                : "bg-stone-50/70 hover:bg-white border-stone-200 shadow-2xs hover:shadow-md"
-                            }`}
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <span
-                                className={`w-1.5 h-4 rounded-full ${
-                                  isRoot ? "bg-amber-400" : isFemale ? "bg-rose-400" : "bg-blue-400"
-                                }`}
-                              />
-
-                              <button
-                                onClick={() => onNavigatePerson(node.id)}
-                                className={`text-xs hover:underline cursor-pointer font-medium ${
-                                  isRoot ? "text-amber-300" : "text-stone-500 hover:text-stone-900"
-                                }`}
-                              >
-                                View
-                              </button>
-                            </div>
-
-                            <div
-                              onClick={() => onNavigatePerson(node.id)}
-                              className="mt-2 cursor-pointer"
-                            >
-                              <div
-                                className={`font-bold text-base tracking-tight truncate ${
-                                  isRoot
-                                    ? "text-white"
-                                    : "text-stone-900 group-hover:text-amber-900"
-                                }`}
-                              >
-                                {node.full_native}
-                              </div>
-                              <div
-                                className={`text-xs truncate ${
-                                  isRoot ? "text-stone-300" : "text-stone-500"
-                                }`}
-                              >
-                                {node.full_latin}
-                              </div>
-                            </div>
-
-                            <div
-                              className={`text-[11px] mt-2 pt-2 border-t font-mono ${
-                                isRoot
-                                  ? "border-stone-800 text-stone-400"
-                                  : "border-stone-100 text-stone-400"
-                              }`}
-                            >
-                              {formatLifespan(
-                                node.birth_year_ec,
-                                node.death_year_ec,
-                                node.is_deceased,
-                                t("calendar.eraEC"),
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                  <div
+                    key={`header-${header.depth}`}
+                    className="absolute top-0 flex items-center justify-between pb-1.5 border-b border-stone-200 text-xs font-bold uppercase tracking-wider text-stone-700"
+                    style={{
+                      left: header.x,
+                      width: header.width,
+                    }}
+                  >
+                    <span>{tierLabel}</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-stone-100 text-stone-600 font-mono font-medium">
+                      {header.count}
+                    </span>
                   </div>
                 );
               })}
+
+              {/* SVG Connector Lines Layer */}
+              <svg
+                className="absolute inset-0 pointer-events-none"
+                width={layout.width}
+                height={layout.height}
+              >
+                {layout.connectors.map((c) => (
+                  <path
+                    key={c.id}
+                    d={c.path}
+                    stroke="#cbd5e1"
+                    strokeWidth="1.75"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    fill="none"
+                  />
+                ))}
+              </svg>
+
+              {/* Interactive Node Cards Layer */}
+              {layout.nodes.map((layoutNode) => (
+                <div
+                  key={layoutNode.key}
+                  className="absolute"
+                  style={{
+                    left: layoutNode.x,
+                    top: layoutNode.y,
+                    width: layoutNode.width,
+                    height: layoutNode.height,
+                  }}
+                >
+                  <LineagePersonCard
+                    node={layoutNode.node}
+                    isRoot={layoutNode.isRoot}
+                    era={t("calendar.eraEC")}
+                    onClick={() => onNavigatePerson(layoutNode.node.id)}
+                  />
+                </div>
+              ))}
             </div>
           </div>
         )}
