@@ -57,7 +57,16 @@ func SynthesizeFullName(ctx context.Context, db *sql.DB, rootID string, depth in
 		}
 
 		if i == 0 && includeTitles && titlesJSON.Valid && titlesJSON.String != "" {
-			_ = json.Unmarshal([]byte(titlesJSON.String), &titles)
+			var rawTitles []string
+			if err := json.Unmarshal([]byte(titlesJSON.String), &rawTitles); err == nil {
+				for _, t := range rawTitles {
+					c := strings.TrimSpace(t)
+					c = strings.Trim(c, "[]\"'")
+					if c != "" {
+						titles = append(titles, c)
+					}
+				}
+			}
 		}
 		if script == ScriptNative {
 			names = append(names, nativeName)

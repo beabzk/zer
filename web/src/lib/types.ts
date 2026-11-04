@@ -14,6 +14,7 @@ export interface Tree {
   slug: string;
   description?: string;
   default_lang: string;
+  patronymic_depth?: number;
   role: Role;
 }
 
@@ -67,7 +68,7 @@ export interface IndividualRecord {
   given_name_native: string;
   given_name_latin: string;
   gender: Gender;
-  titles?: string | null;
+  titles?: string[] | string | null;
   titles_display_enabled?: number;
   birth_year_ec?: number | null;
   birth_month_ec?: number | null;

@@ -19,6 +19,7 @@ import { MembersView } from "./views/MembersView";
 import { IndividualForm } from "./components/forms/IndividualForm";
 import { RelationshipForm } from "./components/forms/RelationshipForm";
 import { TreeForm } from "./components/forms/TreeForm";
+import { TreeSettingsModal } from "./components/forms/TreeSettingsModal";
 
 export const AppContent: React.FC = () => {
   const toast = useToast();
@@ -48,6 +49,7 @@ export const AppContent: React.FC = () => {
   const [addPersonModalOpen, setAddPersonModalOpen] = useState(false);
   const [addRelationshipModalOpen, setAddRelationshipModalOpen] = useState(false);
   const [createTreeModalOpen, setCreateTreeModalOpen] = useState(false);
+  const [treeSettingsModalOpen, setTreeSettingsModalOpen] = useState(false);
 
   // Load Auth Config on mount
   useEffect(() => {
@@ -258,6 +260,7 @@ export const AppContent: React.FC = () => {
         trees={trees}
         onSelectTree={handleSelectTree}
         onOpenCreateTree={() => setCreateTreeModalOpen(true)}
+        onOpenTreeSettings={() => setTreeSettingsModalOpen(true)}
         activeTab={activeTab}
         onNavigateTab={(tab) => navigateTo(tab)}
         isAdmin={isAdmin}
@@ -361,6 +364,20 @@ export const AppContent: React.FC = () => {
           handleSelectTree(newTree);
         }}
       />
+
+      {/* Tree Settings Modal */}
+      {currentTree && (
+        <TreeSettingsModal
+          isOpen={treeSettingsModalOpen}
+          onClose={() => setTreeSettingsModalOpen(false)}
+          tree={currentTree}
+          onSuccess={(updated) => {
+            setCurrentTree(updated);
+            loadTrees();
+            navigateTo(activeTab);
+          }}
+        />
+      )}
     </div>
   );
 };

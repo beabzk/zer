@@ -46,6 +46,36 @@ func TestCreateAndGetIndividual(t *testing.T) {
 	}
 }
 
+func TestIndividualTitlesSanitization(t *testing.T) {
+	_, _, r := testSetup(t, 1)
+	treeID := createTree(t, r, "Titles")
+
+	// Person created with corrupt bracket titles
+	id1 := createPerson(t, r, treeID, map[string]any{
+		"given_name_native": "ቀዳማዊ", "given_name_latin": "First", "gender": "MALE",
+		"titles": []string{"[]", "   ", "[\"[]\"]"},
+	})
+	row1 := getPerson(t, r, treeID, id1, "")
+	titles1, ok := row1["titles"].([]any)
+	if !ok || len(titles1) != 0 {
+		t.Errorf("corrupt titles not sanitized, got: %+v", row1["titles"])
+	}
+
+	// Person created with valid titles
+	id2 := createPerson(t, r, treeID, map[string]any{
+		"given_name_native": "ቴዎድሮስ", "given_name_latin": "Tewodros", "gender": "MALE",
+		"titles": []string{"Ato", "Dr."},
+	})
+	row2 := getPerson(t, r, treeID, id2, "")
+	titles2, ok := row2["titles"].([]any)
+	if !ok || len(titles2) != 2 || titles2[0] != "Ato" || titles2[1] != "Dr." {
+		t.Errorf("valid titles not preserved, got: %+v", row2["titles"])
+	}
+	if row2["display_name"] != "Ato Dr. Tewodros" {
+		t.Errorf("display_name mismatch: got %v, want 'Ato Dr. Tewodros'", row2["display_name"])
+	}
+}
+
 func TestCreateIndividualValidation(t *testing.T) {
 	_, _, r := testSetup(t, 1)
 	treeID := createTree(t, r, "Valid")

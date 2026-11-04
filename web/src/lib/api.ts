@@ -96,9 +96,24 @@ export const api = {
     slug?: string;
     description?: string;
     default_lang?: string;
+    patronymic_depth?: number;
   }) =>
     request<Tree>("/api/v1/trees", {
       method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  updateTree: (
+    treeId: string,
+    body: {
+      name?: string;
+      description?: string;
+      default_lang?: string;
+      patronymic_depth?: number;
+    },
+  ) =>
+    request<Tree>(`/api/v1/trees/${treeId}`, {
+      method: "PUT",
       body: JSON.stringify(body),
     }),
 
@@ -140,8 +155,10 @@ export const api = {
       `/api/v1/trees/${treeId}/individuals/${id}${titles ? "?titles=1" : "?titles=0"}`,
     ),
 
-  getIndividualDetail: (treeId: string, id: string, depth = 3) =>
-    request<DetailResponse>(`/api/v1/trees/${treeId}/individuals/${id}/detail?depth=${depth}`),
+  getIndividualDetail: (treeId: string, id: string, depth?: number) =>
+    request<DetailResponse>(
+      `/api/v1/trees/${treeId}/individuals/${id}/detail${typeof depth === "number" ? `?depth=${depth}` : ""}`,
+    ),
 
   createIndividual: (treeId: string, body: Record<string, unknown>) =>
     request<IndividualRecord>(`/api/v1/trees/${treeId}/individuals`, {

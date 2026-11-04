@@ -41,8 +41,8 @@ func TestUpdateUnion(t *testing.T) {
 	}
 
 	for name, body := range map[string]map[string]any{
-		"unknown type":   {"partner_a_id": a, "partner_b_id": b, "union_type": "SPACE"},
-		"unknown status": {"partner_a_id": a, "partner_b_id": b, "status": "COMPLICATED"},
+		"unknown type":      {"partner_a_id": a, "partner_b_id": b, "union_type": "SPACE"},
+		"unknown status":    {"partner_a_id": a, "partner_b_id": b, "status": "COMPLICATED"},
 		"nothing to update": {"partner_a_id": a, "partner_b_id": b},
 	} {
 		if rec := doRequest(t, ownerRouter, http.MethodPut, unionPath, body); rec.Code != http.StatusBadRequest {

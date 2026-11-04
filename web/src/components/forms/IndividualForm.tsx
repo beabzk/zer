@@ -53,7 +53,17 @@ export const IndividualForm: React.FC<IndividualFormProps> = ({
       setGivenNameNative(individual.given_name_native || "");
       setGivenNameLatin(individual.given_name_latin || "");
       setGender(individual.gender || "MALE");
-      setTitles(individual.titles || "");
+      let initialTitles = "";
+      if (Array.isArray(individual.titles)) {
+        initialTitles = individual.titles
+          .map((s) => s.replace(/^[\["'\s]+|[\]"'\s]+$/g, "").trim())
+          .filter((s) => Boolean(s) && s !== "[]")
+          .join(", ");
+      } else if (typeof individual.titles === "string") {
+        const cleaned = individual.titles.replace(/^[\["'\s]+|[\]"'\s]+$/g, "").trim();
+        initialTitles = cleaned === "[]" ? "" : cleaned;
+      }
+      setTitles(initialTitles);
       setProfilePhotoUrl(individual.profile_photo_url || "");
 
       setBirthYearEC(individual.birth_year_ec || null);
@@ -112,8 +122,8 @@ export const IndividualForm: React.FC<IndividualFormProps> = ({
         titles: titles
           ? titles
               .split(",")
-              .map((item) => item.trim())
-              .filter(Boolean)
+              .map((item) => item.replace(/^[\["'\s]+|[\]"'\s]+$/g, "").trim())
+              .filter((s) => Boolean(s) && s !== "[]")
           : [],
         profile_photo_url: profilePhotoUrl.trim(),
         birth_year_ec: birthYearEC,

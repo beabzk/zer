@@ -40,7 +40,7 @@ type detailPermissions struct {
 }
 
 type detailResponse struct {
-	Individual  map[string]any    `json:"individual"`
+	Individual  map[string]any     `json:"individual"`
 	Parents     []detailPersonEdge `json:"parents"`
 	Children    []detailPersonEdge `json:"children"`
 	Unions      []detailUnion      `json:"unions"`
@@ -54,7 +54,11 @@ func (d Deps) handleGetIndividualDetail(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	id := chi.URLParam(r, "id")
-	depth := queryDepth(r, 3)
+	pDepth := m.PatronymicDepth
+	if pDepth <= 0 {
+		pDepth = 3
+	}
+	depth := queryDepth(r, pDepth)
 	person, err := d.fetchIndividualRow(r, db, id, depth, true)
 	if err != nil {
 		if err == errIndividualNotFound {
@@ -115,7 +119,7 @@ func (d Deps) detailEdges(r *http.Request, db *sql.DB, id string, depth int, par
 	}
 	type staged struct {
 		rel, personID, gender string
-		nameSource           bool
+		nameSource            bool
 	}
 	var list []staged
 	for rows.Next() {

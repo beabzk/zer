@@ -86,7 +86,7 @@ func (d Deps) handleGetIndividual(w http.ResponseWriter, r *http.Request) {
 // offset, and ordering are explicit at the response boundary while the
 // returned entries keep the lightweight selector shape used by pickers.
 func (d Deps) handleListIndividuals(w http.ResponseWriter, r *http.Request) {
-	db, _, ok := treeDB(w, r, d)
+	db, m, ok := treeDB(w, r, d)
 	if !ok {
 		return
 	}
@@ -149,10 +149,14 @@ func (d Deps) handleListIndividuals(w http.ResponseWriter, r *http.Request) {
 	}
 	// IDs resolve after the rows close because the pool holds a single
 	// connection and nested queries would deadlock.
+	pDepth := m.PatronymicDepth
+	if pDepth <= 0 {
+		pDepth = 3
+	}
 	out := []map[string]any{}
 	for _, person := range people {
-		native, _ := lineage.SynthesizeFullName(r.Context(), db, person.ID, 3, lineage.ScriptNative, false)
-		latin, _ := lineage.SynthesizeFullName(r.Context(), db, person.ID, 3, lineage.ScriptLatin, false)
+		native, _ := lineage.SynthesizeFullName(r.Context(), db, person.ID, pDepth, lineage.ScriptNative, false)
+		latin, _ := lineage.SynthesizeFullName(r.Context(), db, person.ID, pDepth, lineage.ScriptLatin, false)
 		out = append(out, map[string]any{
 			"id":            person.ID,
 			"full_native":   native,
@@ -311,7 +315,12 @@ func (d Deps) handleDeleteIndividual(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d Deps) respondIndividual(w http.ResponseWriter, r *http.Request, db *sql.DB, id string) {
-	row, err := d.fetchIndividualRow(r, db, id, queryDepth(r, 3), r.URL.Query().Get("titles") != "0")
+	m := memberFrom(r)
+	pDepth := m.PatronymicDepth
+	if pDepth <= 0 {
+		pDepth = 3
+	}
+	row, err := d.fetchIndividualRow(r, db, id, queryDepth(r, pDepth), r.URL.Query().Get("titles") != "0")
 	if err != nil {
 		if err == errIndividualNotFound {
 			writeError(w, http.StatusNotFound, "individual not found")
@@ -348,6 +357,25 @@ func (d Deps) fetchIndividualRow(r *http.Request, db *sql.DB, id string, depth i
 	for i, c := range cols {
 		row[c] = vals[i]
 	}
+	// Sanitize and parse titles into a clean []string slice
+	var titlesList []string
+	if rawStr, ok := row["titles"].(string); ok && rawStr != "" {
+		var parsed []string
+		if err := json.Unmarshal([]byte(rawStr), &parsed); err == nil {
+			for _, t := range parsed {
+				t = strings.TrimSpace(t)
+				t = strings.Trim(t, "[]\"'")
+				if t != "" {
+					titlesList = append(titlesList, t)
+				}
+			}
+		}
+	}
+	if titlesList == nil {
+		titlesList = []string{}
+	}
+	row["titles"] = titlesList
+
 	native, err := lineage.SynthesizeFullName(r.Context(), db, id, depth, lineage.ScriptNative, false)
 	if err != nil {
 		return nil, err
@@ -398,7 +426,18 @@ func individualColumns(body individualBody, create bool) ([]string, []any, error
 		set("gender", body.Gender)
 	}
 	if body.Titles != nil {
-		raw, err := json.Marshal(body.Titles)
+		var cleaned []string
+		for _, t := range body.Titles {
+			c := strings.TrimSpace(t)
+			c = strings.Trim(c, "[]\"'")
+			if c != "" {
+				cleaned = append(cleaned, c)
+			}
+		}
+		if cleaned == nil {
+			cleaned = []string{}
+		}
+		raw, err := json.Marshal(cleaned)
 		if err != nil {
 			return nil, nil, fmt.Errorf("invalid titles")
 		}

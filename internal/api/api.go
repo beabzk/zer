@@ -86,6 +86,8 @@ type Member struct {
 	Role   string
 	// Admin marks instance admins, who bypass membership checks.
 	Admin bool
+	// PatronymicDepth holds the configured name generation depth for this tree.
+	PatronymicDepth int
 }
 
 // Mount registers /api/v1 routes on r. Tests use mount with a stub session
@@ -121,6 +123,7 @@ func mount(r chi.Router, d Deps, sessionMW func(http.Handler) http.Handler) {
 			})
 			r.Route("/trees/{treeID}", func(r chi.Router) {
 				r.Use(d.requireMember(RoleViewer))
+				r.With(d.requireMember(RoleAdmin)).Put("/", d.handleUpdateTree)
 				r.Get("/stats", d.handleTreeStats)
 				r.Get("/overview", d.handleTreeOverview)
 				r.With(d.requireMember(RoleAdmin)).Post("/members", d.handleAddMember)
@@ -177,18 +180,22 @@ func (d Deps) requireMember(minRole string) func(http.Handler) http.Handler {
 				writeInternalError(w, r, err)
 				return
 			}
-			var registered int
-			if err := master.QueryRowContext(r.Context(),
-				`SELECT COUNT(*) FROM trees WHERE id = ?`, treeID).Scan(&registered); err != nil {
+			var pDepth int
+			err = master.QueryRowContext(r.Context(),
+				`SELECT patronymic_depth FROM trees WHERE id = ?`, treeID).Scan(&pDepth)
+			if err != nil {
+				if err == sql.ErrNoRows {
+					writeError(w, http.StatusNotFound, "tree not found")
+					return
+				}
 				writeInternalError(w, r, err)
 				return
 			}
-			if registered == 0 {
-				writeError(w, http.StatusNotFound, "tree not found")
-				return
+			if pDepth <= 0 {
+				pDepth = 3
 			}
 			var role string
-			member := Member{TreeID: treeID, UserID: userID}
+			member := Member{TreeID: treeID, UserID: userID, PatronymicDepth: pDepth}
 			err = master.QueryRowContext(r.Context(),
 				`SELECT role FROM tree_members WHERE tree_id = ? AND user_id = ?`,
 				treeID, userID).Scan(&role)

@@ -11,19 +11,28 @@ import (
 )
 
 type createTreeBody struct {
-	Name        string `json:"name"`
-	Slug        string `json:"slug"`
-	Description string `json:"description"`
-	DefaultLang string `json:"default_lang"`
+	Name            string `json:"name"`
+	Slug            string `json:"slug"`
+	Description     string `json:"description"`
+	DefaultLang     string `json:"default_lang"`
+	PatronymicDepth int    `json:"patronymic_depth"`
+}
+
+type updateTreeBody struct {
+	Name            *string `json:"name"`
+	Description     *string `json:"description"`
+	DefaultLang     *string `json:"default_lang"`
+	PatronymicDepth *int    `json:"patronymic_depth"`
 }
 
 type treeResponse struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Slug        string `json:"slug"`
-	Description string `json:"description,omitempty"`
-	DefaultLang string `json:"default_lang"`
-	Role        string `json:"role,omitempty"`
+	ID              string `json:"id"`
+	Name            string `json:"name"`
+	Slug            string `json:"slug"`
+	Description     string `json:"description,omitempty"`
+	DefaultLang     string `json:"default_lang"`
+	PatronymicDepth int    `json:"patronymic_depth"`
+	Role            string `json:"role,omitempty"`
 }
 
 func (d Deps) handleCreateTree(w http.ResponseWriter, r *http.Request) {
@@ -62,6 +71,11 @@ func (d Deps) handleCreateTree(w http.ResponseWriter, r *http.Request) {
 		lang = "en"
 	}
 
+	pDepth := body.PatronymicDepth
+	if pDepth <= 0 {
+		pDepth = 3
+	}
+
 	id := uuid.NewString()
 	master, err := d.Manager.Master(r.Context())
 	if err != nil {
@@ -84,9 +98,9 @@ func (d Deps) handleCreateTree(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 	if _, err := tx.ExecContext(r.Context(),
-		`INSERT INTO trees (id, name, slug, description, default_lang, created_by)
-		VALUES (?, ?, ?, ?, ?, ?)`,
-		id, body.Name, slug, nullIfEmpty(body.Description), lang, userID); err != nil {
+		`INSERT INTO trees (id, name, slug, description, default_lang, patronymic_depth, created_by)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		id, body.Name, slug, nullIfEmpty(body.Description), lang, pDepth, userID); err != nil {
 		if strings.Contains(err.Error(), "UNIQUE") {
 			writeError(w, http.StatusConflict, "slug already exists")
 			return
@@ -111,7 +125,7 @@ func (d Deps) handleCreateTree(w http.ResponseWriter, r *http.Request) {
 	committed = true
 	writeJSON(w, http.StatusCreated, treeResponse{
 		ID: id, Name: body.Name, Slug: slug,
-		Description: body.Description, DefaultLang: lang, Role: RoleOwner,
+		Description: body.Description, DefaultLang: lang, PatronymicDepth: pDepth, Role: RoleOwner,
 	})
 }
 
@@ -132,7 +146,7 @@ func (d Deps) handleListTrees(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rows, err := master.QueryContext(r.Context(),
-		`SELECT t.id, t.name, t.slug, t.description, t.default_lang, m.role
+		`SELECT t.id, t.name, t.slug, t.description, t.default_lang, t.patronymic_depth, m.role
 		FROM trees t JOIN tree_members m ON m.tree_id = t.id
 		WHERE m.user_id = ? ORDER BY t.name`, userID)
 	if err != nil {
@@ -144,7 +158,7 @@ func (d Deps) handleListTrees(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var tr treeResponse
 		var desc *string
-		if err := rows.Scan(&tr.ID, &tr.Name, &tr.Slug, &desc, &tr.DefaultLang, &tr.Role); err != nil {
+		if err := rows.Scan(&tr.ID, &tr.Name, &tr.Slug, &desc, &tr.DefaultLang, &tr.PatronymicDepth, &tr.Role); err != nil {
 			writeInternalError(w, r, err)
 			return
 		}
@@ -158,6 +172,73 @@ func (d Deps) handleListTrees(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, trees)
+}
+
+func (d Deps) handleUpdateTree(w http.ResponseWriter, r *http.Request) {
+	m := memberFrom(r)
+	var body updateTreeBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid JSON body")
+		return
+	}
+	master, err := d.Manager.Master(r.Context())
+	if err != nil {
+		writeInternalError(w, r, err)
+		return
+	}
+	var setClauses []string
+	var args []any
+	if body.Name != nil {
+		name := strings.TrimSpace(*body.Name)
+		if name == "" {
+			writeError(w, http.StatusBadRequest, "name cannot be empty")
+			return
+		}
+		setClauses = append(setClauses, "name = ?")
+		args = append(args, name)
+	}
+	if body.Description != nil {
+		setClauses = append(setClauses, "description = ?")
+		args = append(args, nullIfEmpty(strings.TrimSpace(*body.Description)))
+	}
+	if body.DefaultLang != nil {
+		lang := strings.TrimSpace(*body.DefaultLang)
+		if lang == "" {
+			lang = "en"
+		}
+		setClauses = append(setClauses, "default_lang = ?")
+		args = append(args, lang)
+	}
+	if body.PatronymicDepth != nil {
+		depth := *body.PatronymicDepth
+		if depth < 2 || depth > 9 {
+			writeError(w, http.StatusBadRequest, "patronymic_depth must be between 2 and 9")
+			return
+		}
+		setClauses = append(setClauses, "patronymic_depth = ?")
+		args = append(args, depth)
+	}
+	if len(setClauses) > 0 {
+		args = append(args, m.TreeID)
+		query := "UPDATE trees SET " + strings.Join(setClauses, ", ") + " WHERE id = ?"
+		if _, err := master.ExecContext(r.Context(), query, args...); err != nil {
+			writeInternalError(w, r, err)
+			return
+		}
+	}
+	var tr treeResponse
+	var desc *string
+	if err := master.QueryRowContext(r.Context(),
+		`SELECT id, name, slug, description, default_lang, patronymic_depth FROM trees WHERE id = ?`,
+		m.TreeID).Scan(&tr.ID, &tr.Name, &tr.Slug, &desc, &tr.DefaultLang, &tr.PatronymicDepth); err != nil {
+		writeInternalError(w, r, err)
+		return
+	}
+	if desc != nil {
+		tr.Description = *desc
+	}
+	tr.Role = m.Role
+	writeJSON(w, http.StatusOK, tr)
 }
 
 func (d Deps) handleTreeStats(w http.ResponseWriter, r *http.Request) {

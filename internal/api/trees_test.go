@@ -48,7 +48,7 @@ func TestCreateListStatsTrees(t *testing.T) {
 	}
 	var trees []treeResponse
 	decodeBody(t, rec, &trees)
-	if len(trees) != 1 || trees[0].ID != id || trees[0].Slug != "demo-lineage" {
+	if len(trees) != 1 || trees[0].ID != id || trees[0].Slug != "demo-lineage" || trees[0].PatronymicDepth != 3 {
 		t.Fatalf("unexpected list: %+v", trees)
 	}
 
@@ -74,6 +74,41 @@ func TestCreateTreeValidation(t *testing.T) {
 	rec = doRequest(t, r, http.MethodPost, "/api/v1/trees", map[string]any{"name": "Dup"})
 	if rec.Code != http.StatusConflict {
 		t.Errorf("duplicate slug: status = %d, want 409", rec.Code)
+	}
+}
+
+func TestUpdateTree(t *testing.T) {
+	_, _, r := testSetup(t, 1)
+
+	id := createTree(t, r, "Initial Tree")
+
+	rec := doRequest(t, r, http.MethodPut, "/api/v1/trees/"+id, map[string]any{
+		"name":             "Updated Tree",
+		"patronymic_depth": 5,
+		"default_lang":     "am",
+	})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("update tree: status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var tr treeResponse
+	decodeBody(t, rec, &tr)
+	if tr.Name != "Updated Tree" || tr.PatronymicDepth != 5 || tr.DefaultLang != "am" {
+		t.Fatalf("unexpected tree response: %+v", tr)
+	}
+
+	// Verify patronymic_depth limits
+	rec = doRequest(t, r, http.MethodPut, "/api/v1/trees/"+id, map[string]any{
+		"patronymic_depth": 1,
+	})
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("depth 1: status = %d, want 400", rec.Code)
+	}
+
+	rec = doRequest(t, r, http.MethodPut, "/api/v1/trees/"+id, map[string]any{
+		"patronymic_depth": 10,
+	})
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("depth 10: status = %d, want 400", rec.Code)
 	}
 }
 

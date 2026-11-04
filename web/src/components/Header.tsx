@@ -11,6 +11,7 @@ interface HeaderProps {
   trees: Tree[];
   onSelectTree: (tree: Tree) => void;
   onOpenCreateTree: () => void;
+  onOpenTreeSettings?: () => void;
   activeTab: string;
   onNavigateTab: (tab: string) => void;
   isAdmin?: boolean;
@@ -27,6 +28,7 @@ export const Header: React.FC<HeaderProps> = ({
   trees,
   onSelectTree,
   onOpenCreateTree,
+  onOpenTreeSettings,
   activeTab,
   onNavigateTab,
   isAdmin,
@@ -139,7 +141,18 @@ export const Header: React.FC<HeaderProps> = ({
                         </button>
                       ))}
                     </div>
-                    <div className="pt-1.5 mt-1 border-t border-stone-100 px-2">
+                    <div className="pt-1.5 mt-1 border-t border-stone-100 px-2 space-y-0.5">
+                      {(currentTree.role === "OWNER" || currentTree.role === "ADMIN") && onOpenTreeSettings && (
+                        <button
+                          onClick={() => {
+                            setTreeMenuOpen(false);
+                            onOpenTreeSettings();
+                          }}
+                          className="w-full text-left px-2 py-1.5 text-xs text-stone-700 hover:bg-stone-100 rounded-lg flex items-center gap-2 font-medium transition-colors cursor-pointer"
+                        >
+                          <Icons.Settings size={14} className="text-stone-500" /> Tree Settings
+                        </button>
+                      )}
                       <button
                         onClick={() => {
                           setTreeMenuOpen(false);

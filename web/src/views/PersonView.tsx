@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { api } from "../lib/api";
 import type { DetailResponse, IndividualRecord, OverviewEvent } from "../lib/types";
 import { Icons } from "../components/ui/Icons";
@@ -48,7 +48,7 @@ export const PersonView: React.FC<PersonViewProps> = ({
   const loadPerson = () => {
     setLoading(true);
     api
-      .getIndividualDetail(treeId, personId, 4)
+      .getIndividualDetail(treeId, personId)
       .then(setData)
       .catch((err) => toast.error(err.message))
       .finally(() => setLoading(false));
@@ -97,6 +97,22 @@ export const PersonView: React.FC<PersonViewProps> = ({
       toast.error(msg);
     }
   };
+
+  const formattedTitles = useMemo(() => {
+    const titles = data?.individual?.titles;
+    if (!titles) return "";
+    if (Array.isArray(titles)) {
+      return titles
+        .map((t) => (typeof t === "string" ? t.replace(/^[\["'\s]+|[\]"'\s]+$/g, "").trim() : ""))
+        .filter((t) => Boolean(t) && t !== "[]")
+        .join(", ");
+    }
+    if (typeof titles === "string") {
+      const cleaned = titles.replace(/^[\["'\s]+|[\]"'\s]+$/g, "").trim();
+      return cleaned === "[]" ? "" : cleaned;
+    }
+    return "";
+  }, [data?.individual?.titles]);
 
   if (loading && !data) {
     return (
@@ -170,9 +186,9 @@ export const PersonView: React.FC<PersonViewProps> = ({
                   </span>
                 )}
 
-                {individual.titles && (
+                {formattedTitles && (
                   <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200/50 font-medium">
-                    {individual.titles}
+                    {formattedTitles}
                   </span>
                 )}
               </div>

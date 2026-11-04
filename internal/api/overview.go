@@ -65,8 +65,8 @@ func (d Deps) handleTreeOverview(w http.ResponseWriter, r *http.Request) {
 	var meta treeResponse
 	var desc *string
 	if err := master.QueryRowContext(r.Context(),
-		`SELECT id, name, slug, description, default_lang FROM trees WHERE id = ?`,
-		m.TreeID).Scan(&meta.ID, &meta.Name, &meta.Slug, &desc, &meta.DefaultLang); err != nil {
+		`SELECT id, name, slug, description, default_lang, patronymic_depth FROM trees WHERE id = ?`,
+		m.TreeID).Scan(&meta.ID, &meta.Name, &meta.Slug, &desc, &meta.DefaultLang, &meta.PatronymicDepth); err != nil {
 		writeInternalError(w, r, err)
 		return
 	}
@@ -91,12 +91,17 @@ func (d Deps) handleTreeOverview(w http.ResponseWriter, r *http.Request) {
 		Members:     members,
 	}
 
-	recent, err := d.overviewRecentPeople(r, db)
+	pDepth := m.PatronymicDepth
+	if pDepth <= 0 {
+		pDepth = 3
+	}
+
+	recent, err := d.overviewRecentPeople(r, db, pDepth)
 	if err != nil {
 		writeInternalError(w, r, err)
 		return
 	}
-	events, err := d.overviewRecentEvents(r, db)
+	events, err := d.overviewRecentEvents(r, db, pDepth)
 	if err != nil {
 		writeInternalError(w, r, err)
 		return
@@ -106,7 +111,10 @@ func (d Deps) handleTreeOverview(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (d Deps) overviewRecentPeople(r *http.Request, db *sql.DB) ([]overviewPerson, error) {
+func (d Deps) overviewRecentPeople(r *http.Request, db *sql.DB, depth int) ([]overviewPerson, error) {
+	if depth <= 0 {
+		depth = 3
+	}
 	rows, err := db.QueryContext(r.Context(),
 		`SELECT id, gender, birth_year_ec, death_year_ec, is_deceased, updated_at FROM individuals
 		ORDER BY updated_at DESC, rowid DESC LIMIT ?`, overviewRecentPeople)
@@ -133,15 +141,18 @@ func (d Deps) overviewRecentPeople(r *http.Request, db *sql.DB) ([]overviewPerso
 	// connection and nested queries would deadlock.
 	out := []overviewPerson{}
 	for _, p := range ids {
-		native, _ := lineage.SynthesizeFullName(r.Context(), db, p.ID, 3, lineage.ScriptNative, false)
-		latin, _ := lineage.SynthesizeFullName(r.Context(), db, p.ID, 3, lineage.ScriptLatin, false)
+		native, _ := lineage.SynthesizeFullName(r.Context(), db, p.ID, depth, lineage.ScriptNative, false)
+		latin, _ := lineage.SynthesizeFullName(r.Context(), db, p.ID, depth, lineage.ScriptLatin, false)
 		p.FullNative, p.FullLatin = native, latin
 		out = append(out, p)
 	}
 	return out, nil
 }
 
-func (d Deps) overviewRecentEvents(r *http.Request, db *sql.DB) ([]overviewEvent, error) {
+func (d Deps) overviewRecentEvents(r *http.Request, db *sql.DB, depth int) ([]overviewEvent, error) {
+	if depth <= 0 {
+		depth = 3
+	}
 	rows, err := db.QueryContext(r.Context(),
 		`SELECT id, individual_id, event_type, event_date_gc,
 			event_year_ec, event_place, description
@@ -167,8 +178,8 @@ func (d Deps) overviewRecentEvents(r *http.Request, db *sql.DB) ([]overviewEvent
 	// connection and nested queries would deadlock.
 	out := []overviewEvent{}
 	for _, ev := range staged {
-		native, _ := lineage.SynthesizeFullName(r.Context(), db, ev.IndividualID, 3, lineage.ScriptNative, false)
-		latin, _ := lineage.SynthesizeFullName(r.Context(), db, ev.IndividualID, 3, lineage.ScriptLatin, false)
+		native, _ := lineage.SynthesizeFullName(r.Context(), db, ev.IndividualID, depth, lineage.ScriptNative, false)
+		latin, _ := lineage.SynthesizeFullName(r.Context(), db, ev.IndividualID, depth, lineage.ScriptLatin, false)
 		ev.FullNative, ev.FullLatin = native, latin
 		out = append(out, ev)
 	}
